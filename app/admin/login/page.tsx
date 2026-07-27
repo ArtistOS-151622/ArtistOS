@@ -3,8 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { FloatingInput } from "@/components/common/shared/floating-input"
 import { BrandMark } from "@/components/common/brand/brand-logo"
 import { ShieldAlert, Loader2 } from "lucide-react"
 
@@ -60,18 +59,14 @@ export default function AdminLogin() {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="h-12 rounded-xl"
-              required
-            />
-          </div>
+          <FloatingInput
+            id="password"
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
           {error && (
             <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600 border border-red-100">

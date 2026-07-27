@@ -5,8 +5,7 @@ import { useHeaderContext } from "@/components/common/dashboard/dashboard-header
 import { Loader2, Save, AlertTriangle, Shield, HardDrive, Percent, Server } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { FloatingInput } from "@/components/common/shared/floating-input"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -127,35 +126,26 @@ export default function AdminSettingsPage() {
                 <div key={plan.id} className="relative group">
                   {index > 0 && <div className="absolute -top-4 left-0 right-0 h-px bg-slate-100" />}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
-                    <div className="md:col-span-5 space-y-2">
-                      <Label className="text-slate-500">Plan Name</Label>
-                      <Input 
-                        value={plan.name} 
-                        onChange={e => setPlans(plans.map(p => p.id === plan.id ? {...p, name: e.target.value} : p))}
-                        className="h-11 rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-red-500"
-                      />
-                    </div>
-                    <div className="md:col-span-3 space-y-2">
-                      <Label className="text-slate-500">Storage (MB)</Label>
-                      <Input 
-                        type="number"
-                        value={formatBytesToMB(plan.storage_bytes)}
-                        onChange={e => setPlans(plans.map(p => p.id === plan.id ? {...p, storage_bytes: formatMBToBytes(Number(e.target.value))} : p))}
-                        className="h-11 rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-red-500"
-                      />
-                    </div>
-                    <div className="md:col-span-4 space-y-2">
-                      <Label className="text-slate-500">Price (INR)</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-3 text-slate-400">₹</span>
-                        <Input 
-                          type="number"
-                          value={plan.price_inr} 
-                          onChange={e => setPlans(plans.map(p => p.id === plan.id ? {...p, price_inr: Number(e.target.value)} : p))}
-                          className="h-11 pl-8 rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-red-500"
-                        />
-                      </div>
-                    </div>
+                    <FloatingInput
+                      label="Plan Name"
+                      value={plan.name}
+                      onChange={e => setPlans(plans.map(p => p.id === plan.id ? {...p, name: e.target.value} : p))}
+                      containerClassName="md:col-span-5"
+                    />
+                    <FloatingInput
+                      label="Storage (MB)"
+                      type="number"
+                      value={formatBytesToMB(plan.storage_bytes)}
+                      onChange={e => setPlans(plans.map(p => p.id === plan.id ? {...p, storage_bytes: formatMBToBytes(Number(e.target.value))} : p))}
+                      containerClassName="md:col-span-3"
+                    />
+                    <FloatingInput
+                      label="Price (₹)"
+                      type="number"
+                      value={plan.price_inr}
+                      onChange={e => setPlans(plans.map(p => p.id === plan.id ? {...p, price_inr: Number(e.target.value)} : p))}
+                      containerClassName="md:col-span-4"
+                    />
                   </div>
                 </div>
               ))}
@@ -182,20 +172,14 @@ export default function AdminSettingsPage() {
             </div>
 
             <div className="max-w-md space-y-6">
-              <div className="space-y-3">
-                <Label className="text-slate-700 font-semibold">Global GST Rate (%)</Label>
-                <div className="relative">
-                  <Input 
-                    type="number"
-                    step="0.01"
-                    value={settings.global_gst_rate ? Number(settings.global_gst_rate) * 100 : 18}
-                    onChange={(e) => setSettings({...settings, global_gst_rate: String(Number(e.target.value) / 100)})}
-                    className="h-12 pl-4 pr-10 rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-red-500 text-lg"
-                  />
-                  <span className="absolute right-4 top-3 text-slate-400 font-medium">%</span>
-                </div>
-                <p className="text-xs text-slate-500">Currently applied to storage plan purchases at checkout.</p>
-              </div>
+              <FloatingInput
+                label="Global GST Rate (%)"
+                type="number"
+                step="0.01"
+                value={settings.global_gst_rate ? Number(settings.global_gst_rate) * 100 : 18}
+                onChange={(e) => setSettings({...settings, global_gst_rate: String(Number(e.target.value) / 100)})}
+              />
+              <p className="text-xs text-slate-500">Currently applied to storage plan purchases at checkout.</p>
 
               <Button 
                 onClick={handleSaveSettings}

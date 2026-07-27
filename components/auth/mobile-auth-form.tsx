@@ -7,6 +7,7 @@ import { ArrowRight, Lock, Mail, MapPin, Store, User } from "lucide-react"
 
 import { CheckItem } from "@/components/common/shared/check-item"
 import { BrandLogo } from "@/components/common/brand/brand-logo"
+import { FloatingInput, FloatingPhoneInput } from "@/components/common/shared/floating-input"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -15,7 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Input, PhoneInput } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 type MobileAuthFormProps = {
@@ -179,110 +179,74 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {isSignup ? (
                   <>
-                    {/* Artist Name */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="artistName">Artist name <span className="text-red-500">*</span></Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
-                        <Input
-                          id="artistName"
-                          type="text"
-                          required
-                          disabled={loading}
-                          value={artistName}
-                          onChange={(e) => setArtistName(e.target.value)}
-                          placeholder="e.g. Riya Sharma"
-                          className="pl-9"
-                        />
-                      </div>
-                    </div>
+                    <FloatingInput
+                      id="artistName"
+                      label="Artist name *"
+                      icon={<User className="size-3.5" />}
+                      type="text"
+                      required
+                      disabled={loading}
+                      value={artistName}
+                      onChange={(e) => setArtistName(e.target.value)}
+                    />
 
-                    {/* Studio Name */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="studioName">Studio name <span className="text-red-500">*</span></Label>
-                      <div className="relative">
-                        <Store className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
-                        <Input
-                          id="studioName"
-                          type="text"
-                          required
-                          disabled={loading}
-                          value={studioName}
-                          onChange={(e) => setStudioName(e.target.value)}
-                          placeholder="e.g. Glow & Shine Salon"
-                          className="pl-9"
-                        />
-                      </div>
-                    </div>
+                    <FloatingInput
+                      id="studioName"
+                      label="Studio name *"
+                      icon={<Store className="size-3.5" />}
+                      type="text"
+                      required
+                      disabled={loading}
+                      value={studioName}
+                      onChange={(e) => setStudioName(e.target.value)}
+                    />
 
-                    {/* Address */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
-                        <Input
-                          id="address"
-                          type="text"
-                          required
-                          disabled={loading}
-                          value={address}
-                          onChange={(e) => setAddress(e.target.value)}
-                          placeholder="e.g. Sector 15, Gurgaon, Haryana"
-                          className="pl-9"
-                        />
-                      </div>
-                    </div>
+                    <FloatingInput
+                      id="address"
+                      label="Address *"
+                      icon={<MapPin className="size-3.5" />}
+                      type="text"
+                      required
+                      disabled={loading}
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
 
-                    {/* Email (Optional) */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="email">Email <span className="text-slate-400 font-normal">(Optional)</span></Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
-                        <Input
-                          id="email"
-                          type="email"
-                          disabled={loading}
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="e.g. riya@example.com"
-                          className="pl-9"
-                        />
-                      </div>
-                    </div>
+                    <FloatingInput
+                      id="email"
+                      label="Email (Optional)"
+                      icon={<Mail className="size-3.5" />}
+                      type="email"
+                      disabled={loading}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
                   </>
                 ) : null}
 
                 {/* Phone Number */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="phone">Phone number <span className="text-red-500">*</span></Label>
-                  <PhoneInput
+                  <FloatingPhoneInput
                     id="phone"
+                    label="Phone number *"
                     required
                     disabled={loading}
                     value={phone}
                     onChange={(e) => handlePhoneChange(e.target.value)}
-                    placeholder="9876543210"
                   />
-                  <p className="text-xs text-[#777b95]">{phone.length}/10 digits entered</p>
+                  <p className="text-xs text-[#777b95] pl-1">{phone.length}/10 digits entered</p>
                 </div>
 
-                {/* Password */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="password">{isSignup ? "Set password" : "Password"} <span className="text-red-500">*</span></Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      id="password"
-                      type="password"
-                      required
-                      disabled={loading}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={isSignup ? "Create secure password" : "••••••••"}
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
+                <FloatingInput
+                  id="password"
+                  label={isSignup ? "Set password *" : "Password *"}
+                  icon={<Lock className="size-3.5" />}
+                  type="password"
+                  required
+                  disabled={loading}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
 
                 {error ? (
                   <p className="rounded-2xl bg-[#fff0f1] px-4 py-3 text-sm font-medium text-[#c43b4a]">

@@ -11,19 +11,19 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       data-slot="input"
       className={cn(
         // Layout & shape
-        "h-9 w-full min-w-0 rounded-lg border border-slate-200/80 px-3 py-1",
+        "h-[46px] w-full min-w-0 rounded-lg border border-slate-200/80 px-4 py-1",
         // Base appearance — white with a soft drop shadow for depth
         "bg-white text-[15px] text-foreground placeholder:text-slate-400",
-        "shadow-sm shadow-slate-100",
+        "shadow-sm shadow-slate-200/40",
         // Smooth transition on all visual properties
         "transition-all duration-200 outline-none",
         // Focus — lavender background tint + purple border + glow shadow (no ring)
-        "focus-visible:bg-[#faf8ff] focus-visible:border-[#7c3aed]",
-        "focus-visible:shadow-[0_0_0_4px_rgba(124,58,237,0.10),0_1px_3px_rgba(0,0,0,0.06)]",
+        "focus-visible:bg-slate-50 focus-visible:border-[#7c3aed]",
+        "focus-visible:shadow-[0_0_0_3px_rgba(124,58,237,0.10)]",
         // Disabled
         "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-50",
         // Invalid
-        "aria-invalid:border-red-400 aria-invalid:shadow-[0_0_0_4px_rgba(239,68,68,0.10)]",
+        "aria-invalid:border-red-400 aria-invalid:shadow-[0_0_0_3px_rgba(239,68,68,0.10)]",
         // File input
         "file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground",
         className
@@ -48,11 +48,11 @@ function PhoneInput({
   return (
     <div
       className={cn(
-        "flex h-9 items-center gap-2 rounded-lg border border-slate-200/80 bg-white px-3 shadow-sm",
+        "flex h-[46px] items-center gap-2 rounded-lg border border-slate-200/80 bg-white px-4 shadow-sm shadow-slate-200/40",
         "transition-all duration-200",
         // Mirror the Input focus glow on the wrapper when the inner input is focused
-        "focus-within:border-[#7c3aed] focus-within:bg-[#faf8ff]",
-        "focus-within:shadow-[0_0_0_4px_rgba(124,58,237,0.10),0_1px_3px_rgba(0,0,0,0.06)]"
+        "focus-within:border-[#7c3aed] focus-within:bg-slate-50",
+        "focus-within:shadow-[0_0_0_3px_rgba(124,58,237,0.10)]"
       )}
     >
       <span className="shrink-0 rounded bg-[#f3e8ff] px-1.5 py-0.5 text-xs font-semibold text-[#7c3aed]">

@@ -1247,81 +1247,63 @@ export default function BookingDetailsPage() {
         {!paymentSuccess ? (
           <div className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment Type</Label>
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center w-full justify-between h-11 rounded-2xl bg-slate-50 border border-slate-200 px-4 text-sm font-medium hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 transition-colors">
-                    {paymentType}
-                    <ChevronDown className="size-4 opacity-50" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-[180px] rounded-2xl" align="start">
-                    <DropdownMenuRadioGroup value={paymentType} onValueChange={setPaymentType}>
-                      <DropdownMenuRadioItem value="Advance" className="rounded-xl">Advance</DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="Installment" className="rounded-xl">Installment</DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="Final Payment" className="rounded-xl">Final Payment</DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+              <FloatingDropdown
+                label="Payment Type"
+                value={paymentType}
+                hasValue={true}
+              >
+                <DropdownMenuRadioGroup value={paymentType} onValueChange={setPaymentType}>
+                  <DropdownMenuRadioItem value="Advance" className="rounded-xl">Advance</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="Installment" className="rounded-xl">Installment</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="Final Payment" className="rounded-xl">Final Payment</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </FloatingDropdown>
 
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Method</Label>
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center w-full justify-between h-11 rounded-2xl bg-slate-50 border border-slate-200 px-4 text-sm font-medium hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 transition-colors">
-                    {paymentMethod}
-                    <ChevronDown className="size-4 opacity-50" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-[180px] rounded-2xl" align="start">
-                    <DropdownMenuRadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                      <DropdownMenuRadioItem value="UPI" className="rounded-xl">UPI</DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="Cash" className="rounded-xl">Cash</DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="Check" className="rounded-xl">Check</DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="Bank Transfer" className="rounded-xl">Bank Transfer</DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+              <FloatingDropdown
+                label="Method"
+                value={paymentMethod}
+                hasValue={true}
+              >
+                <DropdownMenuRadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <DropdownMenuRadioItem value="UPI" className="rounded-xl">UPI</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="Cash" className="rounded-xl">Cash</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="Check" className="rounded-xl">Check</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="Bank Transfer" className="rounded-xl">Bank Transfer</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </FloatingDropdown>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Amount (₹)</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-3 text-slate-400">₹</span>
-                  <Input 
-                    type="number"
-                    min="1"
-                    max={dueAmount}
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder={dueAmount.toString()}
-                    className="pl-8 h-11 rounded-2xl border-slate-200 bg-white" 
-                  />
-                </div>
+              <div>
+                <FloatingInput
+                  label="Amount (₹)"
+                  type="number"
+                  min="1"
+                  max={dueAmount}
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                />
                 {Number(paymentAmount) > dueAmount && (
                   <p className="text-xs text-rose-500 mt-1">Amount cannot exceed due: ₹{dueAmount.toLocaleString()}</p>
                 )}
               </div>
 
               <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</Label>
-              <DatePicker 
-                value={paymentDate}
-                onChange={setPaymentDate}
-                className="bg-white"
-              />
-            </div>
+                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</Label>
+                <DatePicker
+                  value={paymentDate}
+                  onChange={setPaymentDate}
+                  className="bg-white"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Remark (Optional)</Label>
-              <Textarea 
-                value={paymentRemark}
-                onChange={(e) => setPaymentRemark(e.target.value)}
-                placeholder="e.g., UTR number or specific notes"
-                className="resize-none h-20 rounded-2xl border-slate-200 bg-white"
-              />
-            </div>
+            <FloatingTextarea
+              label="Remark (Optional)"
+              value={paymentRemark}
+              onChange={(e) => setPaymentRemark(e.target.value)}
+              className="h-20"
+            />
           </div>
         ) : (
           <div className="py-12 flex flex-col items-center justify-center text-center animate-in zoom-in duration-300">
@@ -1499,64 +1481,47 @@ export default function BookingDetailsPage() {
       >
         <div className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment Type</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex h-11 w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 text-sm hover:bg-slate-50 transition-colors">
-                  <span>{editPaymentType}</span>
-                  <ChevronDown className="size-4 text-slate-400" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-full rounded-2xl">
-                  <DropdownMenuRadioGroup value={editPaymentType} onValueChange={setEditPaymentType}>
-                    {["Advance", "Installment", "Final Payment"].map(t => (
-                      <DropdownMenuRadioItem key={t} value={t} className="rounded-xl">{t}</DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment Method</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex h-11 w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 text-sm hover:bg-slate-50 transition-colors">
-                  <span>{editPaymentMethod}</span>
-                  <ChevronDown className="size-4 text-slate-400" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-full rounded-2xl">
-                  <DropdownMenuRadioGroup value={editPaymentMethod} onValueChange={setEditPaymentMethod}>
-                    {["UPI", "Cash", "Check", "Bank Transfer"].map(m => (
-                      <DropdownMenuRadioItem key={m} value={m} className="rounded-xl">{m}</DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            <FloatingDropdown
+              label="Payment Type"
+              value={editPaymentType}
+              hasValue={true}
+            >
+              <DropdownMenuRadioGroup value={editPaymentType} onValueChange={setEditPaymentType}>
+                {["Advance", "Installment", "Final Payment"].map(t => (
+                  <DropdownMenuRadioItem key={t} value={t} className="rounded-xl">{t}</DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </FloatingDropdown>
+            <FloatingDropdown
+              label="Payment Method"
+              value={editPaymentMethod}
+              hasValue={true}
+            >
+              <DropdownMenuRadioGroup value={editPaymentMethod} onValueChange={setEditPaymentMethod}>
+                {["UPI", "Cash", "Check", "Bank Transfer"].map(m => (
+                  <DropdownMenuRadioItem key={m} value={m} className="rounded-xl">{m}</DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </FloatingDropdown>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Amount (₹)</Label>
-              <Input
-                type="number"
-                value={editPaymentAmount}
-                onChange={e => setEditPaymentAmount(e.target.value)}
-                placeholder="0"
-                className="h-11 rounded-2xl border-slate-200 bg-white"
-              />
-            </div>
+            <FloatingInput
+              label="Amount (₹)"
+              type="number"
+              value={editPaymentAmount}
+              onChange={e => setEditPaymentAmount(e.target.value)}
+            />
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment Date</Label>
               <DatePicker value={editPaymentDate} onChange={setEditPaymentDate} />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Remark (Optional)</Label>
-            <Textarea
-              value={editPaymentRemark}
-              onChange={e => setEditPaymentRemark(e.target.value)}
-              placeholder="e.g., UTR number or specific notes"
-              className="resize-none h-20 rounded-2xl border-slate-200 bg-white"
-            />
-          </div>
+          <FloatingTextarea
+            label="Remark (Optional)"
+            value={editPaymentRemark}
+            onChange={e => setEditPaymentRemark(e.target.value)}
+            className="h-20"
+          />
         </div>
       </AppModal>
 
@@ -1608,40 +1573,29 @@ export default function BookingDetailsPage() {
         }
       >
         <div className="space-y-5">
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Expense Name</Label>
-            <Input
-              value={editExpenseName}
-              onChange={e => setEditExpenseName(e.target.value)}
-              placeholder="e.g., Travel to venue"
-              className="h-11 rounded-2xl border-slate-200 bg-white"
-            />
-          </div>
+          <FloatingInput
+            label="Expense Name"
+            value={editExpenseName}
+            onChange={e => setEditExpenseName(e.target.value)}
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Amount (₹)</Label>
-              <Input
-                type="number"
-                value={editExpenseAmount}
-                onChange={e => setEditExpenseAmount(e.target.value)}
-                placeholder="0"
-                className="h-11 rounded-2xl border-slate-200 bg-white"
-              />
-            </div>
+            <FloatingInput
+              label="Amount (₹)"
+              type="number"
+              value={editExpenseAmount}
+              onChange={e => setEditExpenseAmount(e.target.value)}
+            />
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</Label>
               <DatePicker value={editExpenseDate} onChange={setEditExpenseDate} />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Description (Optional)</Label>
-            <Textarea
-              value={editExpenseDescription}
-              onChange={e => setEditExpenseDescription(e.target.value)}
-              placeholder="Details about this expense..."
-              className="resize-none h-20 rounded-2xl border-slate-200 bg-white"
-            />
-          </div>
+          <FloatingTextarea
+            label="Description (Optional)"
+            value={editExpenseDescription}
+            onChange={e => setEditExpenseDescription(e.target.value)}
+            className="h-20"
+          />
         </div>
       </AppModal>
 

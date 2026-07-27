@@ -20,6 +20,7 @@ type FloatingDropdownProps = {
   contentClassName?: string
   containerClassName?: string
   id?: string
+  error?: string
 }
 
 export function FloatingDropdown({
@@ -33,6 +34,7 @@ export function FloatingDropdown({
   contentClassName,
   containerClassName,
   id: externalId,
+  error,
 }: FloatingDropdownProps) {
   const autoId = useId()
   const id = externalId ?? autoId
@@ -40,30 +42,41 @@ export function FloatingDropdown({
   const filled = hasValue !== undefined ? hasValue : Boolean(value && value.length > 0)
 
   return (
-    <div className={cn("relative", containerClassName)}>
+    <div className={cn("relative group", containerClassName)}>
       <DropdownMenu>
         <DropdownMenuTrigger
           id={id}
           disabled={disabled}
           className={cn(
-            "flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900",
-            "outline-none transition-all hover:bg-slate-50",
-            "focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/15",
+            "flex w-full items-center justify-between rounded-lg border bg-white text-sm text-slate-900",
+            "border-slate-200 shadow-sm shadow-slate-200/40",
+            "outline-none transition-all duration-200",
+            "hover:bg-slate-50",
+            "focus:border-[#7c3aed] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.10)]",
+            "data-[state=open]:border-[#7c3aed] data-[state=open]:shadow-[0_0_0_3px_rgba(124,58,237,0.10)]",
             "disabled:opacity-50 disabled:cursor-not-allowed",
-            filled ? "pb-2.5 pt-5" : "h-[52px]",
+            error && "border-red-400",
+            // Height: consistent height since label floats to border
+            "h-[46px] px-4",
             icon ? "pl-11" : "pl-4",
             triggerClassName,
           )}
         >
-          <span className={cn("truncate", filled ? "text-slate-900 font-medium" : "text-slate-400")}>
-            {filled ? value : ""}
+          <span className={cn("truncate", filled ? "text-slate-900 font-medium" : "text-transparent select-none")}>
+            {filled ? value : "‎"}
           </span>
-          <ChevronDown className="size-4 text-slate-400 shrink-0 ml-2" />
+          <ChevronDown
+            className={cn(
+              "size-4 text-slate-400 shrink-0 ml-2 transition-transform duration-200",
+              "group-data-[state=open]:rotate-180",
+            )}
+          />
         </DropdownMenuTrigger>
 
         <DropdownMenuContent
           className={cn(
             "w-[var(--anchor-width)] rounded-2xl p-1.5 bg-white border border-slate-100 shadow-xl",
+            "animate-in fade-in-0 zoom-in-95 duration-150",
             contentClassName,
           )}
         >
@@ -75,11 +88,12 @@ export function FloatingDropdown({
       <label
         htmlFor={id}
         className={cn(
-          "pointer-events-none absolute left-4 transition-all duration-200 text-slate-400",
+          "pointer-events-none absolute select-none text-slate-400 bg-white px-1",
+          "transition-all duration-200 ease-out",
           filled
-            ? "top-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400"
+            ? "top-0 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-wider text-slate-400"
             : "top-1/2 -translate-y-1/2 text-sm",
-          icon ? "left-11" : "left-4",
+          icon ? "left-10" : "left-3",
         )}
       >
         {label}
@@ -87,10 +101,15 @@ export function FloatingDropdown({
 
       {/* Leading icon */}
       {icon ? (
-        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors duration-200">
           {icon}
         </span>
       ) : null}
+
+      {/* Error message */}
+      {error && (
+        <p className="mt-1.5 text-xs text-red-500 pl-1">{error}</p>
+      )}
     </div>
   )
 }

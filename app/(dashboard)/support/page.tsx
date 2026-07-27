@@ -17,7 +17,8 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { FloatingInput } from "@/components/common/shared/floating-input";
+import { FloatingTextarea } from "@/components/common/shared/floating-input";
 import { AppModal } from "@/components/common/shared/app-modal";
 import { cn } from "@/lib/utils";
 
@@ -396,26 +397,17 @@ export default function UserSupportPage() {
         }
       >
         <div className="space-y-5">
-          <div className="space-y-2">
-            <Label className="text-slate-700 font-semibold">Subject</Label>
-            <Input
-              placeholder="E.g. Payment deducted but storage not updated"
-              value={newSubject}
-              onChange={(e) => setNewSubject(e.target.value)}
-              className="h-11 rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-purple-500"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-slate-700 font-semibold">
-              Describe the issue
-            </Label>
-            <Textarea
-              placeholder="Please provide as much detail as possible..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              className="min-h-[120px] rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-purple-500 p-3"
-            />
-          </div>
+          <FloatingInput
+            label="Subject"
+            value={newSubject}
+            onChange={(e) => setNewSubject(e.target.value)}
+          />
+          <FloatingTextarea
+            label="Describe the issue"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            className="min-h-[120px] p-3"
+          />
         </div>
       </AppModal>
     </div>

@@ -25,6 +25,7 @@ type DatePickerProps = {
   className?: string
   placeholder?: string
   id?: string
+  label?: string
 }
 
 export function DatePicker({
@@ -34,6 +35,7 @@ export function DatePicker({
   className,
   placeholder = "Select date...",
   id,
+  label,
 }: DatePickerProps) {
   const selectedDate = value ? parseISO(value) : null
   const [currentMonth, setCurrentMonth] = React.useState(selectedDate || new Date())
@@ -61,13 +63,50 @@ export function DatePicker({
     setIsOpen(false)
   }
 
-  return (
-    <PopoverPrimitive.Root open={isOpen} onOpenChange={setIsOpen}>
+  const renderTrigger = () => {
+    if (label) {
+      return (
+        <div className={cn("relative group", className)}>
+          <PopoverPrimitive.Trigger
+            id={id}
+            disabled={disabled}
+            className={cn(
+              "flex w-full items-center justify-between rounded-lg border bg-white text-sm text-slate-900",
+              "border-slate-200 shadow-sm shadow-slate-200/40 outline-none transition-all duration-200 hover:bg-slate-50",
+              "focus:border-[#7c3aed] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.10)]",
+              "data-[state=open]:border-[#7c3aed] data-[state=open]:shadow-[0_0_0_3px_rgba(124,58,237,0.10)]",
+              "disabled:opacity-50 disabled:cursor-not-allowed",
+              "h-[46px] px-4 pl-11 text-left"
+            )}
+          >
+            <span className={cn("truncate", !value && "text-transparent select-none")}>
+              {selectedDate ? format(selectedDate, "PPP") : "‎"}
+            </span>
+          </PopoverPrimitive.Trigger>
+          <label
+            htmlFor={id}
+            className={cn(
+              "pointer-events-none absolute select-none text-slate-400 bg-white px-1",
+              "transition-all duration-200 ease-out",
+              (value || isOpen)
+                ? "top-0 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-wider text-slate-400"
+                : "top-1/2 -translate-y-1/2 text-sm",
+              "left-10"
+            )}
+          >
+            {label}
+          </label>
+          <CalendarIcon className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 transition-colors duration-200" />
+        </div>
+      )
+    }
+
+    return (
       <PopoverPrimitive.Trigger
         id={id}
         disabled={disabled}
         className={cn(
-          "relative inline-flex h-11 w-full items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-3 pl-10 text-sm shadow-sm outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-primary/35 disabled:pointer-events-none disabled:opacity-50 text-left",
+          "relative inline-flex h-[46px] w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 pl-10 text-sm shadow-sm shadow-slate-200/40 outline-none transition hover:bg-slate-50 focus:border-[#7c3aed] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.10)] data-[state=open]:border-[#7c3aed] data-[state=open]:shadow-[0_0_0_3px_rgba(124,58,237,0.10)] disabled:pointer-events-none disabled:opacity-50 text-left",
           className
         )}
       >
@@ -76,6 +115,12 @@ export function DatePicker({
           {selectedDate ? format(selectedDate, "PPP") : placeholder}
         </span>
       </PopoverPrimitive.Trigger>
+    )
+  }
+
+  return (
+    <PopoverPrimitive.Root open={isOpen} onOpenChange={setIsOpen}>
+      {renderTrigger()}
 
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Positioner className="isolate z-50 outline-none" side="bottom" sideOffset={6} align="start">

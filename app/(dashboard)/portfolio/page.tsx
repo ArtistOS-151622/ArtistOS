@@ -5,6 +5,7 @@ import { FolderPlus, Loader2, Search } from "lucide-react";
 
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context";
 import { AppModal } from "@/components/common/shared/app-modal";
+import { FloatingInput } from "@/components/common/shared/floating-input";
 import { PortfolioFolderGrid } from "@/components/portfolio/portfolio-folder-grid";
 import { PortfolioShareModal } from "@/components/portfolio/portfolio-share-modal";
 import { StorageMeter } from "@/components/storage/storage-meter";
@@ -18,7 +19,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type {
   PortfolioFolderWithStats,
   QuotaInfo,
@@ -177,16 +177,12 @@ export default function PortfolioPage() {
       >
         <div className="space-y-4">
           {error && <p className="text-sm text-rose-600">{error}</p>}
-          <div className="space-y-2">
-            <Label htmlFor="folder-name">Folder name</Label>
-            <Input
-              id="folder-name"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              className="h-11 rounded-2xl"
-              placeholder="Bridal Looks 2026"
-            />
-          </div>
+          <FloatingInput
+            id="folder-name"
+            label="Folder name"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+          />
         </div>
       </AppModal>
 

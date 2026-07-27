@@ -7,15 +7,14 @@ import { useRouter } from "next/navigation"
 
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog"
+import { FloatingInput } from "@/components/common/shared/floating-input"
+import { FloatingTextarea } from "@/components/common/shared/floating-input"
 import { PortfolioUploader } from "@/components/portfolio/portfolio-uploader"
 import { StorageMeter } from "@/components/storage/storage-meter"
 import { StoragePlansModal } from "@/components/storage/storage-plans-modal"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import type { QuotaInfo, StoragePlanRow } from "@/lib/portfolio/types"
 
 type ProfileData = {
@@ -201,74 +200,51 @@ export default function ProfilePage() {
               </div>
 
               <div className="grid gap-5 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="artist_name">Artist Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 size-4 text-slate-400" />
-                    <Input
-                      id="artist_name"
-                      value={profile?.artist_name || ""}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, artist_name: e.target.value } : null)}
-                      className="h-11 rounded-2xl pl-10 border-slate-200 bg-white shadow-sm focus:border-[#7c3aed]"
-                      required
-                    />
-                  </div>
-                </div>
+                <FloatingInput
+                  id="artist_name"
+                  label="Artist Name"
+                  icon={<User className="size-4" />}
+                  value={profile?.artist_name || ""}
+                  onChange={(e) => setProfile(prev => prev ? { ...prev, artist_name: e.target.value } : null)}
+                  required
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="studio_name">Studio Name</Label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-3 size-4 text-slate-400" />
-                    <Input
-                      id="studio_name"
-                      value={profile?.studio_name || ""}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, studio_name: e.target.value } : null)}
-                      className="h-11 rounded-2xl pl-10 border-slate-200 bg-white shadow-sm focus:border-[#7c3aed]"
-                      required
-                    />
-                  </div>
-                </div>
+                <FloatingInput
+                  id="studio_name"
+                  label="Studio Name"
+                  icon={<Building2 className="size-4" />}
+                  value={profile?.studio_name || ""}
+                  onChange={(e) => setProfile(prev => prev ? { ...prev, studio_name: e.target.value } : null)}
+                  required
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Mobile Number (Read-only)</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 size-4 text-slate-400" />
-                    <Input
-                      id="phone"
-                      value={profile?.phone || ""}
-                      disabled
-                      className="h-11 rounded-2xl pl-10 border-slate-200 bg-slate-50 text-slate-500 shadow-sm cursor-not-allowed"
-                    />
-                  </div>
-                </div>
+                <FloatingInput
+                  id="phone"
+                  label="Mobile Number (Read-only)"
+                  icon={<Phone className="size-4" />}
+                  value={profile?.phone || ""}
+                  disabled
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 size-4 text-slate-400" />
-                    <Input
-                      id="email"
-                      type="email"
-                      value={profile?.email || ""}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, email: e.target.value } : null)}
-                      className="h-11 rounded-2xl pl-10 border-slate-200 bg-white shadow-sm focus:border-[#7c3aed]"
-                    />
-                  </div>
-                </div>
+                <FloatingInput
+                  id="email"
+                  label="Email Address"
+                  icon={<Mail className="size-4" />}
+                  type="email"
+                  value={profile?.email || ""}
+                  onChange={(e) => setProfile(prev => prev ? { ...prev, email: e.target.value } : null)}
+                />
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="address">Studio / Default Booking Address</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 size-4 text-slate-400" />
-                    <Textarea
-                      id="address"
-                      value={profile?.address || ""}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, address: e.target.value } : null)}
-                      className="min-h-24 rounded-2xl pl-10 pt-3 border-slate-200 bg-white shadow-sm resize-none focus:border-[#7c3aed]"
-                      required
-                    />
-                  </div>
-                </div>
+                <FloatingTextarea
+                  id="address"
+                  label="Studio / Default Booking Address"
+                  icon={<MapPin className="size-4" />}
+                  value={profile?.address || ""}
+                  onChange={(e) => setProfile(prev => prev ? { ...prev, address: e.target.value } : null)}
+                  containerClassName="md:col-span-2"
+                  className="min-h-24"
+                  required
+                />
               </div>
 
               <div className="flex items-center justify-between pt-2">

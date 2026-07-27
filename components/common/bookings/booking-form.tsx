@@ -11,6 +11,7 @@ import {
   X,
   ScissorsLineDashed,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import type {
   Customer,
@@ -28,10 +29,12 @@ import type {
 import { ServiceForm } from "@/components/common/services/service-form";
 import { DatePicker } from "@/components/common/shared/date-picker";
 import { TimePicker } from "@/components/common/shared/time-picker";
+import { FloatingInput } from "@/components/common/shared/floating-input";
+import { FloatingTextarea } from "@/components/common/shared/floating-input";
+import { FloatingDropdown } from "@/components/common/shared/floating-dropdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -69,6 +72,7 @@ export function BookingForm({
   // Autocomplete / Select Dropdown state
   const [isFocused, setIsFocused] = useState(false);
   const [dropdownSearch, setDropdownSearch] = useState("");
+  const [isServicesOpen, setIsServicesOpen] = useState(false);
   const customerContainerRef = useRef<HTMLDivElement>(null);
 
   // Quick Customer Creation modal states
@@ -314,36 +318,45 @@ export function BookingForm({
         }}
       >
         {/* Customer select field with dropdown search & quick-add */}
-        <div className="space-y-2">
-          <Label htmlFor="customer_id">Select Customer</Label>
-          <div className="flex gap-2">
-            <div ref={customerContainerRef} className="relative flex-1">
-              <div className="relative">
-                <input
-                  type="text"
-                  id="customer_id"
-                  disabled={loading}
-                  value={
-                    isFocused
-                      ? dropdownSearch
-                      : selectedCustomer
-                        ? `${selectedCustomer.phone} - ${selectedCustomer.customer_name}`
-                        : ""
-                  }
-                  onChange={(e) => {
-                    setDropdownSearch(e.target.value);
-                    if (!isFocused) setIsFocused(true);
-                  }}
-                  onFocus={() => {
-                    setIsFocused(true);
-                    setDropdownSearch("");
-                  }}
-                  placeholder="Search or select customer by name/phone..."
-                  className="flex h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 pr-10 text-sm text-[#15172e] shadow-sm outline-none transition-all focus:border-[#7c3aed] placeholder:text-slate-400"
-                  required
-                />
-                <User className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
+        <div className="flex gap-2">
+          <div ref={customerContainerRef} className="relative flex-1 group">
+            <input
+              type="text"
+              id="customer_id"
+              disabled={loading}
+              value={
+                isFocused
+                  ? dropdownSearch
+                  : selectedCustomer
+                    ? `${selectedCustomer.phone} - ${selectedCustomer.customer_name}`
+                    : ""
+              }
+              onChange={(e) => {
+                setDropdownSearch(e.target.value);
+                if (!isFocused) setIsFocused(true);
+              }}
+              onFocus={() => {
+                setIsFocused(true);
+                setDropdownSearch("");
+              }}
+              placeholder={isFocused ? "Search or select customer by name/phone..." : ""}
+              className="peer flex h-[46px] w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-[#15172e] shadow-sm shadow-slate-200/40 outline-none transition-all focus:border-[#7c3aed] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.10)] disabled:opacity-50 placeholder:text-slate-400 pr-10"
+              required
+            />
+            <label
+              htmlFor="customer_id"
+              className={cn(
+                "pointer-events-none absolute select-none text-slate-400 bg-white px-1",
+                "transition-all duration-200 ease-out",
+                (isFocused || dropdownSearch || selectedCustomer)
+                  ? "top-0 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 peer-focus:text-[#7c3aed]"
+                  : "top-1/2 -translate-y-1/2 text-sm",
+                "left-3"
+              )}
+            >
+              Select Customer
+            </label>
+            <User className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400 pointer-events-none transition-colors peer-focus:text-[#7c3aed]" />
 
               {/* Autocomplete Search Dropdown List (No internal search bar) */}
               {isFocused ? (
@@ -381,13 +394,12 @@ export function BookingForm({
               size="icon"
               disabled={loading}
               onClick={() => setCustomerModalOpen(true)}
-              className="size-11 rounded-2xl shrink-0 border-slate-200 bg-white hover:bg-slate-50 shadow-sm"
+              className="size-[52px] rounded-2xl shrink-0 border-slate-200 bg-white hover:bg-slate-50 shadow-sm"
               title="Add new customer"
             >
               <Plus className="size-5" />
             </Button>
           </div>
-        </div>
 
         {/* Read-only customer summary cards */}
         {selectedCustomer ? (
@@ -420,65 +432,71 @@ export function BookingForm({
         ) : null}
 
         {/* Booking Address field (editable, initialized with customer address) */}
-        <div className="space-y-2">
-          <Label htmlFor="booking_address">Booking Address</Label>
-          <div className="relative">
-            <MapPin className="absolute left-3 top-3 size-4 text-slate-400" />
-            <Textarea
-              id="booking_address"
-              disabled={loading}
-              value={values.booking_address}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                onChange({ ...values, booking_address: e.target.value })
-              }
-              placeholder="Enter exact booking location address..."
-              className="min-h-20 rounded-2xl pl-10 border-slate-200 bg-white shadow-sm resize-none"
-              required
-            />
-          </div>
-        </div>
+        <FloatingTextarea
+          label="Booking Address"
+          icon={<MapPin className="size-4" />}
+          id="booking_address"
+          disabled={loading}
+          value={values.booking_address}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            onChange({ ...values, booking_address: e.target.value })
+          }
+          className="min-h-20"
+          required
+        />
 
         {/* Multi-select Services Dropdown */}
-        <div className="space-y-2">
-          <Label>Select Services</Label>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              {allServices.length > 0 ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    disabled={loading}
-                    className="flex min-h-11 w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left text-sm text-[#15172e] shadow-sm outline-none transition-all hover:bg-slate-50 focus:border-[#7c3aed]"
+        <div className="flex gap-2">
+          <div className="flex-1 relative group">
+            {allServices.length > 0 ? (
+              <DropdownMenu onOpenChange={setIsServicesOpen}>
+                <DropdownMenuTrigger
+                  disabled={loading}
+                  className="relative flex min-h-[46px] py-2 w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-4 text-left text-sm text-[#15172e] shadow-sm shadow-slate-200/40 outline-none transition-all hover:bg-slate-50 focus:border-[#7c3aed] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.10)] data-[state=open]:border-[#7c3aed] data-[state=open]:shadow-[0_0_0_3px_rgba(124,58,237,0.10)]"
+                >
+                  <div className="flex flex-wrap gap-1.5 items-center max-w-[95%]">
+                    {values.services.length === 0 ? (
+                      <span className={cn("text-transparent select-none")}>
+                        Select services...
+                      </span>
+                    ) : (
+                      values.services.map((id) => {
+                        const svc = allServices.find(
+                          (s) => String(s.id) === id,
+                        );
+                        if (!svc) return null;
+                        return (
+                          <span
+                            key={id}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-600 text-white px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleToggleService(id);
+                            }}
+                          >
+                            <X className="size-3 cursor-pointer hover:text-slate-200" />
+                            {svc.service_name}
+                          </span>
+                        );
+                      })
+                    )}
+                  </div>
+                  
+                  <span
+                    className={cn(
+                      "pointer-events-none absolute select-none text-slate-400 bg-white px-1",
+                      "transition-all duration-200 ease-out",
+                      (values.services.length > 0 || isServicesOpen)
+                        ? "top-0 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-wider text-slate-400"
+                        : "top-1/2 -translate-y-1/2 text-sm",
+                      "left-3"
+                    )}
                   >
-                    <div className="flex flex-wrap gap-1.5 items-center max-w-[95%] py-0.5">
-                      {values.services.length === 0 ? (
-                        <span className="text-slate-400">
-                          Select services...
-                        </span>
-                      ) : (
-                        values.services.map((id) => {
-                          const svc = allServices.find(
-                            (s) => String(s.id) === id,
-                          );
-                          if (!svc) return null;
-                          return (
-                            <span
-                              key={id}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-600 text-white px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleToggleService(id);
-                              }}
-                            >
-                              <X className="size-3 cursor-pointer hover:text-slate-200" />
-                              {svc.service_name}
-                            </span>
-                          );
-                        })
-                      )}
-                    </div>
-                    <ChevronDown className="size-4 text-slate-400 shrink-0" />
-                  </DropdownMenuTrigger>
+                    Select Services
+                  </span>
+                  <ChevronDown className="size-4 text-slate-400 shrink-0" />
+                </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-[var(--anchor-width)] max-h-60 overflow-y-auto rounded-2xl p-1.5 bg-white border border-slate-100 shadow-xl">
                     {allServices.map((service) => {
                       const serviceId = String(service.id);
@@ -514,116 +532,98 @@ export function BookingForm({
               size="icon"
               disabled={loading}
               onClick={() => setServiceModalOpen(true)}
-              className="size-11 rounded-2xl shrink-0 border-slate-200 bg-white hover:bg-slate-50 shadow-sm"
+              className="size-[52px] rounded-2xl shrink-0 border-slate-200 bg-white hover:bg-slate-50 shadow-sm"
               title="Add new service"
             >
               <Plus className="size-5" />
             </Button>
           </div>
-        </div>
 
         {/* Date and Time Fields */}
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="booking_date">Date</Label>
-            <DatePicker
-              id="booking_date"
-              disabled={loading}
-              value={values.booking_date}
-              onChange={(val) => onChange({ ...values, booking_date: val })}
-            />
-          </div>
+          <DatePicker
+            id="booking_date"
+            label="Date"
+            disabled={loading}
+            value={values.booking_date}
+            onChange={(val) => onChange({ ...values, booking_date: val })}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="start_time">Start Time</Label>
-            <TimePicker
-              id="start_time"
-              disabled={loading}
-              value={values.start_time}
-              onChange={(val) => onChange({ ...values, start_time: val })}
-            />
-          </div>
+          <TimePicker
+            id="start_time"
+            label="Start Time"
+            disabled={loading}
+            value={values.start_time}
+            onChange={(val) => onChange({ ...values, start_time: val })}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="end_time">End Time</Label>
-            <TimePicker
-              id="end_time"
-              disabled={loading}
-              value={values.end_time}
-              onChange={(val) => onChange({ ...values, end_time: val })}
-            />
-          </div>
+          <TimePicker
+            id="end_time"
+            label="End Time"
+            disabled={loading}
+            value={values.end_time}
+            onChange={(val) => onChange({ ...values, end_time: val })}
+          />
         </div>
 
         {/* Status selection and Additional Request */}
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2 md:col-span-1">
-            <Label htmlFor="status">Booking Status</Label>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                disabled={loading}
-                className="flex h-11 w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left text-sm text-[#15172e] shadow-sm outline-none transition-all hover:bg-slate-50 focus:border-[#7c3aed]"
+          <div className="md:col-span-1">
+            <FloatingDropdown
+              label="Booking Status"
+              value={values.status}
+              hasValue={true}
+              disabled={loading}
+            >
+              <DropdownMenuRadioGroup
+                value={values.status}
+                onValueChange={(val) =>
+                  onChange({ ...values, status: val as any })
+                }
               >
-                <span className="font-semibold text-slate-700 capitalize">
-                  {values.status}
-                </span>
-                <ChevronDown className="size-4 text-slate-400" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[var(--anchor-width)] rounded-2xl p-1.5 bg-white border border-slate-100 shadow-xl">
-                <DropdownMenuRadioGroup
-                  value={values.status}
-                  onValueChange={(val) =>
-                    onChange({ ...values, status: val as any })
-                  }
+                <DropdownMenuRadioItem
+                  value="pending"
+                  closeOnClick={true}
+                  className="h-10 rounded-xl px-3 text-sm cursor-pointer"
                 >
-                  <DropdownMenuRadioItem
-                    value="pending"
-                    closeOnClick={true}
-                    className="h-10 rounded-xl px-3 text-sm cursor-pointer"
-                  >
-                    Pending
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem
-                    value="confirmed"
-                    closeOnClick={true}
-                    className="h-10 rounded-xl px-3 text-sm cursor-pointer"
-                  >
-                    Confirmed
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem
-                    value="completed"
-                    closeOnClick={true}
-                    className="h-10 rounded-xl px-3 text-sm cursor-pointer"
-                  >
-                    Completed
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem
-                    value="canceled"
-                    closeOnClick={true}
-                    className="h-10 rounded-xl px-3 text-sm cursor-pointer"
-                  >
-                    Canceled
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  Pending
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="confirmed"
+                  closeOnClick={true}
+                  className="h-10 rounded-xl px-3 text-sm cursor-pointer"
+                >
+                  Confirmed
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="completed"
+                  closeOnClick={true}
+                  className="h-10 rounded-xl px-3 text-sm cursor-pointer"
+                >
+                  Completed
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="canceled"
+                  closeOnClick={true}
+                  className="h-10 rounded-xl px-3 text-sm cursor-pointer"
+                >
+                  Canceled
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </FloatingDropdown>
           </div>
 
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="additional_request">Additional Request</Label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-3 size-4 text-slate-400" />
-              <Input
-                id="additional_request"
-                disabled={loading}
-                value={values.additional_request}
-                onChange={(e) =>
-                  onChange({ ...values, additional_request: e.target.value })
-                }
-                placeholder="e.g. skin allergies, custom extensions, reference links (Pinterest/Drive)..."
-                className="h-11 rounded-2xl pl-10 border-slate-200 bg-white shadow-sm"
-              />
-            </div>
+          <div className="md:col-span-2">
+            <FloatingInput
+              id="additional_request"
+              label="Additional Request"
+              icon={<FileText className="size-4" />}
+              disabled={loading}
+              value={values.additional_request}
+              onChange={(e) =>
+                onChange({ ...values, additional_request: e.target.value })
+              }
+            />
           </div>
         </div>
       </form>
