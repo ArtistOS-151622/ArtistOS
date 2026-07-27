@@ -1,0 +1,340 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "react-big-calendar/lib/css/react-big-calendar.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --secondary: #f3e8ff;
+  --secondary-foreground: #3b0764;
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: #c4b5fd;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f3e8ff;
+  --sidebar-accent-foreground: #3b0764;
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: #a78bfa;
+  --primary-foreground: #1e1b4b;
+  --secondary: #3b0764;
+  --secondary-foreground: #f5f3ff;
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: #8b5cf6;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+}
+
+@keyframes artistos-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes artistos-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes artistos-float-small {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-10px) scale(1.03);
+  }
+}
+
+@keyframes artistos-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes artistos-progress {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes artistos-pulse-ring {
+  0%,
+  100% {
+    opacity: 0.34;
+    scale: 0.96;
+  }
+  50% {
+    opacity: 0.8;
+    scale: 1.04;
+  }
+}
+
+@keyframes artistos-soft-glow {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-up {
+  animation: artistos-fade-up 0.8s ease both;
+}
+
+.animate-float-soft {
+  animation: artistos-float 5.5s ease-in-out infinite;
+}
+
+.animate-float-small {
+  animation: artistos-float-small 4.5s ease-in-out infinite;
+}
+
+.animate-marquee {
+  animation: artistos-marquee 28s linear infinite;
+}
+
+.animate-progress {
+  animation: artistos-progress 1.2s ease-out both;
+}
+
+.animate-pulse-ring {
+  animation: artistos-pulse-ring 3.5s ease-in-out infinite;
+}
+
+.animate-soft-glow {
+  animation: artistos-soft-glow 4s ease-in-out infinite;
+}
+
+.pause-animation:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+.artistos-calendar {
+  height: 720px;
+  color: #15172e;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.artistos-calendar .rbc-calendar,
+.artistos-calendar .rbc-time-view,
+.artistos-calendar .rbc-month-view,
+.artistos-calendar .rbc-agenda-view {
+  border: 0;
+  border-radius: 1.5rem;
+  overflow: hidden;
+}
+
+.artistos-calendar .rbc-header {
+  border-color: #eef0f7;
+  padding: 0.85rem 0.5rem;
+  color: #46435f;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.artistos-calendar .rbc-time-header,
+.artistos-calendar .rbc-time-content,
+.artistos-calendar .rbc-month-row,
+.artistos-calendar .rbc-day-bg,
+.artistos-calendar .rbc-timeslot-group,
+.artistos-calendar .rbc-agenda-table,
+.artistos-calendar .rbc-agenda-table tbody > tr > td {
+  border-color: #eef0f7;
+}
+
+.artistos-calendar .rbc-today {
+  background: #f3e8ff;
+  color: #2e1065;
+}
+
+.artistos-calendar .artistos-selected-day {
+  background: #f8f5ff;
+}
+
+.artistos-calendar .rbc-off-range-bg {
+  background: #fafafa;
+}
+
+.artistos-calendar .rbc-time-slot,
+.artistos-calendar .rbc-label,
+.artistos-calendar .rbc-date-cell {
+  color: #5f637e;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.artistos-calendar .rbc-time-gutter,
+.artistos-calendar .rbc-time-content,
+.artistos-calendar .rbc-row-content {
+  color: #15172e;
+}
+
+.artistos-calendar .rbc-event,
+.artistos-calendar .rbc-event-content,
+.artistos-calendar .artistos-calendar-event {
+  color: inherit;
+  font-family: inherit;
+  line-height: 1.15;
+  opacity: 1;
+}
+
+.artistos-calendar .rbc-event-content {
+  height: 100%;
+  overflow: hidden;
+}
+
+.artistos-calendar .rbc-selected {
+  background: #7c3aed;
+}
+
+.artistos-calendar .rbc-current-time-indicator {
+  background: #7c3aed;
+  height: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-float-soft,
+  .animate-float-small,
+  .animate-marquee,
+  .animate-progress,
+  .animate-pulse-ring,
+  .animate-soft-glow {
+    animation: none;
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
