@@ -26,6 +26,10 @@ type CampaignDetails = {
   status: string
   created_at: string
   message_template: string
+  image_url: string | null
+  min_delay_sec: number
+  max_delay_sec: number
+  business_hours_only: boolean
   messages: Message[]
 }
 
@@ -126,7 +130,18 @@ export default function BroadcastDetailsPage() {
               <CardHeader>
                 <CardTitle className="text-lg">Message Template</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {/* Campaign image preview */}
+                {campaign.image_url && (
+                  <div className="rounded-2xl overflow-hidden border border-slate-100">
+                    <img
+                      src={campaign.image_url}
+                      alt="Campaign image"
+                      className="w-full object-cover max-h-56 cursor-zoom-in"
+                      onClick={() => window.open(campaign.image_url!, '_blank')}
+                    />
+                  </div>
+                )}
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 whitespace-pre-wrap text-sm text-slate-700">
                   {campaign.message_template}
                 </div>
@@ -140,12 +155,22 @@ export default function BroadcastDetailsPage() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center text-sm border-b border-slate-100 pb-3">
                   <span className="text-slate-500">Delay Range</span>
-                  <span className="font-medium text-slate-900">4 - 5 mins</span>
+                  <span className="font-medium text-slate-900">
+                    {Math.round((campaign.min_delay_sec ?? 240) / 60)} – {Math.round((campaign.max_delay_sec ?? 300) / 60)} mins
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-sm pb-1">
                   <span className="text-slate-500">Business Hours Only</span>
-                  <Badge variant="outline" className="bg-slate-50">Off</Badge>
+                  <Badge variant="outline" className="bg-slate-50">
+                    {campaign.business_hours_only ? 'On' : 'Off'}
+                  </Badge>
                 </div>
+                {campaign.image_url && (
+                  <div className="flex justify-between items-center text-sm pt-1 border-t border-slate-100">
+                    <span className="text-slate-500">Image Attached</span>
+                    <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">Yes</Badge>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

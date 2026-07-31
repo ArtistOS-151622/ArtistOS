@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { name, message_template, min_delay_sec, max_delay_sec, business_hours_only, customer_ids } = body
+    const { name, message_template, min_delay_sec, max_delay_sec, business_hours_only, customer_ids, image_url } = body
 
     if (!name || !message_template || !customer_ids || !Array.isArray(customer_ids) || customer_ids.length === 0) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -54,10 +54,11 @@ export async function POST(req: NextRequest) {
         user_id: session.id,
         name,
         message_template,
+        image_url: image_url || null,
         min_delay_sec: min_delay_sec || 240,
         max_delay_sec: max_delay_sec || 300,
         business_hours_only: business_hours_only || false,
-        status: "RUNNING", // Or DRAFT/SCHEDULED if implemented
+        status: "RUNNING",
       })
       .select()
       .single()

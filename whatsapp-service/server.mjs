@@ -1,184 +1,229 @@
 import pkg from 'whatsapp-web.js';
-const { Client, LocalAuth } = pkg;
-import qrcode from 'qrcode-terminal';
+const { Client, LocalAuth, MessageMedia } = pkg;
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from the main project
 dotenv.config({ path: path.join(__dirname, '../.env.local') });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error("Missing Supabase credentials in .env.local");
+  console.error('Missing Supabase credentials in .env.local');
   process.exit(1);
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-console.log('Starting WhatsApp Integration Service...');
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// Spintax Parser
+function cleanupStaleLock() {
+  try {
+    // 1. Remove Chrome's SingletonLock file
+    const lockFile = path.join(__dirname, 'sessions_data', 'session', 'SingletonLock');
+    if (fs.existsSync(lockFile)) {
+      fs.unlinkSync(lockFile);
+      console.log('[WA] 🧹 Removed stale SingletonLock');
+    }
+  } catch (e) {
+    console.warn('[WA] cleanupStaleLock (lock file, non-fatal):', e.message);
+  }
+  try {
+    // 2. Kill any orphaned Chrome process still locking the session dir
+    const sessionDir = path.join(__dirname, 'sessions_data');
+    execSync(`pkill -f "${sessionDir}" 2>/dev/null || true`);
+  } catch (_) {
+    // pkill exits non-zero if nothing matched — that's fine
+  }
+}
+
 function parseSpintax(text) {
-  const spintaxRegex = /\{([^{}]*)\}/g;
-  let parsedText = text;
-  while (spintaxRegex.test(parsedText)) {
-    parsedText = parsedText.replace(spintaxRegex, (match, contents) => {
+  const regex = /\{([^{}]*)\}/g;
+  let out = text;
+  while (regex.test(out)) {
+    out = out.replace(regex, (_, contents) => {
       const parts = contents.split('|');
       return parts[Math.floor(Math.random() * parts.length)];
     });
   }
-  return parsedText;
+  return out;
 }
 
-// Variable Replacer
 function replaceVariables(text, customer) {
-  let newText = text;
-  const name = customer.customer_name || customer.name || "there";
-  newText = newText.replace(/\{\{name\}\}/gi, name);
-  return newText;
+  const name = customer.customer_name || customer.name || 'there';
+  return text.replace(/\{\{name\}\}/gi, name);
 }
 
-// Global client (simplified for this script, normally you'd manage a pool of clients per device ID)
-const client = new Client({
-  authStrategy: new LocalAuth({ dataPath: './sessions_data' }),
-  puppeteer: {
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  }
-});
-
-let isClientReady = false;
-let isClientStarting = false;
-let isClientWaitingForScan = false;
-let activeDeviceId = null;
-
-// Helper to find an active device to link to
-async function getDeviceToLink() {
-  const { data } = await supabase
+async function setDeviceStatus(id, status, extra = {}) {
+  const { error } = await supabase
     .from('whatsapp_devices')
-    .select('id')
-    .in('session_status', ['DISCONNECTED', 'QR_READY', 'REQUESTING_QR'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-  return data?.id || null;
+    .update({ session_status: status, ...extra })
+    .eq('id', id);
+  if (error) console.error('[WA] setDeviceStatus error:', error.message);
 }
 
-client.on('qr', async (qr) => {
-  console.log('\n======================================================');
-  console.log('📱 WhatsApp QR Code Generated!');
-  console.log('Pushing to Supabase so frontend can display it...');
-  console.log('======================================================\n');
-  
-  isClientStarting = false;
-  isClientWaitingForScan = true;
-  
-  if (!activeDeviceId) {
-    activeDeviceId = await getDeviceToLink();
-  }
-  
-  if (activeDeviceId) {
-    await supabase
-      .from('whatsapp_devices')
-      .update({ 
-        session_status: 'QR_READY',
-        session_data: { qr }
-      })
-      .eq('id', activeDeviceId);
-  }
-});
+// ─── State ────────────────────────────────────────────────────────────────────
 
-client.on('ready', async () => {
-  console.log('WhatsApp Client is ready!');
-  isClientReady = true;
-  isClientStarting = false;
-  isClientWaitingForScan = false;
-  
-  if (!activeDeviceId) {
-    activeDeviceId = await getDeviceToLink();
-  }
-  
-  if (activeDeviceId) {
-    await supabase
-      .from('whatsapp_devices')
-      .update({ 
-        session_status: 'CONNECTED',
+let client = null;
+let isReady = false;
+let isStarting = false;
+let isWaitingForScan = false;
+let activeDeviceId = null;
+let isBusy = false;                // lock: one message in-flight at a time
+let frameErrorCount = 0;           // consecutive frame errors
+let reconnectCooldownUntil = 0;    // timestamp — don't retry auto-reconnect before this
+
+// ─── Client factory ───────────────────────────────────────────────────────────
+
+function buildClient() {
+  return new Client({
+    authStrategy: new LocalAuth({ dataPath: path.join(__dirname, 'sessions_data') }),
+    puppeteer: {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+      ],
+    },
+  });
+}
+
+// ─── Client lifecycle ─────────────────────────────────────────────────────────
+
+function attachEvents(c) {
+  c.on('qr', async (qr) => {
+    console.log('[WA] 📱 QR generated — pushing to DB…');
+    isStarting = false;
+    isWaitingForScan = true;
+    if (activeDeviceId) {
+      await setDeviceStatus(activeDeviceId, 'QR_READY', { session_data: { qr } });
+    }
+  });
+
+  c.on('ready', async () => {
+    console.log('[WA] ✅ Client ready!');
+    isReady = true;
+    isStarting = false;
+    isWaitingForScan = false;
+    frameErrorCount = 0; // reset error counter on fresh connect
+    if (activeDeviceId) {
+      await setDeviceStatus(activeDeviceId, 'CONNECTED', {
         last_connected_at: new Date().toISOString(),
-        session_data: null // Clear QR
-      })
-      .eq('id', activeDeviceId);
-  }
-});
+        session_data: null,
+      });
+    }
+  });
 
-client.on('auth_failure', async msg => {
-  console.error('AUTHENTICATION FAILURE', msg);
-  isClientStarting = false;
-  isClientWaitingForScan = false;
+  c.on('auth_failure', async (msg) => {
+    console.error('[WA] ❌ Auth failure:', msg);
+    await doDisconnect('AUTH_FAILURE');
+  });
+
+  c.on('disconnected', async (reason) => {
+    console.log('[WA] 🔌 Disconnected:', reason);
+    await doDisconnect(reason);
+  });
+}
+
+async function doDisconnect(reason) {
+  isReady = false;
+  isStarting = false;
+  isWaitingForScan = false;
+  isBusy = false;
+
   if (activeDeviceId) {
-    await supabase
-      .from('whatsapp_devices')
-      .update({ session_status: 'DISCONNECTED', session_data: null })
-      .eq('id', activeDeviceId);
-  }
-  
-  // Destroy client, processQueue will restart it ONLY if someone requests it again
-  console.log("Destroying client due to auth failure...");
-  try { await client.destroy(); } catch(e) {}
-});
-
-client.on('disconnected', async (reason) => {
-  console.log('Client was logged out or disconnected', reason);
-  isClientReady = false;
-  isClientStarting = false;
-  isClientWaitingForScan = false;
-  if (activeDeviceId) {
-    await supabase
-      .from('whatsapp_devices')
-      .update({ session_status: 'DISCONNECTED', session_data: null })
-      .eq('id', activeDeviceId);
+    console.log(`[WA] Device ${activeDeviceId} → DISCONNECTED (${reason})`);
+    await setDeviceStatus(activeDeviceId, 'DISCONNECTED', { session_data: null });
+    activeDeviceId = null;
   }
 
-  // Destroy client, processQueue will restart it ONLY if someone requests it again
-  console.log("Destroying client due to disconnect...");
-  try { await client.destroy(); } catch(e) {}
-});
+  if (client) {
+    try { await client.destroy(); } catch (_) {}
+    client = null;
+  }
 
-// Worker Loop
+  cleanupStaleLock();
+}
+
+async function startClient(deviceId, reason = 'REQUESTING_QR') {
+  if (isStarting || isReady || isWaitingForScan) return;
+
+  // Cooldown for auto-reconnect so we don't spam retries every 3s
+  if (reason === 'CONNECTED' && Date.now() < reconnectCooldownUntil) return;
+
+  // Destroy any stale client instance
+  if (client) {
+    try { await client.destroy(); } catch (_) {}
+    client = null;
+  }
+
+  // Kill orphaned Chrome + remove lock file
+  cleanupStaleLock();
+  // Give OS a moment to release file handles
+  await new Promise(r => setTimeout(r, 500));
+
+  console.log(`[WA] Starting client for device ${deviceId} (reason: ${reason})…`);
+  isStarting = true;
+  activeDeviceId = deviceId;
+
+  client = buildClient();
+  attachEvents(client);
+
+  try {
+    await client.initialize();
+  } catch (e) {
+    console.error('[WA] Initialize error:', e.message);
+    isStarting = false;
+    client = null;
+    activeDeviceId = null;
+    cleanupStaleLock();
+    if (reason === 'REQUESTING_QR') {
+      // User explicitly requested — mark disconnected so UI shows the error
+      await setDeviceStatus(deviceId, 'DISCONNECTED', { session_data: null });
+    } else {
+      // Auto-reconnect failed — back off 30s before next attempt
+      reconnectCooldownUntil = Date.now() + 30_000;
+      console.log('[WA] Auto-reconnect failed — retrying in 30s…');
+    }
+  }
+}
+
+// ─── Queue processor ──────────────────────────────────────────────────────────
+
 async function processQueue() {
-  if (!isClientReady && !isClientWaitingForScan) {
-    if (!isClientStarting) {
-      // Check if any device needs the client (CONNECTED or REQUESTING_QR)
-      const { data } = await supabase
-        .from('whatsapp_devices')
-        .select('id, session_status')
-        .in('session_status', ['CONNECTED', 'REQUESTING_QR'])
-        .order('updated_at', { ascending: false })
-        .limit(1);
-        
-      if (data && data.length > 0) {
-        console.log(`Found device ${data[0].id} with status ${data[0].session_status}. Starting client...`);
-        isClientStarting = true;
-        activeDeviceId = data[0].id;
-        try { 
-          await client.initialize(); 
-        } catch(e) { 
-          console.error("Initialize error:", e);
-          isClientStarting = false;
-        }
-      }
+  // ── Phase 1: ensure a client is running if a device needs one ──
+  if (!isReady && !isWaitingForScan && !isStarting) {
+    const { data } = await supabase
+      .from('whatsapp_devices')
+      .select('id, session_status')
+      .in('session_status', ['REQUESTING_QR', 'CONNECTED'])
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (data && data.length > 0) {
+      const reason = data[0].session_status; // 'REQUESTING_QR' or 'CONNECTED'
+      await startClient(data[0].id, reason);
     }
     return;
   }
 
+  if (!isReady) return; // still starting or scanning
+
+  // ── Phase 2: process one pending message (with lock) ──
+  if (isBusy) return;
+
+  let msg, campaign, customer;
   try {
-    // Find pending messages
     const { data: messages, error } = await supabase
       .from('broadcast_messages')
       .select('*, broadcast_campaigns(*), customers(*)')
@@ -187,116 +232,140 @@ async function processQueue() {
       .limit(1);
 
     if (error) throw error;
+    if (!messages || messages.length === 0) return;
 
-    if (messages && messages.length > 0) {
-      const messageRecord = messages[0];
-      const campaign = messageRecord.broadcast_campaigns;
-      const customer = messageRecord.customers;
-
-      if (!campaign || !customer || !customer.phone) {
-        await markMessageStatus(messageRecord.id, 'FAILED', 'Missing campaign or customer data');
-        return;
-      }
-
-      // Check Business Hours
-      if (campaign.business_hours_only) {
-        const currentHour = new Date().getHours();
-        if (currentHour < 8 || currentHour >= 21) {
-          console.log('Outside business hours, skipping for now...');
-          return; // Skip this iteration
-        }
-      }
-
-      console.log(`Processing message for ${customer.name} (${customer.phone})...`);
-
-      // Prepare Message
-      let finalMessage = replaceVariables(campaign.message_template, customer);
-      finalMessage = parseSpintax(finalMessage);
-
-      // Format Phone Number (Assuming international format without +)
-      const sanitizedPhone = customer.phone.replace(/[^0-9]/g, '');
-      
-      // Resolve the number to get the correct internal ID (fixes "No LID for user" errors)
-      const numberId = await client.getNumberId(sanitizedPhone);
-      if (!numberId) {
-        throw new Error(`Phone number ${sanitizedPhone} is not registered on WhatsApp`);
-      }
-      const chatId = numberId._serialized;
-
-      // Check if this is the first message for this campaign
-      const { count: sentCount } = await supabase
-        .from('broadcast_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('campaign_id', campaign.id)
-        .eq('status', 'SENT');
-        
-      const isFirstMessage = sentCount === 0;
-
-      // Random Delay logic to mimic human
-      const minDelay = campaign.min_delay_sec || 240; // Default 4 mins
-      const maxDelay = campaign.max_delay_sec || 300; // Default 5 mins
-      
-      // Send immediately if it's the first message, otherwise delay
-      const delayMs = isFirstMessage ? 0 : Math.floor(Math.random() * (maxDelay - minDelay + 1) + minDelay) * 1000;
-      
-      if (delayMs > 0) {
-        console.log(`Waiting for ${delayMs / 1000} seconds before sending...`);
-        await new Promise(resolve => setTimeout(resolve, delayMs)); // Simulating the wait BEFORE sending
-      } else {
-        console.log(`First message in campaign, sending immediately without delay...`);
-      }
-      
-      // Simulate Typing
-      try {
-        const chat = await client.getChatById(chatId);
-        await chat.sendStateTyping();
-        await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 2000));
-        await chat.clearState();
-      } catch (e) {
-        console.error('Error simulating typing (chat might not exist yet):', e.message);
-      }
-
-      // Send Message
-      try {
-        await client.sendMessage(chatId, finalMessage);
-        await markMessageStatus(messageRecord.id, 'SENT', null, finalMessage, campaign.id);
-        console.log(`Message successfully sent to ${customer.phone}`);
-      } catch (sendError) {
-        console.error(`Failed to send to ${customer.phone}:`, sendError);
-        await markMessageStatus(messageRecord.id, 'FAILED', sendError.message, null, campaign.id);
-      }
-
-    }
+    msg = messages[0];
+    campaign = msg.broadcast_campaigns;
+    customer = msg.customers;
   } catch (err) {
-    console.error('Queue processor error:', err);
+    console.error('[WA] DB fetch error:', err.message);
+    return;
+  }
+
+  if (!campaign || !customer?.phone) {
+    await markMessageStatus(msg.id, 'FAILED', 'Missing campaign or customer data');
+    return;
+  }
+
+  // Business hours gate
+  if (campaign.business_hours_only) {
+    const h = new Date().getHours();
+    if (h < 8 || h >= 21) {
+      return; // silent skip
+    }
+  }
+
+  // Acquire lock BEFORE delay so only one message is in-flight
+  isBusy = true;
+
+  try {
+    const customerName = customer.customer_name || customer.name || 'Unknown';
+    console.log(`[WA] Processing: ${customerName} (${customer.phone})`);
+
+    // Delay (skip for first message in campaign)
+    const { count: sentCount } = await supabase
+      .from('broadcast_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', campaign.id)
+      .eq('status', 'SENT');
+
+    const isFirst = sentCount === 0;
+    const minDelay = campaign.min_delay_sec ?? 240;
+    const maxDelay = campaign.max_delay_sec ?? 300;
+    const delayMs = isFirst
+      ? 0
+      : Math.floor(Math.random() * (maxDelay - minDelay + 1) + minDelay) * 1000;
+
+    if (delayMs > 0) {
+      console.log(`[WA] Waiting ${delayMs / 1000}s before sending…`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+
+    // Resolve phone → WhatsApp internal ID
+    const sanitized = customer.phone.replace(/[^0-9]/g, '');
+    const numberId = await client.getNumberId(sanitized);
+    if (!numberId) {
+      await markMessageStatus(msg.id, 'FAILED', `${sanitized} is not registered on WhatsApp`);
+      return;
+    }
+    const chatId = numberId._serialized;
+
+    // Simulate typing
+    try {
+      const chat = await client.getChatById(chatId);
+      await chat.sendStateTyping();
+      await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
+      await chat.clearState();
+    } catch (_) {}
+
+    // Build message text
+    let finalMessage = replaceVariables(campaign.message_template, customer);
+    finalMessage = parseSpintax(finalMessage);
+
+    // Send: image+caption OR plain text
+    if (campaign.image_url) {
+      try {
+        const media = await MessageMedia.fromUrl(campaign.image_url, { unsafeMime: true });
+        await client.sendMessage(chatId, media, { caption: finalMessage });
+      } catch (imgErr) {
+        console.warn('[WA] Image load failed, falling back to text only:', imgErr.message);
+        await client.sendMessage(chatId, finalMessage);
+      }
+    } else {
+      await client.sendMessage(chatId, finalMessage);
+    }
+
+    await markMessageStatus(msg.id, 'SENT', null, finalMessage, campaign.id);
+    console.log(`[WA] ✓ Sent to ${customer.phone}${campaign.image_url ? ' (with image)' : ''}`);
+  } catch (err) {
+    const isFrameError =
+      err.message?.includes('detached') ||
+      err.message?.includes('Session closed') ||
+      err.message?.includes('Target closed') ||
+      err.message?.includes('Protocol error');
+
+    if (isFrameError) {
+      frameErrorCount++;
+      console.error(`[WA] ⚠️  Frame error during send (${frameErrorCount}/3) — ${err.message}`);
+      if (msg) {
+        await markMessageStatus(msg.id, 'FAILED', 'WhatsApp session lost — reconnect and retry');
+      }
+      if (frameErrorCount >= 3) {
+        console.error('[WA] 3 consecutive frame errors — triggering full reconnect…');
+        frameErrorCount = 0;
+        await doDisconnect('FRAME_ERROR');
+      }
+    } else {
+      frameErrorCount = 0; // reset on non-frame errors
+      console.error('[WA] ✗ Send error:', err.message);
+      if (msg) {
+        await markMessageStatus(msg.id, 'FAILED', err.message, null, campaign?.id);
+      }
+    }
+  } finally {
+    isBusy = false;
   }
 }
 
+// ─── Message status updater ───────────────────────────────────────────────────
+
 async function markMessageStatus(id, status, errorMsg = null, formattedMsg = null, campaignId = null) {
-  const updateData = {
-    status,
-    updated_at: new Date().toISOString()
-  };
-  
-  if (errorMsg) updateData.error_message = errorMsg;
-  if (formattedMsg) updateData.formatted_message = formattedMsg;
-  if (status === 'SENT') updateData.sent_at = new Date().toISOString();
+  const update = { status, updated_at: new Date().toISOString() };
+  if (errorMsg) update.error_message = errorMsg;
+  if (formattedMsg) update.formatted_message = formattedMsg;
+  if (status === 'SENT') update.sent_at = new Date().toISOString();
 
-  await supabase
-    .from('broadcast_messages')
-    .update(updateData)
-    .eq('id', id);
+  await supabase.from('broadcast_messages').update(update).eq('id', id);
 
-  // Check if campaign is finished
   if (campaignId) {
-    const { count, error } = await supabase
+    const { count } = await supabase
       .from('broadcast_messages')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaignId)
       .eq('status', 'PENDING');
 
-    if (!error && count === 0) {
-      console.log(`Campaign ${campaignId} completed!`);
+    if (count === 0) {
+      console.log(`[WA] Campaign ${campaignId} completed!`);
       await supabase
         .from('broadcast_campaigns')
         .update({ status: 'COMPLETED' })
@@ -305,5 +374,15 @@ async function markMessageStatus(id, status, errorMsg = null, formattedMsg = nul
   }
 }
 
-// Start polling every 10 seconds
-setInterval(processQueue, 10000);
+// ─── Startup ──────────────────────────────────────────────────────────────────
+
+cleanupStaleLock();
+
+// Reset stale QR devices on startup (not CONNECTED — those auto-reconnect)
+await supabase
+  .from('whatsapp_devices')
+  .update({ session_status: 'DISCONNECTED', session_data: null })
+  .in('session_status', ['REQUESTING_QR', 'QR_READY']);
+
+console.log('[WA] Service started. Polling every 3s…');
+setInterval(processQueue, 3000);

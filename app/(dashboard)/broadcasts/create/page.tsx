@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Send, Users, MessageSquare, Settings2, Play, CheckCircle2, ChevronRight, ChevronLeft, RefreshCw, AlertCircle } from "lucide-react"
+import { Play, CheckCircle2, ChevronRight, ChevronLeft, RefreshCw, AlertCircle, WifiOff, ImagePlus, X } from "lucide-react"
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -46,6 +47,13 @@ export default function CreateBroadcastPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [whatsappConnected, setWhatsappConnected] = useState<boolean | null>(null)
+
+  // Image state
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Form State
   const [campaignName, setCampaignName] = useState("")
@@ -59,6 +67,15 @@ export default function CreateBroadcastPage() {
   const [preview, setPreview] = useState("")
 
   useEffect(() => {
+    // Check WhatsApp connection status
+    fetch("/api/whatsapp/devices")
+      .then(res => res.json())
+      .then(data => {
+        const devices = data.devices || []
+        setWhatsappConnected(devices.some((d: any) => d.session_status === "CONNECTED"))
+      })
+      .catch(() => setWhatsappConnected(false))
+
     // Load customers
     fetch("/api/customers?limit=1000")
       .then(res => res.json())
@@ -111,7 +128,35 @@ export default function CreateBroadcastPage() {
     setSelectedCustomers([])
   }
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files are allowed")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5MB")
+      return
+    }
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
+  const clearImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
   const handleSubmit = async () => {
+    if (whatsappConnected === false) {
+      toast.error("Connect WhatsApp first", {
+        description: "Go to Profile → WhatsApp to scan the QR code.",
+        action: { label: "Connect", onClick: () => router.push("/profile/whatsapp") }
+      })
+      return
+    }
     if (!campaignName || !message || selectedCustomers.length === 0) {
       toast.error("Please fill in all required fields")
       return
@@ -119,12 +164,31 @@ export default function CreateBroadcastPage() {
 
     setLoading(true)
     try {
+      // 1. Upload image if present
+      let image_url: string | null = null
+      if (imageFile) {
+        setUploadingImage(true)
+        const fd = new FormData()
+        fd.append("file", imageFile)
+        const upRes = await fetch("/api/whatsapp/campaigns/upload", { method: "POST", body: fd })
+        const upData = await upRes.json()
+        setUploadingImage(false)
+        if (!upRes.ok) {
+          toast.error(upData.error || "Image upload failed")
+          setLoading(false)
+          return
+        }
+        image_url = upData.url
+      }
+
+      // 2. Create campaign
       const res = await fetch("/api/whatsapp/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: campaignName,
           message_template: message,
+          image_url,
           customer_ids: selectedCustomers,
           min_delay_sec: minDelay,
           max_delay_sec: maxDelay,
@@ -220,9 +284,46 @@ export default function CreateBroadcastPage() {
                       id="message"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      className="min-h-[200px] rounded-2xl border-slate-200 bg-white focus:border-[#7c3aed] resize-none"
+                      className="min-h-[180px] rounded-2xl border-slate-200 bg-white focus:border-[#7c3aed] resize-none"
                     />
                     <p className="text-xs text-slate-500">Variables: {'{{name}}'}. Spintax: {'{Option 1|Option 2}'}</p>
+
+                    {/* ── Image Attachment ── */}
+                    <div>
+                      <Label className="mb-2 block">Attach Image <span className="text-slate-400 font-normal">(optional, max 5MB)</span></Label>
+                      {imagePreview ? (
+                        <div className="relative w-fit">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="h-36 rounded-2xl object-cover border border-slate-200 shadow-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={clearImage}
+                            className="absolute -top-2 -right-2 bg-white border border-slate-200 rounded-full p-1 shadow hover:bg-rose-50 hover:border-rose-300 transition-colors"
+                          >
+                            <X className="size-3.5 text-slate-500" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex items-center gap-3 w-full border-2 border-dashed border-slate-200 rounded-2xl px-4 py-4 text-slate-400 hover:border-[#7c3aed] hover:text-[#7c3aed] hover:bg-purple-50/50 transition-all text-sm"
+                        >
+                          <ImagePlus className="size-5 shrink-0" />
+                          Click to choose an image to send with the message
+                        </button>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
@@ -280,7 +381,25 @@ export default function CreateBroadcastPage() {
             {/* STEP 3: SETTINGS */}
             {step === 3 && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-6">
+                {/* WhatsApp connection warning */}
+                {whatsappConnected === false && (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                    <div className="flex gap-3 items-start">
+                      <WifiOff className="size-5 text-rose-500 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-rose-800">WhatsApp Not Connected</h4>
+                        <p className="text-xs text-rose-700 mt-1">
+                          No WhatsApp session is active. The campaign will be queued but won't send until you connect.
+                        </p>
+                      </div>
+                      <Link href="/profile/whatsapp">
+                        <button className="text-xs font-semibold text-rose-700 underline underline-offset-2 whitespace-nowrap">Connect now →</button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                   <div className="flex gap-3">
                     <AlertCircle className="size-5 text-amber-600 shrink-0" />
                     <div>
@@ -332,11 +451,17 @@ export default function CreateBroadcastPage() {
             ) : (
               <Button
                 onClick={handleSubmit}
-                disabled={loading}
-                className="rounded-2xl h-11 px-8 bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-950/10"
+                disabled={loading || whatsappConnected === false}
+                className="rounded-2xl h-11 px-8 bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-950/10 disabled:opacity-50"
+                title={whatsappConnected === false ? "Connect WhatsApp first" : undefined}
               >
-                {loading ? <RefreshCw className="mr-2 size-4 animate-spin" /> : <Play className="mr-2 size-4" />}
-                Launch Campaign
+                {uploadingImage ? (
+                  <><RefreshCw className="mr-2 size-4 animate-spin" />Uploading image…</>
+                ) : loading ? (
+                  <><RefreshCw className="mr-2 size-4 animate-spin" />Launching…</>
+                ) : (
+                  <><Play className="mr-2 size-4" />Launch Campaign</>
+                )}
               </Button>
             )}
           </CardFooter>

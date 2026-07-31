@@ -4,11 +4,11 @@
   "private": true,
   "packageManager": "pnpm@11.10.0",
   "scripts": {
-    "dev": "concurrently \"pnpm run dev:next\" \"pnpm run dev:whatsapp\"",
+    "dev": "concurrently -n next,whatsapp -c cyan,green \"pnpm run dev:next\" \"pnpm run dev:whatsapp\"",
     "dev:next": "next dev",
-    "dev:whatsapp": "cd whatsapp-service && node server.mjs",
+    "dev:whatsapp": "node whatsapp-service/server.mjs",
     "build": "next build",
-    "start": "next start",
+    "start": "concurrently -n next,whatsapp -c cyan,green \"next start\" \"node whatsapp-service/server.mjs\"",
     "lint": "eslint"
   },
   "dependencies": {
