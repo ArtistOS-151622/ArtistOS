@@ -28,6 +28,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const PAIRING_CODE_TIMEOUT_MS = Number(process.env.WHATSAPP_PAIRING_TIMEOUT_MS || 60_000);
 const PAIRING_CODE_RENEW_MS = Number(process.env.WHATSAPP_PAIRING_RENEW_MS || 170_000);
+const CLIENT_INITIALIZE_TIMEOUT_MS = Number(process.env.WHATSAPP_INITIALIZE_TIMEOUT_MS || 120_000);
 const MAX_TRANSIENT_SEND_RETRIES = Number(process.env.WHATSAPP_MAX_TRANSIENT_SEND_RETRIES || 3);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -190,11 +191,6 @@ function buildClient({ phoneNumber } = {}) {
     puppeteer: puppeteerConfig,
     deviceName: 'ArtistOS',
     browserName: 'Chrome',
-    // Bypass WhatsApp Web "Update Chrome" screen which blocks QR generation on some systems
-    webVersionCache: {
-      type: 'remote',
-      remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
-    },
   };
 
   if (phoneNumber) {
@@ -211,6 +207,18 @@ function buildClient({ phoneNumber } = {}) {
 // ─── Client lifecycle ─────────────────────────────────────────────────────────
 
 function attachEvents(c) {
+  c.on('loading_screen', (percent, message) => {
+    console.log(`[WA] Loading WhatsApp Web ${percent}%: ${message}`);
+  });
+
+  c.on('authenticated', () => {
+    console.log('[WA] Authenticated with WhatsApp Web');
+  });
+
+  c.on('change_state', (state) => {
+    console.log(`[WA] State changed: ${state}`);
+  });
+
   c.on('code', async (code) => {
     if (!activeDeviceId) return;
 
@@ -237,8 +245,7 @@ function attachEvents(c) {
   c.on('qr', async () => {
     if (!activeDeviceId) return;
 
-    console.warn('[WA] QR event received. Phone-number pairing was not configured for this auth attempt.');
-    await doDisconnect('MISSING_PHONE_NUMBER');
+    console.warn('[WA] QR event received before phone-number pairing code was generated.');
   });
 
   c.on('ready', async () => {
@@ -345,7 +352,12 @@ async function startClient(deviceId, reason = 'REQUESTING_PAIRING_CODE') {
   attachEvents(client);
 
   try {
-    await client.initialize();
+    await Promise.race([
+      client.initialize(),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('CLIENT_INITIALIZE_TIMEOUT')), CLIENT_INITIALIZE_TIMEOUT_MS);
+      }),
+    ]);
   } catch (e) {
     console.error('[WA] ❌ Initialize error:', e.message);
     if (e.message.includes('timeout') || e.message.includes('browser') || e.message.includes('sandbox')) {
