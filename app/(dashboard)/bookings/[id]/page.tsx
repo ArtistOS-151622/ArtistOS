@@ -83,6 +83,14 @@ export default function BookingDetailsPage() {
   const params = useParams()
   const bookingId = params.id as string
 
+  const goBackToBookings = () => {
+    if (window.history.length > 1) {
+      router.back()
+    } else {
+      router.push("/bookings")
+    }
+  }
+
   const [loading, setLoading] = useState(true)
   const [updateOpen, setUpdateOpen] = useState(false)
   const [updateType, setUpdateType] = useState<"quotation" | "reminder" | "custom">("quotation")
@@ -388,7 +396,7 @@ export default function BookingDetailsPage() {
         <PageHeader title="Booking Details" />
         <div className="flex h-96 flex-col items-center justify-center rounded-2xl bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-red-500">{error ?? "Booking not found."}</p>
-          <Button onClick={() => router.push("/bookings")} className="mt-4 rounded-xl">Back to Bookings</Button>
+          <Button onClick={goBackToBookings} className="mt-4 rounded-xl">Back to Bookings</Button>
         </div>
       </>
     )
@@ -428,7 +436,7 @@ export default function BookingDetailsPage() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => router.push("/bookings")}
+            onClick={goBackToBookings}
             className="rounded-xl border border-slate-200 bg-white shadow-sm hover:bg-slate-50"
           >
             <ArrowLeft className="size-4" />

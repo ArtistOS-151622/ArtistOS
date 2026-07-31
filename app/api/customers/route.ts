@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const search = searchParams.get("search")?.trim() || ""
+  const sort = searchParams.get("sort")?.trim() || "recent"
   const page = Math.max(1, Number(searchParams.get("page")) || 1)
   const limit = 20
   const from = (page - 1) * limit
@@ -59,9 +60,13 @@ export async function GET(request: NextRequest) {
     query = query.or(`customer_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`)
   }
 
-  const { data, count, error } = await query
-    .order("id", { ascending: false })
-    .range(from, to)
+  if (sort === "name") {
+    query = query.order("customer_name", { ascending: true })
+  } else {
+    query = query.order("id", { ascending: false })
+  }
+
+  const { data, count, error } = await query.range(from, to)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 

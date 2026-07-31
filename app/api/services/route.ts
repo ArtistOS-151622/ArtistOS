@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const search = searchParams.get("search")?.trim() || ""
+  const sort = searchParams.get("sort")?.trim() || "all"
 
   const supabase = await createClient()
   let query = supabase
@@ -42,7 +43,17 @@ export async function GET(request: NextRequest) {
     query = query.ilike("service_name", `%${search}%`)
   }
 
-  const { data, error } = await query.order("id", { ascending: false })
+  if (sort === "price_asc") {
+    query = query.order("price", { ascending: true })
+  } else if (sort === "price_desc") {
+    query = query.order("price", { ascending: false })
+  } else if (sort === "name_asc") {
+    query = query.order("service_name", { ascending: true })
+  } else {
+    query = query.order("id", { ascending: false })
+  }
+
+  const { data, error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ services: data ?? [] })

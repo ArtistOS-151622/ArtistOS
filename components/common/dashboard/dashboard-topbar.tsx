@@ -35,7 +35,9 @@ export function DashboardTopbar() {
           <Link
             href="/dashboard"
             aria-label="Dashboard Home"
-            className="flex size-12 items-center justify-center rounded-xl bg-white shadow-md shadow-purple-950/5 border border-white/80 shrink-0"
+            contentEditable={false}
+            suppressHydrationWarning
+            className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white shadow-md shadow-purple-950/5 border border-white/80"
           >
             <BrandMark className="size-8 bg-transparent shadow-none p-0" />
           </Link>

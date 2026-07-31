@@ -46,7 +46,9 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
           <Link
             href="/dashboard"
             aria-label="Dashboard Home"
-            className="flex h-[50px] w-[50px] items-center justify-center rounded-[1rem] bg-white shadow-lg shadow-purple-950/5 border border-white/80 transition hover:scale-105"
+            contentEditable={false}
+            suppressHydrationWarning
+            className="flex h-[50px] w-[50px] cursor-pointer items-center justify-center rounded-[1rem] bg-white shadow-lg shadow-purple-950/5 border border-white/80 transition hover:scale-105"
           >
             <BrandMark className="size-8 bg-transparent shadow-none p-0" />
           </Link>
@@ -79,8 +81,10 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
           <Link
             href="/profile"
             aria-label="Settings & Profile"
+            contentEditable={false}
+            suppressHydrationWarning
             className={cn(
-              "flex h-[50px] w-[50px] items-center justify-center rounded-full transition",
+              "flex h-[50px] w-[50px] cursor-pointer items-center justify-center rounded-full transition",
               active === "profile"
                 ? "bg-[#7c3aed] text-white shadow-md shadow-purple-500/25"
                 : "text-[#7c3aed]/80 hover:bg-purple-50/80 hover:text-[#7c3aed]",
@@ -104,8 +108,10 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
         <Link
           href="/profile"
           aria-label="Settings"
+          contentEditable={false}
+          suppressHydrationWarning
           className={cn(
-            "flex h-[50px] w-[50px] items-center justify-center rounded-full transition",
+            "flex h-[50px] w-[50px] cursor-pointer items-center justify-center rounded-full transition",
             active === "profile"
               ? "bg-[#7c3aed] text-white shadow-md shadow-purple-500/25"
               : "text-[#7c3aed]/80 hover:bg-purple-50/80 hover:text-[#7c3aed]",
@@ -134,9 +140,10 @@ function DashboardNavLink({
       href={item.href}
       title={item.label}
       aria-label={item.label}
+      contentEditable={false}
       suppressHydrationWarning
       className={cn(
-        "inline-flex h-[50px] w-[50px] items-center justify-center rounded-full transition-all duration-200",
+        "inline-flex h-[50px] w-[50px] cursor-pointer items-center justify-center rounded-full transition-all duration-200",
         active
           ? "bg-[#7c3aed] text-white shadow-md shadow-purple-500/25 scale-105"
           : "text-[#7c3aed]/80 hover:bg-purple-50/80 hover:text-[#7c3aed]",
@@ -147,4 +154,3 @@ function DashboardNavLink({
     </Link>
   );
 }
-

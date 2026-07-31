@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Calendar, Filter, Plus, Search } from "lucide-react";
 
@@ -39,6 +39,10 @@ type BookingsResponse = {
 export function BookingManager() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const didInitialFetch = useRef(false);
+  const initialPage = Math.max(1, Number(searchParams.get("page")) || 1);
+  const initialSearch = searchParams.get("search") ?? "";
+  const initialStatus = searchParams.get("status") ?? "all";
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [values, setValues] = useState<BookingFormValues>(emptyBookingForm);
   const [formOpen, setFormOpen] = useState(false);
@@ -49,17 +53,46 @@ export function BookingManager() {
   const [error, setError] = useState("");
 
   // Search, filter and pagination states
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState(initialSearch);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [page, setPage] = useState(initialPage);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  function replaceListUrl(pageNum: number, searchVal: string, statusVal: string) {
+    const nextParams = new URLSearchParams(searchParams.toString());
+
+    if (pageNum > 1) {
+      nextParams.set("page", String(pageNum));
+    } else {
+      nextParams.delete("page");
+    }
+
+    if (searchVal.trim()) {
+      nextParams.set("search", searchVal.trim());
+    } else {
+      nextParams.delete("search");
+    }
+
+    if (statusVal !== "all") {
+      nextParams.set("status", statusVal);
+    } else {
+      nextParams.delete("status");
+    }
+
+    nextParams.delete("add");
+
+    const query = nextParams.toString();
+    router.replace(`/bookings${query ? `?${query}` : ""}`, { scroll: false });
+  }
 
   // Fetch bookings from api
   async function fetchBookings(
     pageNum: number,
     searchVal: string,
+    statusVal: string,
     append = false,
+    syncUrl = true,
   ) {
     if (pageNum === 1) {
       setLoading(true);
@@ -70,7 +103,7 @@ export function BookingManager() {
 
     try {
       const res = await fetch(
-        `/api/bookings?page=${pageNum}&search=${encodeURIComponent(searchVal)}`,
+        `/api/bookings?page=${pageNum}&search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}`,
       );
       const data = (await res.json()) as BookingsResponse;
 
@@ -81,7 +114,47 @@ export function BookingManager() {
         setBookings((prev) => (append ? [...prev, ...fetched] : fetched));
         setHasMore(data.hasMore ?? false);
         setPage(pageNum);
+        if (syncUrl) replaceListUrl(pageNum, searchVal, statusVal);
       }
+    } catch {
+      setError("Unable to load bookings.");
+    } finally {
+      setInitialLoading(false);
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }
+
+  async function fetchBookingsThrough(
+    pageNum: number,
+    searchVal: string,
+    statusVal: string,
+  ) {
+    setLoading(true);
+    setError("");
+
+    try {
+      const responses = await Promise.all(
+        Array.from({ length: pageNum }, (_, index) =>
+          fetch(
+            `/api/bookings?page=${index + 1}&search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}`,
+          ),
+        ),
+      );
+      const payloads = (await Promise.all(
+        responses.map((res) => res.json()),
+      )) as BookingsResponse[];
+      const failedIndex = responses.findIndex((res) => !res.ok);
+
+      if (failedIndex !== -1) {
+        setError(payloads[failedIndex]?.error ?? "Unable to load bookings.");
+        return;
+      }
+
+      setBookings(payloads.flatMap((payload) => payload.bookings ?? []));
+      setHasMore(payloads[payloads.length - 1]?.hasMore ?? false);
+      setPage(pageNum);
+      replaceListUrl(pageNum, searchVal, statusVal);
     } catch {
       setError("Unable to load bookings.");
     } finally {
@@ -94,11 +167,20 @@ export function BookingManager() {
   // Debounced search effect
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      void fetchBookings(1, search, false);
+      if (!didInitialFetch.current) {
+        didInitialFetch.current = true;
+        void fetchBookingsThrough(initialPage, search, statusFilter);
+        return;
+      }
+
+      void fetchBookings(1, search, statusFilter, false);
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [search]);
+    // The fetch helpers read the latest state; search/status are the only
+    // values that should restart this debounce.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, statusFilter]);
 
   async function saveBooking() {
     setLoading(true);
@@ -131,12 +213,12 @@ export function BookingManager() {
       } else {
         cancelEdit();
         if (editing) {
-          void fetchBookings(1, search, false);
+          void fetchBookingsThrough(page, search, statusFilter);
         } else {
           if (search !== "") {
             setSearch("");
           } else {
-            void fetchBookings(1, "", false);
+            void fetchBookings(1, "", statusFilter, false);
           }
         }
       }
@@ -161,7 +243,7 @@ export function BookingManager() {
         setError(data.error ?? "Unable to delete booking.");
       } else {
         setDeleting(null);
-        void fetchBookings(1, search, false);
+        void fetchBookingsThrough(page, search, statusFilter);
       }
     } catch {
       setError("Unable to delete booking.");
@@ -206,13 +288,6 @@ export function BookingManager() {
       router.replace(`/bookings${query ? `?${query}` : ""}`);
     }
   }, [searchParams, router]);
-
-  const filteredBookings =
-    statusFilter === "all"
-      ? bookings
-      : bookings.filter(
-          (b) => b.status?.toLowerCase() === statusFilter.toLowerCase(),
-        );
 
   return (
     <div className="space-y-5">
@@ -260,8 +335,8 @@ export function BookingManager() {
                   <DropdownMenuRadioItem value="completed" className="rounded-xl cursor-pointer">
                     Completed
                   </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="cancelled" className="rounded-xl cursor-pointer">
-                    Cancelled
+                  <DropdownMenuRadioItem value="canceled" className="rounded-xl cursor-pointer">
+                    Canceled
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
@@ -330,8 +405,8 @@ export function BookingManager() {
               <DropdownMenuRadioItem value="completed" className="rounded-xl cursor-pointer">
                 Completed
               </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="cancelled" className="rounded-xl cursor-pointer">
-                Cancelled
+              <DropdownMenuRadioItem value="canceled" className="rounded-xl cursor-pointer">
+                Canceled
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
@@ -349,10 +424,10 @@ export function BookingManager() {
           label="Loading bookings"
           className="min-h-[52vh] rounded-[2rem] bg-white/45"
         />
-      ) : filteredBookings.length ? (
+      ) : bookings.length ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredBookings.map((booking) => (
+            {bookings.map((booking) => (
               <BookingCard
                 key={booking.id}
                 booking={booking}
@@ -367,7 +442,7 @@ export function BookingManager() {
               <Button
                 variant="outline"
                 className="h-11 rounded-2xl px-6 bg-white hover:bg-slate-50 border border-slate-100 shadow-sm"
-                onClick={() => void fetchBookings(page + 1, search, true)}
+                onClick={() => void fetchBookings(page + 1, search, statusFilter, true)}
                 disabled={loadingMore}
               >
                 {loadingMore ? "Loading..." : "Load more"}

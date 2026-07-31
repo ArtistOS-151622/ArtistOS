@@ -55,19 +55,19 @@ export function ServiceManager() {
   // Debounced search effect
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      void loadServices(search);
+      void loadServices(search, sortBy);
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [search]);
+  }, [search, sortBy]);
 
-  async function loadServices(searchVal: string) {
+  async function loadServices(searchVal: string, sortVal: string) {
     setLoading(true);
     setError("");
 
     try {
       const response = await fetch(
-        `/api/services?search=${encodeURIComponent(searchVal)}`,
+        `/api/services?search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
       );
       const data = (await response.json()) as ServicesResponse;
 
@@ -108,12 +108,12 @@ export function ServiceManager() {
       } else {
         cancelEdit();
         if (editing) {
-          void loadServices(search);
+          void loadServices(search, sortBy);
         } else {
           if (search !== "") {
             setSearch("");
           } else {
-            void loadServices("");
+            void loadServices("", sortBy);
           }
         }
       }
@@ -140,7 +140,7 @@ export function ServiceManager() {
         setError(data.error ?? "Unable to delete service.");
       } else {
         setDeleting(null);
-        void loadServices(search);
+        void loadServices(search, sortBy);
       }
     } catch {
       setError("Unable to delete service.");
@@ -170,13 +170,6 @@ export function ServiceManager() {
     setValues(emptyForm);
     setFormOpen(true);
   }
-
-  const sortedServices = [...services].sort((a, b) => {
-    if (sortBy === "price_asc") return Number(a.price) - Number(b.price);
-    if (sortBy === "price_desc") return Number(b.price) - Number(a.price);
-    if (sortBy === "name_asc") return a.service_name.localeCompare(b.service_name);
-    return 0;
-  });
 
   return (
     <div className="space-y-5">

@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const search = searchParams.get("search")?.trim() || ""
+  const status = searchParams.get("status")?.trim() || "all"
   const startDate = searchParams.get("start_date")
   const endDate = searchParams.get("end_date")
   
@@ -74,6 +75,10 @@ export async function GET(request: NextRequest) {
 
   if (search) {
     query = query.in("customer_id", customerIds)
+  }
+
+  if (status !== "all") {
+    query = query.eq("status", status)
   }
 
   if (isDateRangeQuery) {

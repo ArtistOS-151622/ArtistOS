@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Filter, Plus, Search, User } from "lucide-react";
 
 import { AppLoader } from "@/components/common/shared/app-loader";
@@ -36,6 +37,12 @@ type CustomersResponse = {
 };
 
 export function CustomerManager() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const didInitialFetch = useRef(false);
+  const initialPage = Math.max(1, Number(searchParams.get("page")) || 1);
+  const initialSearch = searchParams.get("search") ?? "";
+  const initialSort = searchParams.get("sort") ?? "recent";
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [values, setValues] = useState<CustomerFormValues>(emptyCustomerForm);
   const [formOpen, setFormOpen] = useState(false);
@@ -47,17 +54,48 @@ export function CustomerManager() {
   const [error, setError] = useState("");
 
   // Search, filter and pagination states
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("recent");
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState(initialSearch);
+  const [sortBy, setSortBy] = useState(initialSort);
+  const [page, setPage] = useState(initialPage);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  function replaceListUrl(pageNum: number, searchVal: string, sortVal: string) {
+    const nextParams = new URLSearchParams(searchParams.toString());
+
+    if (pageNum > 1) {
+      nextParams.set("page", String(pageNum));
+    } else {
+      nextParams.delete("page");
+    }
+
+    if (searchVal.trim()) {
+      nextParams.set("search", searchVal.trim());
+    } else {
+      nextParams.delete("search");
+    }
+
+    if (sortVal !== "recent") {
+      nextParams.set("sort", sortVal);
+    } else {
+      nextParams.delete("sort");
+    }
+
+    nextParams.delete("add");
+
+    const query = nextParams.toString();
+    router.replace(`/customers${query ? `?${query}` : ""}`, {
+      scroll: false,
+    });
+  }
 
   // Fetch customers with pagination and search query
   async function fetchCustomers(
     pageNum: number,
     searchVal: string,
+    sortVal: string,
     append = false,
+    syncUrl = true,
   ) {
     if (pageNum === 1) {
       setLoading(true);
@@ -67,7 +105,7 @@ export function CustomerManager() {
     setError("");
     try {
       const res = await fetch(
-        `/api/customers?page=${pageNum}&search=${encodeURIComponent(searchVal)}`,
+        `/api/customers?page=${pageNum}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
       );
       const data = (await res.json()) as CustomersResponse;
       if (!res.ok) {
@@ -77,7 +115,47 @@ export function CustomerManager() {
         setCustomers((prev) => (append ? [...prev, ...fetched] : fetched));
         setHasMore(data.hasMore ?? false);
         setPage(pageNum);
+        if (syncUrl) replaceListUrl(pageNum, searchVal, sortVal);
       }
+    } catch {
+      setError("Unable to load customers.");
+    } finally {
+      setInitialLoading(false);
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }
+
+  async function fetchCustomersThrough(
+    pageNum: number,
+    searchVal: string,
+    sortVal: string,
+  ) {
+    setLoading(true);
+    setError("");
+
+    try {
+      const responses = await Promise.all(
+        Array.from({ length: pageNum }, (_, index) =>
+          fetch(
+            `/api/customers?page=${index + 1}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
+          ),
+        ),
+      );
+      const payloads = (await Promise.all(
+        responses.map((res) => res.json()),
+      )) as CustomersResponse[];
+      const failedIndex = responses.findIndex((res) => !res.ok);
+
+      if (failedIndex !== -1) {
+        setError(payloads[failedIndex]?.error ?? "Unable to load customers.");
+        return;
+      }
+
+      setCustomers(payloads.flatMap((payload) => payload.customers ?? []));
+      setHasMore(payloads[payloads.length - 1]?.hasMore ?? false);
+      setPage(pageNum);
+      replaceListUrl(pageNum, searchVal, sortVal);
     } catch {
       setError("Unable to load customers.");
     } finally {
@@ -90,23 +168,33 @@ export function CustomerManager() {
   // Debounced search effect
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      void fetchCustomers(1, search, false);
+      if (!didInitialFetch.current) {
+        didInitialFetch.current = true;
+        void fetchCustomersThrough(initialPage, search, sortBy);
+        return;
+      }
+
+      void fetchCustomers(1, search, sortBy, false);
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [search]);
+    // The fetch helpers read the latest state; search/sort are the only values
+    // that should restart this debounce.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, sortBy]);
 
   // Check URL query parameters for ?add=true to automatically open form
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("add") === "true") {
-        startCreate();
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, "", newUrl);
-      }
+    if (searchParams.get("add") === "true") {
+      startCreate();
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("add");
+      const query = newParams.toString();
+      router.replace(`/customers${query ? `?${query}` : ""}`, {
+        scroll: false,
+      });
     }
-  }, []);
+  }, [searchParams, router]);
 
   async function saveCustomer() {
     setLoading(true);
@@ -142,12 +230,12 @@ export function CustomerManager() {
       } else {
         cancelEdit();
         if (editing) {
-          void fetchCustomers(1, search, false);
+          void fetchCustomersThrough(page, search, sortBy);
         } else {
           if (search !== "") {
             setSearch("");
           } else {
-            void fetchCustomers(1, "", false);
+            void fetchCustomers(1, "", sortBy, false);
           }
         }
       }
@@ -173,7 +261,7 @@ export function CustomerManager() {
         setError(data.error ?? "Unable to delete customer.");
       } else {
         setDeleting(null);
-        void fetchCustomers(1, search, false);
+        void fetchCustomersThrough(page, search, sortBy);
       }
     } catch {
       setError("Unable to delete customer.");
@@ -206,13 +294,6 @@ export function CustomerManager() {
     setValues(emptyCustomerForm);
     setFormOpen(true);
   }
-
-  const sortedCustomers = [...customers].sort((a, b) => {
-    if (sortBy === "name") {
-      return a.customer_name.localeCompare(b.customer_name);
-    }
-    return 0;
-  });
 
   return (
     <div className="space-y-5">
@@ -348,7 +429,7 @@ export function CustomerManager() {
               <Button
                 variant="outline"
                 className="h-11 rounded-2xl px-6 bg-white hover:bg-slate-50 border border-slate-100 shadow-sm"
-                onClick={() => void fetchCustomers(page + 1, search, true)}
+                onClick={() => void fetchCustomers(page + 1, search, sortBy, true)}
                 disabled={loadingMore}
               >
                 {loadingMore ? "Loading..." : "Load more"}
