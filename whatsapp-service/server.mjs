@@ -156,6 +156,11 @@ function buildClient() {
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
+      '--single-process',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-sync',
+      '--mute-audio',
       '--disable-web-security',
       '--disable-features=IsolateOrigins,site-per-process'
     ],
@@ -363,8 +368,12 @@ async function startClient(deviceId, reason = 'REQUESTING_PAIRING_CODE') {
   try {
     await client.initialize();
   } catch (e) {
-    console.error('[WA] ❌ Initialize error:', e.message);
-    if (e.message.includes('timeout') || e.message.includes('browser') || e.message.includes('sandbox')) {
+    const errorMessage = e?.message || String(e || 'UNKNOWN_INITIALIZE_ERROR');
+    console.error('[WA] ❌ Initialize error:', errorMessage);
+    if (!e?.message) {
+      console.error('[WA] Initialize error details:', e);
+    }
+    if (errorMessage.includes('timeout') || errorMessage.includes('browser') || errorMessage.includes('sandbox')) {
       console.error('[WA] 💡 VPS FIX: Ensure Chrome dependencies are installed (e.g. libnss3, libasound2) or set PUPPETEER_EXECUTABLE_PATH');
     }
     isStarting = false;
@@ -377,7 +386,7 @@ async function startClient(deviceId, reason = 'REQUESTING_PAIRING_CODE') {
       await setDeviceStatus(deviceId, 'DISCONNECTED', {
         session_data: {
           lastError: 'INITIALIZE_FAILED',
-          details: e.message,
+          details: errorMessage,
           disconnectedAt: new Date().toISOString(),
         },
       });
