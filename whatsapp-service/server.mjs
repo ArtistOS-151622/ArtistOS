@@ -84,16 +84,34 @@ let reconnectCooldownUntil = 0;    // timestamp — don't retry auto-reconnect b
 // ─── Client factory ───────────────────────────────────────────────────────────
 
 function buildClient() {
+  const puppeteerConfig = {
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
+      '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process'
+    ],
+  };
+
+  // Support for VPS environments where Chromium path must be specified manually
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN;
+  if (executablePath) {
+    puppeteerConfig.executablePath = executablePath;
+  }
+
   return new Client({
     authStrategy: new LocalAuth({ dataPath: path.join(__dirname, 'sessions_data') }),
-    puppeteer: {
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-      ],
+    puppeteer: puppeteerConfig,
+    // Bypass WhatsApp Web "Update Chrome" screen which blocks QR generation on some systems
+    webVersionCache: {
+      type: 'remote',
+      remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
     },
   });
 }
