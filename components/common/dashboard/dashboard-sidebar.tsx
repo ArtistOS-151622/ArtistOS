@@ -4,11 +4,9 @@ import {
   CalendarDays,
   CalendarCheck,
   Grid2X2,
-  Sparkles,
+  Flower2,
   UsersRound,
   ImageIcon,
-  Settings,
-  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,12 +22,11 @@ type SidebarItem = {
 
 const sidebarItems: SidebarItem[] = [
   { id: "dashboard", icon: Grid2X2, href: "/dashboard", label: "Dashboard" },
-  { id: "bookings", icon: CalendarCheck, href: "/bookings", label: "Bookings" },
-  { id: "portfolio", icon: ImageIcon, href: "/portfolio", label: "Portfolio" },
-  { id: "services", icon: Sparkles, href: "/services", label: "Services" },
   { id: "customers", icon: UsersRound, href: "/customers", label: "Customers" },
+  { id: "bookings", icon: CalendarCheck, href: "/bookings", label: "Bookings" },
+  { id: "services", icon: Flower2, href: "/services", label: "Services" },
   { id: "calendar", icon: CalendarDays, href: "/calendar", label: "Calendar" },
-  { id: "support", icon: LifeBuoy, href: "/support", label: "Support" },
+  { id: "portfolio", icon: ImageIcon, href: "/portfolio", label: "Portfolio" },
 ]
 
 type DashboardSidebarProps = {
@@ -77,21 +74,7 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
             <span className="absolute top-3 right-3 size-2 rounded-full bg-rose-500 ring-2 ring-white" />
           </button>
 
-          {/* Settings / Profile */}
-          <Link
-            href="/profile"
-            aria-label="Settings & Profile"
-            contentEditable={false}
-            suppressHydrationWarning
-            className={cn(
-              "flex h-[50px] w-[50px] cursor-pointer items-center justify-center rounded-full transition",
-              active === "profile"
-                ? "bg-[#7c3aed] text-white shadow-md shadow-purple-500/25"
-                : "text-[#7c3aed]/80 hover:bg-purple-50/80 hover:text-[#7c3aed]",
-            )}
-          >
-            <Settings className="size-5" />
-          </Link>
+
         </div>
       </aside>
 
@@ -105,20 +88,7 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
             className="h-[50px] w-[50px] rounded-full"
           />
         ))}
-        <Link
-          href="/profile"
-          aria-label="Settings"
-          contentEditable={false}
-          suppressHydrationWarning
-          className={cn(
-            "flex h-[50px] w-[50px] cursor-pointer items-center justify-center rounded-full transition",
-            active === "profile"
-              ? "bg-[#7c3aed] text-white shadow-md shadow-purple-500/25"
-              : "text-[#7c3aed]/80 hover:bg-purple-50/80 hover:text-[#7c3aed]",
-          )}
-        >
-          <Settings className="size-5" />
-        </Link>
+
       </nav>
     </>
   );

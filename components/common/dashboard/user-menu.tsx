@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, ChevronDown, LogOut, Settings } from "lucide-react"
+import { Bell, ChevronDown, LogOut, Settings, LifeBuoy } from "lucide-react"
 
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -123,6 +123,13 @@ export function UserMenu({
               >
                 <Settings className="size-4" />
                 Profile & Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="rounded-xl cursor-pointer"
+                onClick={() => router.push("/support")}
+              >
+                <LifeBuoy className="size-4" />
+                Support Center
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
