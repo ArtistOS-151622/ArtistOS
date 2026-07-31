@@ -38,14 +38,14 @@ export function CustomerCard({
   const cleanPhone = customer.phone.replace(/[^0-9]/g, "");
 
   return (
-    <Card className="group relative overflow-hidden rounded-xl border-slate-100 bg-white shadow-md shadow-purple-950/5 transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-950/10">
+    <Card className="group relative overflow-hidden min-w-0 w-full rounded-xl border-slate-100 bg-white shadow-md shadow-purple-950/5 transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-950/10">
       {/* Background Watermark Icon */}
       <Users className="absolute -left-6 -top-6 z-0 size-64 text-[#7c3aed]/[0.07]" />
       
-      <CardContent className="relative z-10 p-4">
+      <CardContent className="relative z-10 p-4 min-w-0 w-full">
         {/* Header: Avatar + Customer Name + Action Buttons */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex flex-1 items-center gap-3 min-w-0">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 w-full">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-purple-100 text-[#7c3aed] border-[#7c3aed] font-bold text-sm sm:text-lg tracking-wider shadow-sm border">
               {initials}
             </div>
@@ -78,9 +78,9 @@ export function CustomerCard({
         </div>
 
         {/* Contact Information Body */}
-        <div className="mt-3 space-y-2.5 rounded-xl bg-slate-50 p-3 text-xs sm:text-sm text-slate-700 font-medium border border-slate-200/80">
+        <div className="mt-3 space-y-2.5 rounded-xl bg-slate-50 p-3 text-xs sm:text-sm text-slate-700 font-medium border border-slate-200/80 min-w-0 w-full">
           {/* Phone Row + Quick Actions */}
-          <div className="flex items-center justify-between gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 w-full">
             <div className="flex items-center gap-3 min-w-0">
               <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white text-[#7c3aed] shadow-sm border border-purple-200/50">
                 <Phone className="size-3.5" />
@@ -116,11 +116,11 @@ export function CustomerCard({
 
           {/* Address Row */}
           {customer.address && (
-            <div className="flex items-center gap-3 pt-2 border-t border-slate-200 mt-2">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 pt-2 border-t border-slate-200 mt-2">
               <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white text-[#7c3aed] shadow-sm border border-purple-200/50">
                 <MapPin className="size-3.5" />
               </div>
-              <span className="line-clamp-1 text-slate-700 leading-relaxed font-medium">
+              <span className="line-clamp-1 text-slate-700 leading-relaxed font-medium break-words">
                 {customer.address}
               </span>
             </div>
