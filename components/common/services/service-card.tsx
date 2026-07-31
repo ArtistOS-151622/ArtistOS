@@ -17,13 +17,13 @@ type ServiceCardProps = {
 }
 
 const STYLE_CONFIGS = [
-  { icon: Flower2, bgColor: "bg-blue-100", iconColor: "text-blue-600" },
-  { icon: Sparkles, bgColor: "bg-pink-100", iconColor: "text-pink-600" },
-  { icon: Palette, bgColor: "bg-purple-100", iconColor: "text-purple-600" },
-  { icon: Brush, bgColor: "bg-orange-100", iconColor: "text-orange-600" },
-  { icon: Gem, bgColor: "bg-emerald-100", iconColor: "text-emerald-600" },
-  { icon: Crown, bgColor: "bg-rose-100", iconColor: "text-rose-600" },
-  { icon: Wand2, bgColor: "bg-amber-100", iconColor: "text-amber-600" },
+  { icon: Flower2, bgColor: "bg-blue-50", iconColor: "text-blue-500" },
+  { icon: Sparkles, bgColor: "bg-pink-50", iconColor: "text-pink-500" },
+  { icon: Palette, bgColor: "bg-purple-50", iconColor: "text-purple-500" },
+  { icon: Brush, bgColor: "bg-orange-50", iconColor: "text-orange-500" },
+  { icon: Gem, bgColor: "bg-emerald-50", iconColor: "text-emerald-500" },
+  { icon: Crown, bgColor: "bg-rose-50", iconColor: "text-rose-500" },
+  { icon: Wand2, bgColor: "bg-amber-50", iconColor: "text-amber-500" },
 ]
 
 export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
@@ -51,8 +51,7 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
           </div>
           
           <div className="flex shrink-0 flex-col items-end gap-1">
-            <div className="absolute right-0 top-0 flex items-center gap-2 rounded-bl-[1.5rem] bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] py-1 pl-5 pr-4 font-bold tracking-wide text-white shadow-sm">
-              {/* <div className="h-1.5 w-1.5 rounded-full bg-white/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]" /> */}
+            <div className="absolute right-0 top-0 flex items-center gap-2 rounded-bl-[1.5rem] bg-purple-50/80 py-1 pl-5 pr-4 font-bold tracking-wide text-[#7c3aed] border-b border-l border-purple-100">
               <span>{formatPrice(service.price)}</span>
             </div>
             <div className="mt-5 flex gap-2">
