@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Filter, Plus, ScissorsLineDashed, Search } from "lucide-react";
 import { AppModal } from "@/components/common/shared/app-modal";
 import { AppLoader } from "@/components/common/shared/app-loader";
@@ -39,6 +39,7 @@ type ServicesResponse = {
 };
 
 export function ServiceManager() {
+  const pendingScrollId = useRef<number | null>(null);
   const [services, setServices] = useState<ArtistService[]>([]);
   const [values, setValues] = useState<ServiceFormValues>(emptyForm);
   const [formOpen, setFormOpen] = useState(false);
@@ -51,6 +52,20 @@ export function ServiceManager() {
   // Search & Filter states
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("all");
+
+  useEffect(() => {
+    if (loading || pendingScrollId.current === null) return;
+
+    const targetId = pendingScrollId.current;
+    const target = document.querySelector(
+      `[data-service-id="${targetId}"]`,
+    );
+
+    if (!target) return;
+
+    pendingScrollId.current = null;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [services, loading]);
 
   // Debounced search effect
   useEffect(() => {
@@ -106,6 +121,7 @@ export function ServiceManager() {
       if (!response.ok || !data.service) {
         setError(data.error ?? "Unable to save service.");
       } else {
+        if (editing) pendingScrollId.current = editing.id;
         cancelEdit();
         if (editing) {
           void loadServices(search, sortBy);
@@ -302,12 +318,13 @@ export function ServiceManager() {
       ) : services.length ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {services.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              onEdit={startEdit}
-              onDelete={setDeleting}
-            />
+            <div key={service.id} data-service-id={service.id}>
+              <ServiceCard
+                service={service}
+                onEdit={startEdit}
+                onDelete={setDeleting}
+              />
+            </div>
           ))}
         </div>
       ) : (

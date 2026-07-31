@@ -40,6 +40,7 @@ export function CustomerManager() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const didInitialFetch = useRef(false);
+  const pendingScrollId = useRef<number | null>(null);
   const initialPage = Math.max(1, Number(searchParams.get("page")) || 1);
   const initialSearch = searchParams.get("search") ?? "";
   const initialSort = searchParams.get("sort") ?? "recent";
@@ -59,6 +60,20 @@ export function CustomerManager() {
   const [page, setPage] = useState(initialPage);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    if (loading || loadingMore || pendingScrollId.current === null) return;
+
+    const targetId = pendingScrollId.current;
+    const target = document.querySelector(
+      `[data-customer-id="${targetId}"]`,
+    );
+
+    if (!target) return;
+
+    pendingScrollId.current = null;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [customers, loading, loadingMore]);
 
   function replaceListUrl(pageNum: number, searchVal: string, sortVal: string) {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -228,6 +243,7 @@ export function CustomerManager() {
           setError(data.error ?? "Unable to save customer.");
         }
       } else {
+        if (editing) pendingScrollId.current = editing.id;
         cancelEdit();
         if (editing) {
           void fetchCustomersThrough(page, search, sortBy);
@@ -415,12 +431,13 @@ export function CustomerManager() {
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {customers.map((customer) => (
-              <CustomerCard
-                key={customer.id}
-                customer={customer}
-                onEdit={startEdit}
-                onDelete={setDeleting}
-              />
+              <div key={customer.id} data-customer-id={customer.id}>
+                <CustomerCard
+                  customer={customer}
+                  onEdit={startEdit}
+                  onDelete={setDeleting}
+                />
+              </div>
             ))}
           </div>
 

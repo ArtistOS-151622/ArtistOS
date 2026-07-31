@@ -40,6 +40,7 @@ export function BookingManager() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const didInitialFetch = useRef(false);
+  const pendingScrollId = useRef<number | null>(null);
   const initialPage = Math.max(1, Number(searchParams.get("page")) || 1);
   const initialSearch = searchParams.get("search") ?? "";
   const initialStatus = searchParams.get("status") ?? "all";
@@ -58,6 +59,20 @@ export function BookingManager() {
   const [page, setPage] = useState(initialPage);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    if (loading || loadingMore || pendingScrollId.current === null) return;
+
+    const targetId = pendingScrollId.current;
+    const target = document.querySelector(
+      `[data-booking-id="${targetId}"]`,
+    );
+
+    if (!target) return;
+
+    pendingScrollId.current = null;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [bookings, loading, loadingMore]);
 
   function replaceListUrl(pageNum: number, searchVal: string, statusVal: string) {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -211,6 +226,7 @@ export function BookingManager() {
       if (!res.ok || !data.booking) {
         setError(data.error ?? "Unable to save booking.");
       } else {
+        if (editing) pendingScrollId.current = editing.id;
         cancelEdit();
         if (editing) {
           void fetchBookingsThrough(page, search, statusFilter);
@@ -428,12 +444,13 @@ export function BookingManager() {
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {bookings.map((booking) => (
-              <BookingCard
-                key={booking.id}
-                booking={booking}
-                onEdit={startEdit}
-                onDelete={setDeleting}
-              />
+              <div key={booking.id} data-booking-id={booking.id}>
+                <BookingCard
+                  booking={booking}
+                  onEdit={startEdit}
+                  onDelete={setDeleting}
+                />
+              </div>
             ))}
           </div>
 
