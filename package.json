@@ -7,6 +7,7 @@
     "dev": "concurrently -n next,whatsapp -c cyan,green \"pnpm run dev:next\" \"pnpm run dev:whatsapp\"",
     "dev:next": "next dev",
     "dev:whatsapp": "node whatsapp-service/server.mjs",
+    "whatsapp:install-browser": "puppeteer browsers install chrome",
     "whatsapp:worker": "node whatsapp-service/server.mjs",
     "build": "next build",
     "start": "concurrently -n next,whatsapp -c cyan,green \"next start\" \"node whatsapp-service/server.mjs\"",
