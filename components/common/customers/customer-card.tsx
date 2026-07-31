@@ -1,76 +1,132 @@
-"use client"
+"use client";
 
-import { Edit3, Mail, MapPin, Phone, Trash2, Users } from "lucide-react"
+import {
+  Edit3,
+  MapPin,
+  MessageCircle,
+  Phone,
+  PhoneCall,
+  Trash2,
+  Users,
+} from "lucide-react";
 
-import type { Customer } from "@/components/common/customers/customer-types"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import type { Customer } from "@/components/common/customers/customer-types";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 type CustomerCardProps = {
-  customer: Customer
-  onEdit: (customer: Customer) => void
-  onDelete: (customer: Customer) => void
-}
+  customer: Customer;
+  onEdit: (customer: Customer) => void;
+  onDelete: (customer: Customer) => void;
+};
 
-export function CustomerCard({ customer, onEdit, onDelete }: CustomerCardProps) {
-  const initials = customer.customer_name
-    .split(" ")
-    .map((p) => p[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
+
+
+export function CustomerCard({
+  customer,
+  onEdit,
+  onDelete,
+}: CustomerCardProps) {
+  const initials =
+    customer.customer_name
+      .split(" ")
+      .map((p) => p[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "CU";
+
+  const cleanPhone = customer.phone.replace(/[^0-9]/g, "");
 
   return (
-    <Card className="rounded-[1.75rem] border-slate-100 bg-white shadow-md shadow-purple-950/5 transition hover:-translate-y-0.5">
-      <CardContent className="space-y-4 p-5">
-        <div className="flex items-center gap-3">
-          <Avatar className="size-11">
-            <AvatarFallback className="bg-[#f3e8ff] text-[#7c3aed] font-semibold text-sm">
+    <Card className="group relative overflow-hidden rounded-xl border-slate-100 bg-white shadow-md shadow-purple-950/5 transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-950/10">
+      {/* Background Watermark Icon */}
+      <Users className="absolute -left-6 -top-6 z-0 size-64 text-[#7c3aed]/[0.07]" />
+      
+      <CardContent className="relative z-10 p-4">
+        {/* Header: Avatar + Customer Name + Action Buttons */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-1 items-center gap-3 min-w-0">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-purple-100 text-[#7c3aed] border-[#7c3aed] font-bold text-sm sm:text-lg tracking-wider shadow-sm border">
               {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold">{customer.customer_name}</p>
-            {customer.reference_by ? (
-              <Badge variant="secondary" className="mt-1 bg-[#f3e8ff] text-[#7c3aed] text-xs">
-                Ref: {customer.reference_by}
-              </Badge>
-            ) : null}
+            </div>
+            <h3 className="truncate text-base sm:text-lg font-bold text-slate-900">
+              {customer.customer_name}
+            </h3>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-8 rounded-md"
+              onClick={() => onEdit(customer)}
+            >
+              <Edit3 className="size-4" />
+              <span className="sr-only">Edit</span>
+            </Button>
+            <Button
+              variant="destructive"
+              size="icon"
+              className="size-8 rounded-md"
+              onClick={() => onDelete(customer)}
+            >
+              <Trash2 className="size-4" />
+              <span className="sr-only">Delete</span>
+            </Button>
           </div>
         </div>
 
-        <Separator />
+        {/* Contact Information Body */}
+        <div className="mt-3 space-y-2.5 rounded-xl bg-slate-50 p-3 text-xs sm:text-sm text-slate-700 font-medium border border-slate-200/80">
+          {/* Phone Row + Quick Actions */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white text-[#7c3aed] shadow-sm border border-purple-200/50">
+                <Phone className="size-3.5" />
+              </div>
+              <span className="truncate text-slate-900 font-bold">
+                {customer.phone}
+              </span>
+            </div>
 
-        <div className="space-y-2 text-sm text-[#5f637e]">
-          <p className="flex items-center gap-2 truncate">
-            <Phone className="size-4 shrink-0 text-[#7c3aed]" />
-            {customer.phone}
-            {customer.alt_phone ? ` / ${customer.alt_phone}` : ""}
-          </p>
-          <p className="flex items-center gap-2 truncate">
-            <Mail className="size-4 shrink-0 text-[#7c3aed]" />
-            {customer.email}
-          </p>
-          <p className="flex items-start gap-2">
-            <MapPin className="size-4 shrink-0 translate-y-0.5 text-[#7c3aed]" />
-            <span className="line-clamp-2">{customer.address}</span>
-          </p>
-        </div>
+            {/* Quick Call & WhatsApp Action Buttons */}
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={`tel:${customer.phone}`}
+                className="flex size-7 items-center justify-center rounded-md bg-white text-slate-600 hover:text-white hover:bg-[#7c3aed] hover:border-[#7c3aed] shadow-sm border border-slate-200 transition-all"
+                title="Call customer"
+              >
+                <PhoneCall className="size-3.5" />
+                <span className="sr-only">Call</span>
+              </a>
 
-        <div className="flex gap-2">
-          <Button variant="outline" className="h-10 flex-1 rounded-2xl" onClick={() => onEdit(customer)}>
-            <Edit3 className="size-4" />
-            Edit
-          </Button>
-          <Button variant="destructive" className="h-10 flex-1 rounded-2xl" onClick={() => onDelete(customer)}>
-            <Trash2 className="size-4" />
-            Delete
-          </Button>
+              <a
+                href={`https://wa.me/${cleanPhone}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex size-7 items-center justify-center rounded-md bg-emerald-50 text-emerald-700 hover:bg-[#25D366] hover:text-white hover:border-[#25D366] shadow-sm border border-emerald-200 transition-all"
+                title="WhatsApp customer"
+              >
+                <MessageCircle className="size-3.5" />
+                <span className="sr-only">WhatsApp</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Address Row */}
+          {customer.address && (
+            <div className="flex items-center gap-3 pt-2 border-t border-slate-200 mt-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white text-[#7c3aed] shadow-sm border border-purple-200/50">
+                <MapPin className="size-3.5" />
+              </div>
+              <span className="line-clamp-1 text-slate-700 leading-relaxed font-medium">
+                {customer.address}
+              </span>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
