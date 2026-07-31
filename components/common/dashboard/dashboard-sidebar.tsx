@@ -7,6 +7,9 @@ import {
   Flower2,
   UsersRound,
   ImageIcon,
+  Settings,
+  LifeBuoy,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 
@@ -14,7 +17,7 @@ import { BrandMark } from "@/components/common/brand/brand-logo";
 import { cn } from "@/lib/utils";
 
 type SidebarItem = {
-  id: "dashboard" | "services" | "calendar" | "customers" | "bookings" | "portfolio" | "profile" | "support"
+  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "portfolio" | "profile" | "support"
   icon: LucideIcon
   href: string
   label: string
@@ -23,6 +26,7 @@ type SidebarItem = {
 const sidebarItems: SidebarItem[] = [
   { id: "dashboard", icon: Grid2X2, href: "/dashboard", label: "Dashboard" },
   { id: "customers", icon: UsersRound, href: "/customers", label: "Customers" },
+  { id: "broadcasts", icon: MessageSquare, href: "/broadcasts", label: "Broadcasts" },
   { id: "bookings", icon: CalendarCheck, href: "/bookings", label: "Bookings" },
   { id: "services", icon: Flower2, href: "/services", label: "Services" },
   { id: "calendar", icon: CalendarDays, href: "/calendar", label: "Calendar" },

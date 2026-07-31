@@ -12,6 +12,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const active = pathname.includes('/bookings') ? 'bookings' :
     pathname.includes('/portfolio') ? 'portfolio' :
     pathname.includes('/customers') ? 'customers' :
+    pathname.includes('/broadcasts') ? 'broadcasts' :
       pathname.includes('/services') ? 'services' :
         pathname.includes('/calendar') ? 'calendar' :
           pathname.includes('/profile') ? 'profile' : 
