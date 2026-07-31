@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { execSync } from 'child_process';
+import { createServer } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -120,6 +121,35 @@ let isBusy = false;                // lock: one message in-flight at a time
 let frameErrorCount = 0;           // consecutive frame errors
 let reconnectCooldownUntil = 0;    // timestamp — don't retry auto-reconnect before this
 let pairingTimeout = null;
+
+function startHealthServer() {
+  const port = process.env.PORT;
+  if (!port) return;
+
+  const server = createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+
+    if (req.url === '/health' || req.url === '/') {
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        ok: true,
+        service: 'artistos-whatsapp-worker',
+        ready: isReady,
+        starting: isStarting,
+        waitingForPairing: isWaitingForScan,
+        activeDeviceId,
+      }));
+      return;
+    }
+
+    res.writeHead(404);
+    res.end(JSON.stringify({ ok: false, error: 'Not found' }));
+  });
+
+  server.listen(Number(port), '0.0.0.0', () => {
+    console.log(`[WA] Health server listening on port ${port}`);
+  });
+}
 
 // ─── Client factory ───────────────────────────────────────────────────────────
 
@@ -541,6 +571,7 @@ async function markMessageStatus(id, status, errorMsg = null, formattedMsg = nul
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 cleanupStaleLock();
+startHealthServer();
 
 // Reset stale Pairing devices on startup (not CONNECTED — those auto-reconnect)
 await supabase
