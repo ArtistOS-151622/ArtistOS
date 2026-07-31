@@ -26,9 +26,7 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const PAIRING_CODE_TIMEOUT_MS = Number(process.env.WHATSAPP_PAIRING_TIMEOUT_MS || 60_000);
 const PAIRING_CODE_RENEW_MS = Number(process.env.WHATSAPP_PAIRING_RENEW_MS || 170_000);
-const CLIENT_INITIALIZE_TIMEOUT_MS = Number(process.env.WHATSAPP_INITIALIZE_TIMEOUT_MS || 120_000);
 const MAX_TRANSIENT_SEND_RETRIES = Number(process.env.WHATSAPP_MAX_TRANSIENT_SEND_RETRIES || 3);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -100,16 +98,6 @@ function clearPairingTimeout() {
     clearTimeout(pairingTimeout);
     pairingTimeout = null;
   }
-}
-
-function startPairingTimeout(deviceId) {
-  clearPairingTimeout();
-  pairingTimeout = setTimeout(async () => {
-    if (activeDeviceId !== deviceId || isReady) return;
-
-    console.error(`[WA] Pairing code timeout for device ${deviceId}`);
-    await doDisconnect('PAIRING_CODE_TIMEOUT');
-  }, PAIRING_CODE_TIMEOUT_MS);
 }
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -367,19 +355,13 @@ async function startClient(deviceId, reason = 'REQUESTING_PAIRING_CODE') {
     pendingPairingPhoneNumber = phoneNumber;
     console.log(`[WA] 📱 Requesting pairing code for ${phoneNumber}…`);
     clearLocalAuthSession();
-    startPairingTimeout(deviceId);
   }
 
   client = buildClient();
   attachEvents(client);
 
   try {
-    await Promise.race([
-      client.initialize(),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('CLIENT_INITIALIZE_TIMEOUT')), CLIENT_INITIALIZE_TIMEOUT_MS);
-      }),
-    ]);
+    await client.initialize();
   } catch (e) {
     console.error('[WA] ❌ Initialize error:', e.message);
     if (e.message.includes('timeout') || e.message.includes('browser') || e.message.includes('sandbox')) {
