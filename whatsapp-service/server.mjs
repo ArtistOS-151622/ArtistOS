@@ -1,6 +1,7 @@
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageMedia } = pkg;
 import { createClient } from '@supabase/supabase-js';
+import puppeteer from 'puppeteer';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -170,8 +171,16 @@ function buildClient({ phoneNumber } = {}) {
     timeout: 60000, // 60 seconds timeout to prevent infinite hang on VPS
   };
 
-  // Support for VPS environments where Chromium path must be specified manually
-  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN;
+  // Support Render/VPS environments where Puppeteer's browser cache must be resolved explicitly.
+  let executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN;
+  if (!executablePath) {
+    try {
+      executablePath = puppeteer.executablePath();
+      console.log(`[WA] Using Puppeteer Chrome: ${executablePath}`);
+    } catch (e) {
+      console.warn('[WA] Could not resolve Puppeteer Chrome path:', e.message);
+    }
+  }
   if (executablePath) {
     puppeteerConfig.executablePath = executablePath;
   }
