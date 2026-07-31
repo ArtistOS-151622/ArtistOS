@@ -32,10 +32,10 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
   const Icon = styleConfig.icon
 
   return (
-    <Card className="relative overflow-hidden rounded-xl border-slate-100 bg-white shadow-md shadow-purple-950/5 transition hover:-translate-y-0.5">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-1 items-start gap-3 min-w-0">
+    <Card className="relative overflow-hidden min-w-0 w-full rounded-xl border-slate-100 bg-white shadow-md shadow-purple-950/5 transition hover:-translate-y-0.5">
+      <CardContent className="p-4 min-w-0 w-full">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 w-full">
+          <div className="flex items-start gap-3 min-w-0">
             <div
               className={`flex size-12 shrink-0 items-center justify-center rounded-lg ${styleConfig.bgColor}`}
             >
