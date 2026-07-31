@@ -123,6 +123,8 @@ let isBusy = false;                // lock: one message in-flight at a time
 let frameErrorCount = 0;           // consecutive frame errors
 let reconnectCooldownUntil = 0;    // timestamp — don't retry auto-reconnect before this
 let pairingTimeout = null;
+let pendingPairingPhoneNumber = null;
+let isRequestingPairingCode = false;
 
 function startHealthServer() {
   const port = process.env.PORT;
@@ -155,7 +157,7 @@ function startHealthServer() {
 
 // ─── Client factory ───────────────────────────────────────────────────────────
 
-function buildClient({ phoneNumber } = {}) {
+function buildClient() {
   const puppeteerConfig = {
     headless: true,
     args: [
@@ -193,18 +195,33 @@ function buildClient({ phoneNumber } = {}) {
     browserName: 'Chrome',
   };
 
-  if (phoneNumber) {
-    clientOptions.pairWithPhoneNumber = {
-      phoneNumber,
-      showNotification: true,
-      intervalMs: PAIRING_CODE_RENEW_MS,
-    };
-  }
-
   return new Client(clientOptions);
 }
 
 // ─── Client lifecycle ─────────────────────────────────────────────────────────
+
+async function handlePairingCode(code) {
+  if (!activeDeviceId || !code) return;
+
+  clearPairingTimeout();
+  const { data } = await supabase
+    .from('whatsapp_devices')
+    .select('session_data')
+    .eq('id', activeDeviceId)
+    .single();
+
+  console.log(`[WA] 🔑 Pairing Code Generated: ${code}`);
+  isStarting = false;
+  isWaitingForScan = true;
+  await setDeviceStatus(activeDeviceId, 'PAIRING_CODE_READY', {
+    session_data: {
+      ...(data?.session_data || {}),
+      pairingCode: code,
+      pairingCodeGeneratedAt: new Date().toISOString(),
+      lastError: null,
+    },
+  });
+}
 
 function attachEvents(c) {
   c.on('loading_screen', (percent, message) => {
@@ -220,32 +237,34 @@ function attachEvents(c) {
   });
 
   c.on('code', async (code) => {
-    if (!activeDeviceId) return;
-
-    clearPairingTimeout();
-    const { data } = await supabase
-      .from('whatsapp_devices')
-      .select('session_data')
-      .eq('id', activeDeviceId)
-      .single();
-
-    console.log(`[WA] 🔑 Pairing Code Generated: ${code}`);
-    isStarting = false;
-    isWaitingForScan = true;
-    await setDeviceStatus(activeDeviceId, 'PAIRING_CODE_READY', {
-      session_data: {
-        ...(data?.session_data || {}),
-        pairingCode: code,
-        pairingCodeGeneratedAt: new Date().toISOString(),
-        lastError: null,
-      },
-    });
+    await handlePairingCode(code);
   });
 
   c.on('qr', async () => {
     if (!activeDeviceId) return;
 
-    console.warn('[WA] QR event received before phone-number pairing code was generated.');
+    if (!pendingPairingPhoneNumber) {
+      console.warn('[WA] QR event received, but no phone number is pending for pairing.');
+      return;
+    }
+
+    if (isRequestingPairingCode) return;
+    isRequestingPairingCode = true;
+
+    try {
+      console.log(`[WA] QR bootstrap ready. Requesting pairing code for ${pendingPairingPhoneNumber}…`);
+      const code = await c.requestPairingCode(
+        pendingPairingPhoneNumber,
+        true,
+        PAIRING_CODE_RENEW_MS
+      );
+      await handlePairingCode(code);
+    } catch (e) {
+      console.error('[WA] ❌ Pairing code request error:', e.message);
+      await doDisconnect('PAIRING_CODE_REQUEST_FAILED');
+    } finally {
+      isRequestingPairingCode = false;
+    }
   });
 
   c.on('ready', async () => {
@@ -280,6 +299,8 @@ async function doDisconnect(reason) {
   isStarting = false;
   isWaitingForScan = false;
   isBusy = false;
+  pendingPairingPhoneNumber = null;
+  isRequestingPairingCode = false;
 
   if (activeDeviceId) {
     console.log(`[WA] Device ${activeDeviceId} → DISCONNECTED (${reason})`);
@@ -343,12 +364,13 @@ async function startClient(deviceId, reason = 'REQUESTING_PAIRING_CODE') {
     }
 
     phoneNumber = data.session_data.phoneNumber;
+    pendingPairingPhoneNumber = phoneNumber;
     console.log(`[WA] 📱 Requesting pairing code for ${phoneNumber}…`);
     clearLocalAuthSession();
     startPairingTimeout(deviceId);
   }
 
-  client = buildClient({ phoneNumber });
+  client = buildClient();
   attachEvents(client);
 
   try {
