@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getArtistSession } from "@/lib/auth/session"
+import { wakeWhatsAppWorker } from "@/lib/whatsapp/worker"
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Internal Error"
@@ -130,6 +131,8 @@ export async function PATCH(
       .update({ status: "RUNNING", updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("user_id", session.id)
+
+    void wakeWhatsAppWorker()
 
     return NextResponse.json({ success: true })
   } catch (err) {

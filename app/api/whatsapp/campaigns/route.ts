@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getArtistSession } from "@/lib/auth/session"
+import { wakeWhatsAppWorker } from "@/lib/whatsapp/worker"
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Internal Error"
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,8 +31,8 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ campaigns })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal Error" }, { status: 500 })
+  } catch (err) {
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 })
   }
 }
 
@@ -101,8 +106,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    void wakeWhatsAppWorker()
+
     return NextResponse.json({ success: true, campaign })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal Error" }, { status: 500 })
+  } catch (err) {
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 })
   }
 }

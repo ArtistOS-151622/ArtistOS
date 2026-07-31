@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getArtistSession } from "@/lib/auth/session"
+import { wakeWhatsAppWorker } from "@/lib/whatsapp/worker"
 
 const VALID_DEVICE_STATUSES = new Set([
   "DISCONNECTED",
@@ -109,6 +110,10 @@ export async function PATCH(
     if (error) {
       console.error("Error updating device:", error)
       return NextResponse.json({ error: "Failed to update device" }, { status: 500 })
+    }
+
+    if (update.session_status === "REQUESTING_PAIRING_CODE") {
+      void wakeWhatsAppWorker()
     }
 
     return NextResponse.json({ success: true })
