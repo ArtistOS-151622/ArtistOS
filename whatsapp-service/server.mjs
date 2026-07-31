@@ -11,17 +11,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../.env.local') });
+dotenv.config();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase credentials in .env.local');
+  console.error('Missing Supabase credentials. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
   process.exit(1);
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+const PAIRING_CODE_TIMEOUT_MS = Number(process.env.WHATSAPP_PAIRING_TIMEOUT_MS || 60_000);
+const PAIRING_CODE_RENEW_MS = Number(process.env.WHATSAPP_PAIRING_RENEW_MS || 170_000);
+const MAX_TRANSIENT_SEND_RETRIES = Number(process.env.WHATSAPP_MAX_TRANSIENT_SEND_RETRIES || 3);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +50,18 @@ function cleanupStaleLock() {
   }
 }
 
+function clearLocalAuthSession() {
+  try {
+    const sessionDir = path.join(__dirname, 'sessions_data', 'session');
+    if (fs.existsSync(sessionDir)) {
+      fs.rmSync(sessionDir, { recursive: true, force: true });
+      console.log('[WA] 🧹 Cleared local auth session for fresh pairing');
+    }
+  } catch (e) {
+    console.warn('[WA] clearLocalAuthSession (non-fatal):', e.message);
+  }
+}
+
 function parseSpintax(text) {
   const regex = /\{([^{}]*)\}/g;
   let out = text;
@@ -62,12 +79,34 @@ function replaceVariables(text, customer) {
   return text.replace(/\{\{name\}\}/gi, name);
 }
 
+function getRetryCount(errorMessage) {
+  const match = errorMessage?.match(/\[retry:(\d+)\]/);
+  return match ? Number(match[1]) : 0;
+}
+
 async function setDeviceStatus(id, status, extra = {}) {
   const { error } = await supabase
     .from('whatsapp_devices')
-    .update({ session_status: status, ...extra })
+    .update({ session_status: status, updated_at: new Date().toISOString(), ...extra })
     .eq('id', id);
   if (error) console.error('[WA] setDeviceStatus error:', error.message);
+}
+
+function clearPairingTimeout() {
+  if (pairingTimeout) {
+    clearTimeout(pairingTimeout);
+    pairingTimeout = null;
+  }
+}
+
+function startPairingTimeout(deviceId) {
+  clearPairingTimeout();
+  pairingTimeout = setTimeout(async () => {
+    if (activeDeviceId !== deviceId || isReady) return;
+
+    console.error(`[WA] Pairing code timeout for device ${deviceId}`);
+    await doDisconnect('PAIRING_CODE_TIMEOUT');
+  }, PAIRING_CODE_TIMEOUT_MS);
 }
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -80,10 +119,11 @@ let activeDeviceId = null;
 let isBusy = false;                // lock: one message in-flight at a time
 let frameErrorCount = 0;           // consecutive frame errors
 let reconnectCooldownUntil = 0;    // timestamp — don't retry auto-reconnect before this
+let pairingTimeout = null;
 
 // ─── Client factory ───────────────────────────────────────────────────────────
 
-function buildClient() {
+function buildClient({ phoneNumber } = {}) {
   const puppeteerConfig = {
     headless: true,
     args: [
@@ -97,6 +137,7 @@ function buildClient() {
       '--disable-web-security',
       '--disable-features=IsolateOrigins,site-per-process'
     ],
+    timeout: 60000, // 60 seconds timeout to prevent infinite hang on VPS
   };
 
   // Support for VPS environments where Chromium path must be specified manually
@@ -105,31 +146,65 @@ function buildClient() {
     puppeteerConfig.executablePath = executablePath;
   }
 
-  return new Client({
+  const clientOptions = {
     authStrategy: new LocalAuth({ dataPath: path.join(__dirname, 'sessions_data') }),
     puppeteer: puppeteerConfig,
+    deviceName: 'ArtistOS',
+    browserName: 'Chrome',
     // Bypass WhatsApp Web "Update Chrome" screen which blocks QR generation on some systems
     webVersionCache: {
       type: 'remote',
       remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
     },
-  });
+  };
+
+  if (phoneNumber) {
+    clientOptions.pairWithPhoneNumber = {
+      phoneNumber,
+      showNotification: true,
+      intervalMs: PAIRING_CODE_RENEW_MS,
+    };
+  }
+
+  return new Client(clientOptions);
 }
 
 // ─── Client lifecycle ─────────────────────────────────────────────────────────
 
 function attachEvents(c) {
-  c.on('qr', async (qr) => {
-    console.log('[WA] 📱 QR generated — pushing to DB…');
+  c.on('code', async (code) => {
+    if (!activeDeviceId) return;
+
+    clearPairingTimeout();
+    const { data } = await supabase
+      .from('whatsapp_devices')
+      .select('session_data')
+      .eq('id', activeDeviceId)
+      .single();
+
+    console.log(`[WA] 🔑 Pairing Code Generated: ${code}`);
     isStarting = false;
     isWaitingForScan = true;
-    if (activeDeviceId) {
-      await setDeviceStatus(activeDeviceId, 'QR_READY', { session_data: { qr } });
-    }
+    await setDeviceStatus(activeDeviceId, 'PAIRING_CODE_READY', {
+      session_data: {
+        ...(data?.session_data || {}),
+        pairingCode: code,
+        pairingCodeGeneratedAt: new Date().toISOString(),
+        lastError: null,
+      },
+    });
+  });
+
+  c.on('qr', async () => {
+    if (!activeDeviceId) return;
+
+    console.warn('[WA] QR event received. Phone-number pairing was not configured for this auth attempt.');
+    await doDisconnect('MISSING_PHONE_NUMBER');
   });
 
   c.on('ready', async () => {
     console.log('[WA] ✅ Client ready!');
+    clearPairingTimeout();
     isReady = true;
     isStarting = false;
     isWaitingForScan = false;
@@ -154,6 +229,7 @@ function attachEvents(c) {
 }
 
 async function doDisconnect(reason) {
+  clearPairingTimeout();
   isReady = false;
   isStarting = false;
   isWaitingForScan = false;
@@ -161,7 +237,12 @@ async function doDisconnect(reason) {
 
   if (activeDeviceId) {
     console.log(`[WA] Device ${activeDeviceId} → DISCONNECTED (${reason})`);
-    await setDeviceStatus(activeDeviceId, 'DISCONNECTED', { session_data: null });
+    await setDeviceStatus(activeDeviceId, 'DISCONNECTED', {
+      session_data: {
+        lastError: reason,
+        disconnectedAt: new Date().toISOString(),
+      },
+    });
     activeDeviceId = null;
   }
 
@@ -173,7 +254,7 @@ async function doDisconnect(reason) {
   cleanupStaleLock();
 }
 
-async function startClient(deviceId, reason = 'REQUESTING_QR') {
+async function startClient(deviceId, reason = 'REQUESTING_PAIRING_CODE') {
   if (isStarting || isReady || isWaitingForScan) return;
 
   // Cooldown for auto-reconnect so we don't spam retries every 3s
@@ -194,20 +275,57 @@ async function startClient(deviceId, reason = 'REQUESTING_QR') {
   isStarting = true;
   activeDeviceId = deviceId;
 
-  client = buildClient();
+  let phoneNumber;
+  if (reason === 'REQUESTING_PAIRING_CODE') {
+    const { data, error } = await supabase
+      .from('whatsapp_devices')
+      .select('session_data')
+      .eq('id', deviceId)
+      .single();
+
+    if (error || !data?.session_data?.phoneNumber) {
+      console.error('[WA] Missing phone number for pairing request.');
+      isStarting = false;
+      activeDeviceId = null;
+      await setDeviceStatus(deviceId, 'DISCONNECTED', {
+        session_data: {
+          lastError: 'MISSING_PHONE_NUMBER',
+          disconnectedAt: new Date().toISOString(),
+        },
+      });
+      return;
+    }
+
+    phoneNumber = data.session_data.phoneNumber;
+    console.log(`[WA] 📱 Requesting pairing code for ${phoneNumber}…`);
+    clearLocalAuthSession();
+    startPairingTimeout(deviceId);
+  }
+
+  client = buildClient({ phoneNumber });
   attachEvents(client);
 
   try {
     await client.initialize();
   } catch (e) {
-    console.error('[WA] Initialize error:', e.message);
+    console.error('[WA] ❌ Initialize error:', e.message);
+    if (e.message.includes('timeout') || e.message.includes('browser') || e.message.includes('sandbox')) {
+      console.error('[WA] 💡 VPS FIX: Ensure Chrome dependencies are installed (e.g. libnss3, libasound2) or set PUPPETEER_EXECUTABLE_PATH');
+    }
     isStarting = false;
     client = null;
     activeDeviceId = null;
+    clearPairingTimeout();
     cleanupStaleLock();
-    if (reason === 'REQUESTING_QR') {
+    if (reason === 'REQUESTING_PAIRING_CODE') {
       // User explicitly requested — mark disconnected so UI shows the error
-      await setDeviceStatus(deviceId, 'DISCONNECTED', { session_data: null });
+      await setDeviceStatus(deviceId, 'DISCONNECTED', {
+        session_data: {
+          lastError: 'INITIALIZE_FAILED',
+          details: e.message,
+          disconnectedAt: new Date().toISOString(),
+        },
+      });
     } else {
       // Auto-reconnect failed — back off 30s before next attempt
       reconnectCooldownUntil = Date.now() + 30_000;
@@ -224,12 +342,12 @@ async function processQueue() {
     const { data } = await supabase
       .from('whatsapp_devices')
       .select('id, session_status')
-      .in('session_status', ['REQUESTING_QR', 'CONNECTED'])
+      .in('session_status', ['REQUESTING_PAIRING_CODE', 'CONNECTED'])
       .order('updated_at', { ascending: false })
       .limit(1);
 
     if (data && data.length > 0) {
-      const reason = data[0].session_status; // 'REQUESTING_QR' or 'CONNECTED'
+      const reason = data[0].session_status; // 'REQUESTING_PAIRING_CODE' or 'CONNECTED'
       await startClient(data[0].id, reason);
     }
     return;
@@ -245,7 +363,7 @@ async function processQueue() {
     const { data: messages, error } = await supabase
       .from('broadcast_messages')
       .select('*, broadcast_campaigns(*), customers(*)')
-      .eq('status', 'PENDING')
+      .in('status', ['PENDING', 'RETRYING'])
       .order('created_at', { ascending: true })
       .limit(1);
 
@@ -279,6 +397,19 @@ async function processQueue() {
   try {
     const customerName = customer.customer_name || customer.name || 'Unknown';
     console.log(`[WA] Processing: ${customerName} (${customer.phone})`);
+
+    const { data: connectedDevice } = await supabase
+      .from('whatsapp_devices')
+      .select('id')
+      .eq('session_status', 'CONNECTED')
+      .limit(1)
+      .maybeSingle();
+
+    if (!connectedDevice) {
+      await markMessageStatus(msg.id, 'RETRYING', 'WhatsApp is not connected. Waiting for reconnection...');
+      await doDisconnect('DEVICE_NOT_CONNECTED');
+      return;
+    }
 
     // Delay (skip for first message in campaign)
     const { count: sentCount } = await supabase
@@ -346,7 +477,22 @@ async function processQueue() {
       frameErrorCount++;
       console.error(`[WA] ⚠️  Frame error during send (${frameErrorCount}/3) — ${err.message}`);
       if (msg) {
-        await markMessageStatus(msg.id, 'FAILED', 'WhatsApp session lost — reconnect and retry');
+        const retryCount = getRetryCount(msg.error_message) + 1;
+        if (retryCount >= MAX_TRANSIENT_SEND_RETRIES) {
+          await markMessageStatus(
+            msg.id,
+            'FAILED',
+            'WhatsApp session was unstable. Please reconnect WhatsApp and retry this campaign.',
+            null,
+            campaign?.id,
+          );
+        } else {
+          await markMessageStatus(
+            msg.id,
+            'RETRYING',
+            `[retry:${retryCount}] WhatsApp session was busy. Retrying automatically...`,
+          );
+        }
       }
       if (frameErrorCount >= 3) {
         console.error('[WA] 3 consecutive frame errors — triggering full reconnect…');
@@ -369,7 +515,7 @@ async function processQueue() {
 
 async function markMessageStatus(id, status, errorMsg = null, formattedMsg = null, campaignId = null) {
   const update = { status, updated_at: new Date().toISOString() };
-  if (errorMsg) update.error_message = errorMsg;
+  update.error_message = errorMsg;
   if (formattedMsg) update.formatted_message = formattedMsg;
   if (status === 'SENT') update.sent_at = new Date().toISOString();
 
@@ -380,7 +526,7 @@ async function markMessageStatus(id, status, errorMsg = null, formattedMsg = nul
       .from('broadcast_messages')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaignId)
-      .eq('status', 'PENDING');
+      .in('status', ['PENDING', 'RETRYING']);
 
     if (count === 0) {
       console.log(`[WA] Campaign ${campaignId} completed!`);
@@ -396,11 +542,11 @@ async function markMessageStatus(id, status, errorMsg = null, formattedMsg = nul
 
 cleanupStaleLock();
 
-// Reset stale QR devices on startup (not CONNECTED — those auto-reconnect)
+// Reset stale Pairing devices on startup (not CONNECTED — those auto-reconnect)
 await supabase
   .from('whatsapp_devices')
   .update({ session_status: 'DISCONNECTED', session_data: null })
-  .in('session_status', ['REQUESTING_QR', 'QR_READY']);
+  .in('session_status', ['REQUESTING_PAIRING_CODE', 'PAIRING_CODE_READY']);
 
 console.log('[WA] Service started. Polling every 3s…');
 setInterval(processQueue, 3000);

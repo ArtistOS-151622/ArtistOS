@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, RefreshCw, CheckCircle2, Clock, AlertCircle, Play, Pause } from "lucide-react"
+import { ArrowLeft, RefreshCw, CheckCircle2, Clock, AlertCircle } from "lucide-react"
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -53,6 +53,21 @@ export default function BroadcastDetailsPage() {
     }
   }, [params.id])
 
+  const retryFailedMessages = async () => {
+    try {
+      const res = await fetch(`/api/whatsapp/campaigns/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "retry_failed" }),
+      })
+      if (res.ok) {
+        await loadDetails()
+      }
+    } catch (error) {
+      console.error("Failed to retry messages", error)
+    }
+  }
+
   useEffect(() => {
     loadDetails()
   }, [loadDetails])
@@ -69,10 +84,13 @@ export default function BroadcastDetailsPage() {
     switch (status) {
       case 'SENT': return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100"><CheckCircle2 className="size-3 mr-1" /> Sent</Badge>
       case 'PENDING': return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100"><Clock className="size-3 mr-1" /> Pending</Badge>
+      case 'RETRYING': return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100"><RefreshCw className="size-3 mr-1" /> Retrying</Badge>
       case 'FAILED': return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100"><AlertCircle className="size-3 mr-1" /> Failed</Badge>
       default: return <Badge className="bg-slate-100 text-slate-700">{status}</Badge>
     }
   }
+
+  const getMessageError = (message: string) => message.replace(/^\[retry:\d+\]\s*/, "")
 
   if (loading) {
     return (
@@ -117,7 +135,12 @@ export default function BroadcastDetailsPage() {
               {failedCount > 0 && <Badge variant="outline" className="text-xs bg-rose-50 text-rose-600 border-rose-200">{failedCount} Failed</Badge>}
             </div>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {failedCount > 0 ? (
+              <Button variant="outline" size="sm" onClick={retryFailedMessages} className="rounded-xl h-10">
+                Retry Failed
+              </Button>
+            ) : null}
              <Button variant="outline" size="sm" onClick={loadDetails} className="rounded-xl h-10">
                <RefreshCw className="mr-2 size-4" /> Refresh Status
              </Button>
@@ -203,8 +226,8 @@ export default function BroadcastDetailsPage() {
                         <td className="px-6 py-4">
                           {getStatusBadge(msg.status)}
                           {msg.error_message && (
-                            <p className="text-xs text-rose-500 mt-1 max-w-[200px] truncate" title={msg.error_message}>
-                              {msg.error_message}
+                            <p className="text-xs text-rose-500 mt-1 max-w-[200px] truncate" title={getMessageError(msg.error_message)}>
+                              {getMessageError(msg.error_message)}
                             </p>
                           )}
                         </td>

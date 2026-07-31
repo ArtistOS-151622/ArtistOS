@@ -2,6 +2,10 @@ import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getArtistSession } from "@/lib/auth/session"
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Internal Error"
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = getArtistSession(req)
@@ -23,8 +27,8 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ devices })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal Error" }, { status: 500 })
+  } catch (err) {
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 })
   }
 }
 
@@ -50,6 +54,7 @@ export async function POST(req: NextRequest) {
         user_id: session.id,
         name,
         session_status: "DISCONNECTED",
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single()
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ device })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal Error" }, { status: 500 })
+  } catch (err) {
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 })
   }
 }

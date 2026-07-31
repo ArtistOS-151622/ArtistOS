@@ -7,6 +7,7 @@
     "dev": "concurrently -n next,whatsapp -c cyan,green \"pnpm run dev:next\" \"pnpm run dev:whatsapp\"",
     "dev:next": "next dev",
     "dev:whatsapp": "node whatsapp-service/server.mjs",
+    "whatsapp:worker": "node whatsapp-service/server.mjs",
     "build": "next build",
     "start": "concurrently -n next,whatsapp -c cyan,green \"next start\" \"node whatsapp-service/server.mjs\"",
     "lint": "eslint"
@@ -27,8 +28,6 @@
     "lucide-react": "^1.23.0",
     "next": "16.2.10",
     "next-themes": "^0.4.6",
-    "qrcode-terminal": "^0.12.0",
-    "qrcode.react": "^4.2.0",
     "razorpay": "^2.9.8",
     "react": "19.2.4",
     "react-big-calendar": "^1.20.0",
