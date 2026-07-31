@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Loader2, Phone, Save, User, Building2, MapPin, Mail, LogOut, ImageIcon } from "lucide-react"
+import { Loader2, Phone, Save, User, Building2, MapPin, Mail, LogOut, ImageIcon, Smartphone } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
@@ -143,6 +143,26 @@ export default function ProfilePage() {
             >
               <ImageIcon className="mr-1.5 size-4" />
               Manage portfolio folders
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
+          <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4">
+            <div>
+              <CardTitle className="text-xl">WhatsApp Integration</CardTitle>
+              <CardDescription>
+                Connect your WhatsApp account to send broadcast messages and updates to customers.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Link
+              href="/profile/whatsapp"
+              className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 rounded-2xl w-full sm:w-auto"
+            >
+              <Smartphone className="mr-2 size-4" />
+              Manage Devices
             </Link>
           </CardContent>
         </Card>

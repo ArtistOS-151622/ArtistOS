@@ -48,3 +48,8 @@ supabase/.temp
 
 # pnpm store cache
 .pnpm-store
+
+# whatsapp-service data
+whatsapp-service/sessions_data/
+.wwebjs_auth/
+.wwebjs_cache/

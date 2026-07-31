@@ -9,6 +9,7 @@ import {
   ImageIcon,
   Settings,
   LifeBuoy,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 
@@ -16,7 +17,7 @@ import { BrandMark } from "@/components/common/brand/brand-logo";
 import { cn } from "@/lib/utils";
 
 type SidebarItem = {
-  id: "dashboard" | "services" | "calendar" | "customers" | "bookings" | "portfolio" | "profile" | "support"
+  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "portfolio" | "profile" | "support"
   icon: LucideIcon
   href: string
   label: string
@@ -28,6 +29,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "portfolio", icon: ImageIcon, href: "/portfolio", label: "Portfolio" },
   { id: "services", icon: Sparkles, href: "/services", label: "Services" },
   { id: "customers", icon: UsersRound, href: "/customers", label: "Customers" },
+  { id: "broadcasts", icon: MessageSquare, href: "/broadcasts", label: "Broadcasts" },
   { id: "calendar", icon: CalendarDays, href: "/calendar", label: "Calendar" },
   { id: "support", icon: LifeBuoy, href: "/support", label: "Support" },
 ]
