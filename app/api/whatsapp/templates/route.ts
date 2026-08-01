@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const body = await req.json()
-    const { title, content, image_url } = body
+    const { title, content, image_url, language } = body
 
     if (!title || !content) {
       return NextResponse.json({ error: "Title and content are required" }, { status: 400 })
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
         user_id: session.id,
         title,
         content,
+        language: language || 'English',
         image_url
       })
       .select()

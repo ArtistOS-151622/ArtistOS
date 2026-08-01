@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Play, CheckCircle2, ChevronRight, ChevronLeft, RefreshCw, ImagePlus, X, Save, Send } from "lucide-react"
+import { Play, CheckCircle2, ChevronRight, ChevronLeft, RefreshCw, ImagePlus, X, Save, Send, ChevronDown } from "lucide-react"
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -22,6 +23,7 @@ type Template = {
   id: number
   title: string
   content: string
+  language: string
   image_url: string | null
   user_id: number | null
 }
@@ -45,6 +47,9 @@ export default function CreateBroadcastPage() {
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([])
   const [saveTemplate, setSaveTemplate] = useState(false)
   const [newTemplateTitle, setNewTemplateTitle] = useState("")
+  const [newTemplateLang, setNewTemplateLang] = useState("English")
+
+  const [filterLang, setFilterLang] = useState<string>("All")
 
   // Spintax Preview
   const [preview, setPreview] = useState("")
@@ -96,15 +101,18 @@ export default function CreateBroadcastPage() {
   const generatePreview = useCallback((name = "John Doe") => {
     let text = message
     
+    // Replace literal '\n' strings with actual newlines
+    text = text.replace(/\\n/g, '\n')
+    
+    // Replace Variables
+    text = text.replace(/\{\{name\}\}/g, name)
+
     // Replace Spintax
-    const spintaxRegex = /\\{([^\\{\\}]*)\\}/g
+    const spintaxRegex = /\{([^{}]*)\}/g
     text = text.replace(spintaxRegex, (match, contents) => {
       const parts = contents.split('|')
       return parts[Math.floor(Math.random() * parts.length)]
     })
-
-    // Replace Variables
-    text = text.replace(/\\{\\{name\\}\\}/g, name)
     
     return text
   }, [message])
@@ -181,6 +189,7 @@ export default function CreateBroadcastPage() {
            body: JSON.stringify({
              title: newTemplateTitle,
              content: message,
+             language: newTemplateLang,
              image_url: finalImageUrl
            })
          })
@@ -255,10 +264,25 @@ export default function CreateBroadcastPage() {
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <Label htmlFor="message">Message Template</Label>
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="message">Message Template</Label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className={buttonVariants({ variant: "outline", className: "h-8 rounded-lg px-3 flex gap-2 font-normal text-xs border-slate-200" })}>
+                          {filterLang === "All" ? "All Languages" : filterLang} <ChevronDown className="size-3 text-slate-500" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="rounded-xl">
+                          <DropdownMenuRadioGroup value={filterLang} onValueChange={setFilterLang}>
+                            <DropdownMenuRadioItem value="All">All Languages</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="English">English</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="Hindi">Hindi</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="Gujarati">Gujarati</DropdownMenuRadioItem>
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                     
                     <div className="flex flex-wrap gap-2">
-                      {templates.map((tpl, i) => (
+                      {templates.filter(t => filterLang === "All" || t.language === filterLang).map((tpl, i) => (
                         <Button 
                           key={i} 
                           type="button" 
@@ -323,12 +347,26 @@ export default function CreateBroadcastPage() {
                        <Label htmlFor="saveTemplate" className="cursor-pointer">Save as new template</Label>
                     </div>
                     {saveTemplate && (
-                       <Input 
-                          placeholder="Template Title" 
-                          value={newTemplateTitle}
-                          onChange={e => setNewTemplateTitle(e.target.value)}
-                          className="h-10 rounded-xl"
-                       />
+                       <div className="flex gap-2">
+                         <Input 
+                            placeholder="Template Title" 
+                            value={newTemplateTitle}
+                            onChange={e => setNewTemplateTitle(e.target.value)}
+                            className="h-10 rounded-xl flex-1"
+                         />
+                         <DropdownMenu>
+                            <DropdownMenuTrigger className={buttonVariants({ variant: "outline", className: "h-10 rounded-xl px-4 flex gap-2 font-normal border-slate-200 shrink-0" })}>
+                              {newTemplateLang} <ChevronDown className="size-4 text-slate-500" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="rounded-xl">
+                              <DropdownMenuRadioGroup value={newTemplateLang} onValueChange={setNewTemplateLang}>
+                                <DropdownMenuRadioItem value="English">English</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="Hindi">Hindi</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="Gujarati">Gujarati</DropdownMenuRadioItem>
+                              </DropdownMenuRadioGroup>
+                            </DropdownMenuContent>
+                         </DropdownMenu>
+                       </div>
                     )}
                   </div>
                   
@@ -425,17 +463,13 @@ export default function CreateBroadcastPage() {
 
           </CardContent>
           <CardFooter className="border-t border-slate-100 bg-slate-50/50 p-6 rounded-b-[1.75rem] flex justify-between items-center">
-            {step < 3 ? (
-               <Button
-                 variant="outline"
-                 onClick={() => step > 1 ? setStep(step - 1) : router.push("/broadcasts")}
-                 className="rounded-2xl h-11 px-6"
-               >
-                 {step > 1 ? <><ChevronLeft className="mr-2 size-4" /> Back</> : "Cancel"}
-               </Button>
-            ) : (
-               <div /> // Placeholder for flex-between
-            )}
+            <Button
+              variant="outline"
+              onClick={() => step > 1 ? setStep(step - 1) : router.push("/broadcasts")}
+              className="rounded-2xl h-11 px-6"
+            >
+              {step > 1 ? <><ChevronLeft className="mr-2 size-4" /> Back</> : "Cancel"}
+            </Button>
             
             {step === 1 && (
               <Button
@@ -467,7 +501,8 @@ export default function CreateBroadcastPage() {
             {step === 3 && (
                <Button
                  onClick={() => router.push("/broadcasts")}
-                 className="rounded-2xl h-11 px-8 bg-slate-900 text-white hover:bg-slate-800"
+                 className="rounded-2xl h-11 px-8 bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                 disabled={sentCustomerIds.length < selectedCustomers.length}
                >
                  Done
                </Button>
