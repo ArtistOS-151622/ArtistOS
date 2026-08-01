@@ -29,7 +29,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "broadcasts", icon: MessageSquare, href: "/broadcasts", label: "Broadcasts" },
   { id: "bookings", icon: CalendarCheck, href: "/bookings", label: "Bookings" },
   { id: "services", icon: Flower2, href: "/services", label: "Services" },
-  { id: "calendar", icon: CalendarDays, href: "/calendar", label: "Calendar" },
+
   { id: "portfolio", icon: ImageIcon, href: "/portfolio", label: "Portfolio" },
 ]
 

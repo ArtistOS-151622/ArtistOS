@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Filter, Plus, Search, User } from "lucide-react";
 
-import { AppLoader } from "@/components/common/shared/app-loader";
+import { SkeletonCard } from "@/components/common/shared/skeleton-card";
 import { AppModal } from "@/components/common/shared/app-modal";
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog";
 import { CustomerCard } from "@/components/common/customers/customer-card";
@@ -423,10 +423,11 @@ export function CustomerManager() {
       ) : null}
 
       {initialLoading ? (
-        <AppLoader
-          label="Loading customers"
-          className="min-h-[52vh] rounded-[2rem] bg-white/45"
-        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
       ) : customers.length ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

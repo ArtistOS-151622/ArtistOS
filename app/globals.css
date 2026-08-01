@@ -232,11 +232,17 @@
 }
 
 .artistos-calendar {
-  height: 720px;
+  height: 450px;
   color: #15172e;
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 14px;
   font-weight: 500;
+}
+
+@media (min-width: 768px) {
+  .artistos-calendar {
+    height: 720px;
+  }
 }
 
 .artistos-calendar .rbc-calendar,
@@ -267,6 +273,27 @@
   border-color: #eef0f7;
 }
 
+/* Hide the empty all-day row in week/day views */
+.artistos-calendar .rbc-allday-cell {
+  display: none;
+}
+
+/* Remove bottom border from headers in Day, Week, and Agenda views */
+.artistos-calendar .rbc-time-header,
+.artistos-calendar .rbc-agenda-view .rbc-header {
+  border-bottom: none;
+}
+
+/* Fix border overlaps */
+.artistos-calendar .rbc-agenda-table {
+  border-collapse: collapse;
+}
+
+.artistos-calendar .rbc-agenda-table th,
+.artistos-calendar .rbc-agenda-table td {
+  border: 1px solid #eef0f7;
+}
+
 .artistos-calendar .rbc-today {
   background: #f3e8ff;
   color: #2e1065;
@@ -292,6 +319,7 @@
 .artistos-calendar .rbc-time-content,
 .artistos-calendar .rbc-row-content {
   color: #15172e;
+  border-top: 0px;
 }
 
 .artistos-calendar .rbc-event,
@@ -301,6 +329,51 @@
   font-family: inherit;
   line-height: 1.15;
   opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .artistos-calendar .rbc-month-view .rbc-event {
+    height: 4px !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 4px !important;
+    margin-bottom: 2px !important;
+    background-color: currentColor !important;
+  }
+  .artistos-calendar .rbc-month-view .rbc-event p,
+  .artistos-calendar .rbc-month-view .rbc-event span {
+    display: none !important;
+  }
+  .artistos-calendar .rbc-month-view .rbc-show-more {
+    font-size: 0.65rem;
+    padding-right: 2px;
+    margin-top: 0;
+  }
+}
+
+.artistos-calendar .rbc-event {
+  margin-bottom: 4px;
+}
+
+.artistos-calendar .rbc-row-segment {
+  padding: 0 4px;
+}
+
+.artistos-calendar .rbc-show-more {
+  width: 100%;
+  text-align: right;
+  color: #1d4ed8;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding-right: 6px;
+  background-color: transparent;
+  display: block;
+}
+
+.artistos-calendar .rbc-day-slot .rbc-events-container {
+  margin-right: 0px;
+  position: absolute;
+  inset: 0px;
 }
 
 .artistos-calendar .rbc-event-content {

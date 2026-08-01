@@ -14,8 +14,10 @@ import { enUS } from "date-fns/locale/en-US"
 import { ChevronLeft, ChevronRight, Loader2, User, Phone, Clock, MapPin, FileText } from "lucide-react"
 
 import type { Booking } from "@/components/common/bookings/booking-types"
+import { BookingCard } from "@/components/common/bookings/booking-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
@@ -112,15 +114,52 @@ export function ArtistCalendar() {
       <Card className="rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
         <CardContent className="p-3 sm:p-5 relative overflow-hidden">
           {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-sm rounded-[1.75rem]">
-              <Loader2 className="size-8 animate-spin text-primary" />
+            <div className="absolute inset-0 z-10 flex flex-col p-3 sm:p-5 bg-white/70 backdrop-blur-[2px] rounded-[1.75rem] gap-4">
+              {/* Toolbar Skeleton */}
+              <div className="flex justify-between items-center px-1">
+                 <Skeleton className="h-10 w-28 sm:w-32 rounded-xl" />
+                 <Skeleton className="h-8 w-32 sm:w-48 rounded-lg" />
+                 <Skeleton className="h-10 w-40 rounded-xl hidden md:block" />
+              </div>
+              
+              {/* Grid Skeleton */}
+              <div className="flex-1 border border-slate-100 rounded-2xl overflow-hidden flex flex-col bg-white/50">
+                {/* Days header */}
+                <div className="grid grid-cols-7 border-b border-slate-100 h-10 bg-slate-50/50">
+                   {Array.from({ length: 7 }).map((_, i) => (
+                     <div key={i} className="flex justify-center items-center">
+                        <Skeleton className="h-3 w-8" />
+                     </div>
+                   ))}
+                </div>
+                {/* 5-Week Grid */}
+                <div className="flex-1 grid grid-rows-5">
+                   {Array.from({ length: 5 }).map((_, w) => (
+                     <div key={w} className="grid grid-cols-7 border-b border-slate-100 last:border-b-0">
+                        {Array.from({ length: 7 }).map((_, d) => (
+                          <div key={d} className="border-r border-slate-100 last:border-r-0 p-1 sm:p-2 flex flex-col gap-1 sm:gap-2">
+                             <Skeleton className="h-3 w-4 self-end opacity-50" />
+                             {/* Random mock events */}
+                             {(w + d) % 4 === 0 && (
+                               <Skeleton className="h-4 w-full rounded opacity-40" />
+                             )}
+                             {(w + d) % 7 === 0 && (
+                               <Skeleton className="h-4 w-3/4 rounded opacity-40" />
+                             )}
+                          </div>
+                        ))}
+                     </div>
+                   ))}
+                </div>
+              </div>
             </div>
           )}
-          <div className="artistos-calendar w-full overflow-x-hidden">
-            <BigCalendar<CalendarEvent>
-              localizer={localizer}
-              events={events}
-              startAccessor="start"
+          <div className="artistos-calendar w-full overflow-x-auto">
+            <div className="min-w-full md:min-w-[800px] h-[450px] md:h-full border rounded-2xl">
+              <BigCalendar<CalendarEvent>
+                localizer={localizer}
+                events={events}
+                startAccessor="start"
               endAccessor="end"
               date={date}
               view={view}
@@ -147,102 +186,27 @@ export function ArtistCalendar() {
               components={{ toolbar: CalendarToolbar, event: CalendarEventComponent }}
               eventPropGetter={eventStyle}
             />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
-        <CardHeader>
+      <Card className="p-4 rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
+        <CardHeader className="border-b mb-3 gap-1">
           <CardTitle className="text-lg font-semibold">Selected day schedule</CardTitle>
-          <p className="text-sm text-muted-foreground">{format(date, "MMMM d, yyyy")}</p>
+          <p className="text-sm text-muted-foreground mb-3">{format(date, "MMMM d, yyyy")}</p>
         </CardHeader>
         <CardContent className="space-y-3">
           {visibleEvents.length ? visibleEvents.map((event) => {
             const booking = event.original
-            const services = booking.services ?? []
-            const totalPrice = services.reduce((sum, s) => sum + Number(s.price), 0)
 
             return (
-              <div key={event.id} className="rounded-2xl border border-slate-100 bg-[#faf8ff] p-4 space-y-4">
-                {/* Header: Customer and Status */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-xl bg-purple-100 text-[#7c3aed]">
-                      <User className="size-4" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-800 text-sm leading-tight">
-                        {event.client}
-                      </h3>
-                      <div className="flex items-center gap-1 text-slate-400 text-xs mt-0.5">
-                        <Phone className="size-3" />
-                        <span>{booking.customer?.phone ?? "No phone"}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Badge className={cn("rounded-xl capitalize shadow-sm", statusClass[event.status])}>
-                    {event.status}
-                  </Badge>
-                </div>
-
-                {/* Time Details */}
-                <div className="flex items-center gap-2 rounded-xl bg-white/60 p-2.5 text-xs text-slate-600 border border-slate-100">
-                  <Clock className="size-4 text-[#7c3aed]" />
-                  <span className="font-semibold">
-                    {format(event.start, "h:mm a")} - {format(event.end, "h:mm a")}
-                  </span>
-                </div>
-
-                {/* Services List */}
-                {services.length > 0 ? (
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Services</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {services.map((service) => (
-                        <span
-                          key={service.id}
-                          className="inline-flex items-center rounded-xl bg-purple-50/50 border border-purple-100 px-2 py-0.5 text-[11px] font-medium text-[#7c3aed]"
-                        >
-                          {service.service_name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Booking Address */}
-                {booking.booking_address && (
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Location</p>
-                    <div className="flex items-start gap-1.5 text-xs text-slate-600">
-                      <MapPin className="size-3.5 text-slate-400 shrink-0 mt-0.5" />
-                      <p className="leading-relaxed line-clamp-2">{booking.booking_address}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Additional Requests if present */}
-                {booking.additional_request ? (
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Note</p>
-                    <div className="flex items-start gap-1.5 text-xs text-slate-500 italic">
-                      <FileText className="size-3.5 text-slate-300 shrink-0 mt-0.5" />
-                      <p className="leading-relaxed line-clamp-2">{booking.additional_request}</p>
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Divider & Total Price */}
-                <div className="h-px bg-slate-200/60 w-full" />
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground font-medium">Booking #{event.id}</span>
-                  {totalPrice > 0 && (
-                    <span className="font-bold text-slate-800">
-                      ₹{totalPrice.toLocaleString()}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <BookingCard
+                key={event.id}
+                booking={booking}
+                onEdit={() => {}}
+                onDelete={() => {}}
+              />
             )
           }) : (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-5 text-sm text-muted-foreground text-center">
@@ -259,21 +223,25 @@ function CalendarToolbar({ label, view, onNavigate, onView }: ToolbarProps<Calen
   const views: View[] = ["month", "week", "day", "agenda"]
 
   return (
-    <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div className="flex items-center gap-2">
-        <Button size="icon" variant="outline" className="size-10 rounded-2xl" onClick={() => onNavigate(Navigate.PREVIOUS)}>
-          <ChevronLeft className="size-4" />
-        </Button>
-        <Button variant="outline" className="h-10 rounded-2xl px-4" onClick={() => onNavigate(Navigate.TODAY)}>
-          Today
-        </Button>
-        <Button size="icon" variant="outline" className="size-10 rounded-2xl" onClick={() => onNavigate(Navigate.NEXT)}>
-          <ChevronRight className="size-4" />
-        </Button>
-        <h2 className="ml-2 text-xl font-semibold">{label}</h2>
+    <div className="p-3 md:p-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex items-center justify-between w-full md:w-auto gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <Button size="icon" variant="outline" className="size-9 sm:size-10 rounded-xl sm:rounded-2xl" onClick={() => onNavigate(Navigate.PREVIOUS)}>
+            <ChevronLeft className="size-4" />
+          </Button>
+          <Button variant="outline" className="h-9 sm:h-10 rounded-xl sm:rounded-2xl px-3 sm:px-4 text-xs sm:text-sm font-semibold text-primary" onClick={() => onNavigate(Navigate.TODAY)}>
+            Today
+          </Button>
+          <Button size="icon" variant="outline" className="size-9 sm:size-10 rounded-xl sm:rounded-2xl" onClick={() => onNavigate(Navigate.NEXT)}>
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+        <h2 className="text-sm sm:text-base font-bold md:hidden text-right leading-tight">{label}</h2>
       </div>
+      
+      <h2 className="hidden md:block text-xl font-bold text-center absolute left-1/2 -translate-x-1/2">{label}</h2>
 
-      <div className="flex rounded-2xl bg-secondary p-1">
+      <div className="hidden md:flex rounded-2xl bg-secondary p-1 shrink-0 z-10">
         {views.map((item) => (
           <Button
             key={item}
@@ -292,25 +260,37 @@ function CalendarToolbar({ label, view, onNavigate, onView }: ToolbarProps<Calen
 
 function CalendarEventComponent({ event }: EventProps<CalendarEvent>) {
   return (
-    <div className="flex h-full flex-col justify-start leading-tight text-inherit pt-0.5">
-      <p className="truncate text-[11px] font-bold text-inherit leading-tight">{event.client}</p>
-      {/* <p className="truncate text-[10px] font-medium text-inherit opacity-90 leading-tight">
-        {event.service}
-      </p> */}
+    <div className="flex w-full items-center justify-between gap-1 h-full overflow-hidden text-inherit">
+      <span className="truncate text-[11px] font-bold leading-none text-inherit">
+        {event.client}
+      </span>
+      <span className="shrink-0 text-[10px] font-medium opacity-90 leading-none text-inherit">
+        {format(event.start, "h:mm a")}
+      </span>
     </div>
   )
 }
 
-const eventStyle: EventPropGetter<CalendarEvent> = (event) => ({
-  className: "artistos-calendar-event",
-  style: {
-    backgroundColor:
-      event.status === "confirmed" ? "#7c3aed" : event.status === "completed" ? "#10b981" : event.status === "canceled" ? "#f43f5e" : "#f59e0b",
-    border: 0,
-    borderRadius: "12px",
-    color: event.status === "pending" ? "#451a03" : "#ffffff",
-    fontWeight: 700,
-    padding: "4px 8px",
-    boxShadow: "0 10px 22px rgba(76, 29, 149, 0.16)",
-  },
-})
+const eventStyle: EventPropGetter<CalendarEvent> = (event) => {
+  const colors: Record<string, { bg: string; border: string; text: string }> = {
+    confirmed: { bg: "#f5f3ff", border: "#7c3aed", text: "#6d28d9" },
+    completed: { bg: "#f0fdf4", border: "#10b981", text: "#047857" },
+    canceled: { bg: "#fff1f2", border: "#f43f5e", text: "#be123c" },
+    pending: { bg: "#fff7ed", border: "#f97316", text: "#c2410c" },
+  }
+  
+  const c = colors[event.status] || colors.confirmed
+
+  return {
+    className: "artistos-calendar-event transition-all hover:brightness-95",
+    style: {
+      backgroundColor: c.bg,
+      color: c.text,
+      border: `1.5px solid ${c.border}`,
+      borderRadius: "6px",
+      fontWeight: 700,
+      padding: "4px 6px",
+      boxShadow: "none",
+    },
+  }
+}

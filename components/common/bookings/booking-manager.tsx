@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Calendar, Filter, Plus, Search } from "lucide-react";
+import { Calendar, Filter, Plus, Search, LayoutGrid } from "lucide-react";
 
-import { AppLoader } from "@/components/common/shared/app-loader";
+import { SkeletonCard } from "@/components/common/shared/skeleton-card";
 import { AppModal } from "@/components/common/shared/app-modal";
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog";
 import { BookingCard } from "@/components/common/bookings/booking-card";
+import { ArtistCalendar } from "@/components/common/calendar/artist-calendar";
 import { BookingForm } from "@/components/common/bookings/booking-form";
 import {
   emptyBookingForm,
@@ -52,6 +53,9 @@ export function BookingManager() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // View state
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
   // Search, filter and pagination states
   const [search, setSearch] = useState(initialSearch);
@@ -322,6 +326,35 @@ export function BookingManager() {
         }
         actions={
           <div className="flex items-center gap-2">
+            <div className="flex bg-slate-100/50 rounded-2xl p-1 h-11 items-center border border-slate-100/80 shadow-inner">
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                className={cn(
+                  "h-9 rounded-xl px-3 sm:px-4 flex items-center gap-2 transition-all",
+                  viewMode === "list"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                )}
+                onClick={() => setViewMode("list")}
+              >
+                <LayoutGrid className="size-4" />
+                {/* <span className="hidden sm:inline">Cards</span> */}
+              </Button>
+              <Button
+                variant={viewMode === "calendar" ? "default" : "ghost"}
+                className={cn(
+                  "h-9 rounded-xl px-3 sm:px-4 flex items-center gap-2 transition-all",
+                  viewMode === "calendar"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                )}
+                onClick={() => setViewMode("calendar")}
+              >
+                <Calendar className="size-4" />
+                {/* <span className="hidden sm:inline">Calendar</span> */}
+              </Button>
+            </div>
+
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
@@ -369,8 +402,11 @@ export function BookingManager() {
         }
       />
 
-      {/* Mobile Control Row: 80% Search | 10% Plus Booking Button | 10% Funnel Filter Button */}
-      <div className="flex items-center gap-2 w-full md:hidden">
+      {/* Mobile Control Row: View Toggle & Search/Filter */}
+      <div className="flex flex-col gap-3 w-full md:hidden">
+        
+        
+        <div className="flex items-center gap-2 w-full">
         {/* 80% Width Search */}
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#858aa5]" />
@@ -382,6 +418,35 @@ export function BookingManager() {
           />
         </div>
 
+        <div className="flex bg-slate-100/50 rounded-2xl p-1 h-11 items-center border border-slate-100/80 shadow-inner">
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
+            className={cn(
+              "flex-1 h-9 rounded-xl px-3 flex items-center justify-center gap-2 transition-all",
+              viewMode === "list"
+                ? "bg-white text-slate-800 shadow-sm"
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+            )}
+            onClick={() => setViewMode("list")}
+          >
+            <LayoutGrid className="size-4" />
+            {/* <span>Cards</span> */}
+          </Button>
+          <Button
+            variant={viewMode === "calendar" ? "default" : "ghost"}
+            className={cn(
+              "flex-1 h-9 rounded-xl px-3 flex items-center justify-center gap-2 transition-all",
+              viewMode === "calendar"
+                ? "bg-white text-slate-800 shadow-sm"
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+            )}
+            onClick={() => setViewMode("calendar")}
+          >
+            <Calendar className="size-4" />
+            {/* <span>Calendar</span> */}
+          </Button>
+        </div>
+
         {/* 10% Width Add Booking Button (Plus Icon Only) */}
         <Button
           type="button"
@@ -391,6 +456,8 @@ export function BookingManager() {
         >
           <Plus className="size-5" />
         </Button>
+
+        
 
         {/* 10% Width Filter Button (Funnel Icon Only) */}
         <DropdownMenu>
@@ -427,6 +494,7 @@ export function BookingManager() {
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
 
       {error ? (
@@ -435,11 +503,14 @@ export function BookingManager() {
         </p>
       ) : null}
 
-      {initialLoading ? (
-        <AppLoader
-          label="Loading bookings"
-          className="min-h-[52vh] rounded-[2rem] bg-white/45"
-        />
+      {viewMode === "calendar" ? (
+        <ArtistCalendar />
+      ) : initialLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
       ) : bookings.length ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Filter, Plus, ScissorsLineDashed, Search } from "lucide-react";
 import { AppModal } from "@/components/common/shared/app-modal";
-import { AppLoader } from "@/components/common/shared/app-loader";
+import { SkeletonCard } from "@/components/common/shared/skeleton-card";
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog";
 import { ServiceCard } from "@/components/common/services/service-card";
 import { ServiceForm } from "@/components/common/services/service-form";
@@ -311,10 +311,11 @@ export function ServiceManager() {
       ) : null}
 
       {initialLoading ? (
-        <AppLoader
-          label="Loading services"
-          className="min-h-[52vh] rounded-[2rem] bg-white/45"
-        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
       ) : services.length ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {services.map((service) => (
