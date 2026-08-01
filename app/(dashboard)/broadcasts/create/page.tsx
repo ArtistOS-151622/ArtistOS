@@ -1,10 +1,9 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { useRouter } from "next/navigation"
-import { Play, CheckCircle2, ChevronRight, ChevronLeft, RefreshCw, AlertCircle, WifiOff, ImagePlus, X } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Play, CheckCircle2, ChevronRight, ChevronLeft, RefreshCw, ImagePlus, X, Save, Send } from "lucide-react"
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
-import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,35 +18,21 @@ type Customer = {
   phone: string | null
 }
 
-const PRESET_TEMPLATES = [
-  {
-    title: "Summer Sale ☀️",
-    content: "Hi {{name}}! ☀️\n\n{We're running|Check out} our exclusive Summer Sale! Get {20%|25%|30%} off all {bookings|services} if you book this week. 🏖️\n\n{Reply|Message us} to claim your discount!"
-  },
-  {
-    title: "Reminder / Follow-up 📅",
-    content: "{Hey|Hi} {{name}} 👋\n\nJust reaching out to see if you're still interested in booking a session with us. 🗓️ Let me know if you have any questions!\n\nBest, ArtistOS"
-  },
-  {
-    title: "New Service Alert 🚀",
-    content: "Exciting news, {{name}}! 🎉\n\nWe just launched a brand new {service|offering} that you might love. ✨ Check our portfolio and {book now|let us know} if you want to try it out!"
-  },
-  {
-    title: "Thank You 💖",
-    content: "{Hi|Hello} {{name}}! 💖\n\nJust wanted to send a quick {note|message} to say thank you for being a wonderful {client|customer}. We truly appreciate your support! 🙏"
-  },
-  {
-    title: "Holiday Greetings 🎄",
-    content: "Happy Holidays, {{name}}! 🎄✨\n\nWishing you and your loved ones a {joyful|wonderful} season. Stay safe and {see you soon|talk to you soon}! 🎁"
-  }
-]
+type Template = {
+  id: number
+  title: string
+  content: string
+  image_url: string | null
+  user_id: number | null
+}
 
 export default function CreateBroadcastPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [whatsappConnected, setWhatsappConnected] = useState<boolean | null>(null)
+  const [templates, setTemplates] = useState<Template[]>([])
 
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -56,26 +41,18 @@ export default function CreateBroadcastPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Form State
-  const [campaignName, setCampaignName] = useState("")
-  const [message, setMessage] = useState("Hi {{name}},\n\n{This is a test|Testing} message!")
+  const [message, setMessage] = useState("")
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([])
-  const [minDelay, setMinDelay] = useState(240) // 4 minutes
-  const [maxDelay, setMaxDelay] = useState(300) // 5 minutes
-  const [businessHours, setBusinessHours] = useState(true)
+  const [saveTemplate, setSaveTemplate] = useState(false)
+  const [newTemplateTitle, setNewTemplateTitle] = useState("")
 
   // Spintax Preview
   const [preview, setPreview] = useState("")
 
-  useEffect(() => {
-    // Check WhatsApp connection status
-    fetch("/api/whatsapp/devices")
-      .then(res => res.json())
-      .then(data => {
-        const devices = data.devices || []
-        setWhatsappConnected(devices.some((d: any) => d.session_status === "CONNECTED"))
-      })
-      .catch(() => setWhatsappConnected(false))
+  // Send Progress
+  const [sentCustomerIds, setSentCustomerIds] = useState<number[]>([])
 
+  useEffect(() => {
     // Load customers
     fetch("/api/customers?limit=1000")
       .then(res => res.json())
@@ -86,32 +63,54 @@ export default function CreateBroadcastPage() {
             name: c.customer_name,
             phone: c.phone
           }))
-          // Filter out customers without phone numbers
-          setCustomers(formatted.filter((c: Customer) => c.phone))
+          // Filter out customers without phone numbers and strip non-numeric chars
+          setCustomers(formatted.filter((c: Customer) => c.phone).map((c: Customer) => ({
+             ...c,
+             phone: c.phone?.replace(/\\D/g, '') || ''
+          })))
         }
       })
       .catch(err => console.error("Failed to load customers:", err))
-  }, [])
+
+    // Load templates
+    fetch("/api/whatsapp/templates")
+      .then(res => res.json())
+      .then(data => {
+        if (data.templates) {
+          setTemplates(data.templates)
+          // Pre-select template if ID is in URL
+          const tmplId = searchParams?.get("template")
+          if (tmplId) {
+             const tmpl = data.templates.find((t: Template) => t.id === Number(tmplId))
+             if (tmpl) {
+               setMessage(tmpl.content)
+               // (Image handling for pre-existing templates would go here, omitting for brevity)
+             }
+          }
+        }
+      })
+      .catch(err => console.error("Failed to load templates:", err))
+  }, [searchParams])
 
   // Simple Spintax parser for preview
-  const generatePreview = useCallback(() => {
+  const generatePreview = useCallback((name = "John Doe") => {
     let text = message
     
     // Replace Spintax
-    const spintaxRegex = /\{([^{}]*)\}/g
+    const spintaxRegex = /\\{([^\\{\\}]*)\\}/g
     text = text.replace(spintaxRegex, (match, contents) => {
       const parts = contents.split('|')
       return parts[Math.floor(Math.random() * parts.length)]
     })
 
     // Replace Variables
-    text = text.replace(/\{\{name\}\}/g, "John Doe")
+    text = text.replace(/\\{\\{name\\}\\}/g, name)
     
-    setPreview(text)
+    return text
   }, [message])
 
   useEffect(() => {
-    generatePreview()
+    setPreview(generatePreview())
   }, [message, generatePreview])
 
   const toggleCustomer = (id: number) => {
@@ -149,28 +148,21 @@ export default function CreateBroadcastPage() {
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
-  const handleSubmit = async () => {
-    if (whatsappConnected === false) {
-      toast.error("Connect WhatsApp first", {
-        description: "Go to Profile → WhatsApp to scan the QR code.",
-        action: { label: "Connect", onClick: () => router.push("/profile/whatsapp") }
-      })
-      return
-    }
-    if (!campaignName || !message || selectedCustomers.length === 0) {
-      toast.error("Please fill in all required fields")
-      return
+  const handleNextToStep3 = async () => {
+    if (selectedCustomers.length === 0) {
+      return toast.error("Select at least one customer")
     }
 
     setLoading(true)
     try {
-      // 1. Upload image if present
-      let image_url: string | null = null
+      let finalImageUrl = null
+      
+      // Upload image if present
       if (imageFile) {
         setUploadingImage(true)
         const fd = new FormData()
         fd.append("file", imageFile)
-        const upRes = await fetch("/api/whatsapp/campaigns/upload", { method: "POST", body: fd })
+        const upRes = await fetch("/api/whatsapp/templates/upload", { method: "POST", body: fd })
         const upData = await upRes.json()
         setUploadingImage(false)
         if (!upRes.ok) {
@@ -178,32 +170,29 @@ export default function CreateBroadcastPage() {
           setLoading(false)
           return
         }
-        image_url = upData.url
+        finalImageUrl = upData.url
       }
 
-      // 2. Create campaign
-      const res = await fetch("/api/whatsapp/campaigns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: campaignName,
-          message_template: message,
-          image_url,
-          customer_ids: selectedCustomers,
-          min_delay_sec: minDelay,
-          max_delay_sec: maxDelay,
-          business_hours_only: businessHours
-        }),
-      })
-      
-      const data = await res.json()
-      
-      if (res.ok) {
-        toast.success("Broadcast campaign created and started!")
-        router.push("/broadcasts")
-      } else {
-        toast.error(data.error || "Failed to create broadcast")
+      // Save template if requested
+      if (saveTemplate && newTemplateTitle) {
+         await fetch("/api/whatsapp/templates", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({
+             title: newTemplateTitle,
+             content: message,
+             image_url: finalImageUrl
+           })
+         })
+         toast.success("Template saved!")
       }
+      
+      // Append image URL to message for manual sending
+      if (finalImageUrl) {
+         setMessage(prev => prev + `\\n\\nImage: ${finalImageUrl}`)
+      }
+
+      setStep(3)
     } catch (error) {
       toast.error("An unexpected error occurred")
     } finally {
@@ -211,9 +200,23 @@ export default function CreateBroadcastPage() {
     }
   }
 
+  const sendManualMessage = (customer: Customer) => {
+     if (!customer.phone) return
+     
+     // Generate personalized message
+     const personalizedMsg = generatePreview(customer.name)
+     const encodedMsg = encodeURIComponent(personalizedMsg)
+     
+     // Open wa.me in new tab
+     window.open(`https://wa.me/${customer.phone}?text=${encodedMsg}`, '_blank')
+     
+     // Mark as sent in UI
+     setSentCustomerIds(prev => [...prev, customer.id])
+  }
+
   return (
     <>
-      <PageHeader title="Create Broadcast" />
+      <PageHeader title="New Broadcast" />
       <div className="mx-auto max-w-4xl space-y-6 pb-12">
         {/* Stepper */}
         <div className="flex items-center justify-between px-12 relative mb-8">
@@ -226,7 +229,7 @@ export default function CreateBroadcastPage() {
                 {step > num ? <CheckCircle2 className="size-5" /> : num}
               </div>
               <span className={`text-xs font-medium ${step >= num ? 'text-[#7c3aed]' : 'text-slate-400'}`}>
-                {num === 1 ? 'Message' : num === 2 ? 'Recipients' : 'Settings'}
+                {num === 1 ? 'Message' : num === 2 ? 'Recipients' : 'Send'}
               </span>
             </div>
           ))}
@@ -237,12 +240,12 @@ export default function CreateBroadcastPage() {
             <CardTitle className="text-xl">
               {step === 1 && "Compose Message"}
               {step === 2 && "Select Recipients"}
-              {step === 3 && "Campaign Settings"}
+              {step === 3 && "Send Messages"}
             </CardTitle>
             <CardDescription>
               {step === 1 && "Use Spintax like {Hi|Hello} and variables like {{name}} to personalize your message."}
               {step === 2 && "Choose which customers will receive this broadcast."}
-              {step === 3 && "Configure sending limits to keep your account safe from spam filters."}
+              {step === 3 && "Click 'Send' for each customer to manually trigger WhatsApp and ensure reliable delivery."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -250,30 +253,19 @@ export default function CreateBroadcastPage() {
             {/* STEP 1: MESSAGE */}
             {step === 1 && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="space-y-2">
-                  <Label htmlFor="campaignName">Campaign Name</Label>
-                  <Input
-                    id="campaignName"
-                    value={campaignName}
-                    onChange={(e) => setCampaignName(e.target.value)}
-                    placeholder="e.g., Summer Promotion 2026"
-                    className="h-11 rounded-2xl border-slate-200 bg-white focus:border-[#7c3aed]"
-                  />
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <Label htmlFor="message">Message Template</Label>
                     
                     <div className="flex flex-wrap gap-2">
-                      {PRESET_TEMPLATES.map((tpl, i) => (
+                      {templates.map((tpl, i) => (
                         <Button 
                           key={i} 
                           type="button" 
-                          variant="outline" 
+                          variant={tpl.user_id ? "secondary" : "outline"} 
                           size="sm" 
                           onClick={() => setMessage(tpl.content)}
-                          className="rounded-full h-8 text-xs bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 hover:text-purple-800"
+                          className={`rounded-full h-8 text-xs ${tpl.user_id ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}`}
                         >
                           {tpl.title}
                         </Button>
@@ -323,13 +315,27 @@ export default function CreateBroadcastPage() {
                         onChange={handleImageChange}
                         className="hidden"
                       />
+                      <p className="text-xs text-slate-500 mt-2">The image will be uploaded and a link appended to your message.</p>
                     </div>
+
+                    <div className="pt-2 flex items-center space-x-2">
+                       <Switch id="saveTemplate" checked={saveTemplate} onCheckedChange={setSaveTemplate} />
+                       <Label htmlFor="saveTemplate" className="cursor-pointer">Save as new template</Label>
+                    </div>
+                    {saveTemplate && (
+                       <Input 
+                          placeholder="Template Title" 
+                          value={newTemplateTitle}
+                          onChange={e => setNewTemplateTitle(e.target.value)}
+                          className="h-10 rounded-xl"
+                       />
+                    )}
                   </div>
                   
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <Label>Live Preview</Label>
-                      <Button variant="ghost" size="sm" onClick={generatePreview} className="h-6 px-2 text-xs">
+                      <Button variant="ghost" size="sm" onClick={() => setPreview(generatePreview())} className="h-6 px-2 text-xs">
                         <RefreshCw className="size-3 mr-1" /> Regenerate
                       </Button>
                     </div>
@@ -378,91 +384,93 @@ export default function CreateBroadcastPage() {
               </div>
             )}
 
-            {/* STEP 3: SETTINGS */}
+            {/* STEP 3: SEND MESSAGES */}
             {step === 3 && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                {/* WhatsApp connection warning */}
-                {whatsappConnected === false && (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-                    <div className="flex gap-3 items-start">
-                      <WifiOff className="size-5 text-rose-500 shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <h4 className="text-sm font-semibold text-rose-800">WhatsApp Not Connected</h4>
-                        <p className="text-xs text-rose-700 mt-1">
-                          No WhatsApp session is active. The campaign will be queued but won't send until you connect.
-                        </p>
-                      </div>
-                      <Link href="/profile/whatsapp">
-                        <button className="text-xs font-semibold text-rose-700 underline underline-offset-2 whitespace-nowrap">Connect now →</button>
-                      </Link>
-                    </div>
-                  </div>
-                )}
-
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                   <div className="flex gap-3">
-                    <AlertCircle className="size-5 text-amber-600 shrink-0" />
+                    <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
                     <div>
-                      <h4 className="text-sm font-semibold text-amber-800">Anti-Ban Protection Active</h4>
-                      <p className="text-xs text-amber-700 mt-1">
-                        To prevent WhatsApp from flagging your account, we enforce randomized delays between messages. The default (4-5 minutes) is highly recommended.
+                      <h4 className="text-sm font-semibold text-emerald-800">Ready to send</h4>
+                      <p className="text-xs text-emerald-700 mt-1">
+                        Click the send button next to each customer. It will open WhatsApp with a pre-filled personalized message. 
+                        Sending manually ensures 100% delivery and keeps your WhatsApp account safe from automated bans.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                  {/* Delays are now hardcoded and enforced by the backend to ensure account safety */}
-
-                <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white">
-                  <div>
-                    <Label className="text-base font-medium">Business Hours Only</Label>
-                    <p className="text-sm text-slate-500">Pause sending automatically between 9PM and 8AM</p>
-                  </div>
-                  <Switch 
-                    checked={businessHours} 
-                    onCheckedChange={setBusinessHours} 
-                  />
+                <div className="max-h-[500px] overflow-y-auto rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100">
+                  {customers.filter(c => selectedCustomers.includes(c.id)).map(customer => {
+                    const isSent = sentCustomerIds.includes(customer.id)
+                    return (
+                      <div key={customer.id} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                        <div>
+                          <p className={`font-medium ${isSent ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{customer.name}</p>
+                          <p className="text-xs text-slate-500">{customer.phone}</p>
+                        </div>
+                        <Button
+                           onClick={() => sendManualMessage(customer)}
+                           variant={isSent ? "outline" : "default"}
+                           className={isSent ? "rounded-xl h-9 text-emerald-600 border-emerald-200 bg-emerald-50" : "rounded-xl h-9 bg-[#25D366] text-white hover:bg-[#128C7E]"}
+                        >
+                           {isSent ? <><CheckCircle2 className="mr-2 size-4" /> Sent</> : <><Send className="mr-2 size-4" /> Send</>}
+                        </Button>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
 
           </CardContent>
           <CardFooter className="border-t border-slate-100 bg-slate-50/50 p-6 rounded-b-[1.75rem] flex justify-between items-center">
-            <Button
-              variant="outline"
-              onClick={() => step > 1 ? setStep(step - 1) : router.push("/broadcasts")}
-              className="rounded-2xl h-11 px-6"
-            >
-              {step > 1 ? <><ChevronLeft className="mr-2 size-4" /> Back</> : "Cancel"}
-            </Button>
-            
             {step < 3 ? (
+               <Button
+                 variant="outline"
+                 onClick={() => step > 1 ? setStep(step - 1) : router.push("/broadcasts")}
+                 className="rounded-2xl h-11 px-6"
+               >
+                 {step > 1 ? <><ChevronLeft className="mr-2 size-4" /> Back</> : "Cancel"}
+               </Button>
+            ) : (
+               <div /> // Placeholder for flex-between
+            )}
+            
+            {step === 1 && (
               <Button
                 onClick={() => {
-                  if (step === 1 && !campaignName) return toast.error("Campaign name is required")
-                  if (step === 1 && !message) return toast.error("Message is required")
-                  if (step === 2 && selectedCustomers.length === 0) return toast.error("Select at least one customer")
-                  setStep(step + 1)
+                  if (!message) return toast.error("Message is required")
+                  if (saveTemplate && !newTemplateTitle) return toast.error("Template title is required")
+                  setStep(2)
                 }}
                 className="rounded-2xl h-11 px-8 bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-md shadow-purple-950/10"
               >
                 Next Step <ChevronRight className="ml-2 size-4" />
               </Button>
-            ) : (
+            )}
+
+            {step === 2 && (
               <Button
-                onClick={handleSubmit}
-                disabled={loading || whatsappConnected === false}
-                className="rounded-2xl h-11 px-8 bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-950/10 disabled:opacity-50"
-                title={whatsappConnected === false ? "Connect WhatsApp first" : undefined}
+                onClick={handleNextToStep3}
+                disabled={loading}
+                className="rounded-2xl h-11 px-8 bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-md shadow-purple-950/10"
               >
                 {uploadingImage ? (
-                  <><RefreshCw className="mr-2 size-4 animate-spin" />Uploading image…</>
-                ) : loading ? (
-                  <><RefreshCw className="mr-2 size-4 animate-spin" />Launching…</>
+                  <><RefreshCw className="mr-2 size-4 animate-spin" /> Uploading image…</>
                 ) : (
-                  <><Play className="mr-2 size-4" />Launch Campaign</>
+                  <>Continue to Sending <ChevronRight className="ml-2 size-4" /></>
                 )}
               </Button>
+            )}
+
+            {step === 3 && (
+               <Button
+                 onClick={() => router.push("/broadcasts")}
+                 className="rounded-2xl h-11 px-8 bg-slate-900 text-white hover:bg-slate-800"
+               >
+                 Done
+               </Button>
             )}
           </CardFooter>
         </Card>
