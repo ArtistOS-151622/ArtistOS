@@ -40,8 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-pnpm-lock.json
-
 # supabase temp files
 supabase/.temp
 
@@ -52,3 +50,5 @@ supabase/.temp
 whatsapp-service/sessions_data/
 .wwebjs_auth/
 .wwebjs_cache/
+
+pnpm-lock.yaml

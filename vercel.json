@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/notifications/scan-bookings",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/notifications/dispatch",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/portfolio/expire-shares",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import { Loader2, Phone, Save, User, Building2, MapPin, Mail, LogOut, ImageIcon,
 import { useRouter } from "next/navigation"
 
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
+import { PushNotificationToggle } from "@/components/common/pwa/push-notification-toggle"
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog"
 import { FloatingInput } from "@/components/common/shared/floating-input"
 import { FloatingTextarea } from "@/components/common/shared/floating-input"
@@ -147,7 +148,17 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-
+        <Card className="rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">Notifications</CardTitle>
+            <CardDescription>
+              Turn notifications on for each phone or browser you want booking alerts on.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PushNotificationToggle />
+          </CardContent>
+        </Card>
 
         <Card className="rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
           <CardHeader className="pb-4">
