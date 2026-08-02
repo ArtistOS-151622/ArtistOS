@@ -170,3 +170,4 @@ Artists opt in per device from **Profile → Notifications**, and the "Send test
 ## Non-standard Next.js
 
 This repo pins a Next.js version where **`middleware.ts` is renamed to `proxy.ts`**, exporting `proxy()` instead of `middleware()`. Route protection lives in [proxy.ts](proxy.ts). Do not create a `middleware.ts` — it will not run. When an API behaves unexpectedly, check `node_modules/next/dist/docs/` for the pinned version's docs rather than relying on training-data behaviour.
+
