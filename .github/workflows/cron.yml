@@ -1,0 +1,42 @@
+name: Cron Jobs
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # scan-bookings
+    - cron: '*/2 * * * *' # dispatch
+    - cron: '0 3 * * *'   # expire-shares
+  workflow_dispatch:
+
+jobs:
+  scan-bookings:
+    name: Scan Bookings
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Scan Bookings API
+        run: |
+          curl -X GET "${{ secrets.APP_URL }}/api/cron/notifications/scan-bookings" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail
+
+  dispatch:
+    name: Dispatch Notifications
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/2 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Dispatch API
+        run: |
+          curl -X GET "${{ secrets.APP_URL }}/api/cron/notifications/dispatch" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail
+
+  expire-shares:
+    name: Expire Shares
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 3 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Expire Shares API
+        run: |
+          curl -X GET "${{ secrets.APP_URL }}/api/cron/portfolio/expire-shares" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail
