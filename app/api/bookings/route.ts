@@ -85,19 +85,56 @@ export async function GET(request: NextRequest) {
     query = query.gte("booking_date", startDate).lte("booking_date", endDate)
   }
 
-  query = query
-    .order("booking_date", { ascending: false })
-    .order("start_time", { ascending: false })
+  // We remove the db-level order and range to perform custom sorting in-memory
+  // query = query
+  //   .order("booking_date", { ascending: false })
+  //   .order("start_time", { ascending: false })
 
-  if (!isDateRangeQuery) {
-    query = query.range(from, to)
-  }
+  // if (!isDateRangeQuery) {
+  //   query = query.range(from, to)
+  // }
 
   const { data, count, error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  const formatted = (data ?? []).map((b: any) => ({
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD for IST (since user's timezone seems to be +05:30)
+  
+  const futureBookings = [];
+  const pastBookings = [];
+
+  for (const b of data ?? []) {
+    if (b.booking_date >= todayStr) {
+      futureBookings.push(b);
+    } else {
+      pastBookings.push(b);
+    }
+  }
+
+  // Future: ASC by date, ASC by time (nearest future first)
+  futureBookings.sort((a, b) => {
+    if (a.booking_date !== b.booking_date) {
+      return a.booking_date.localeCompare(b.booking_date);
+    }
+    return (a.start_time || "").localeCompare(b.start_time || "");
+  });
+
+  // Past: DESC by date, DESC by time (nearest past first)
+  pastBookings.sort((a, b) => {
+    if (a.booking_date !== b.booking_date) {
+      return b.booking_date.localeCompare(a.booking_date);
+    }
+    return (b.start_time || "").localeCompare(a.start_time || "");
+  });
+
+  const sortedData = [...futureBookings, ...pastBookings];
+
+  let paginatedData = sortedData;
+  if (!isDateRangeQuery) {
+    paginatedData = sortedData.slice(from, to + 1);
+  }
+
+  const formatted = paginatedData.map((b: any) => ({
     ...b,
     services: b.booking_services?.map((bs: any) => ({
       ...bs.service,
@@ -107,7 +144,7 @@ export async function GET(request: NextRequest) {
     additional_charges: b.booking_additional_charges ?? [],
   }))
 
-  const hasMore = isDateRangeQuery ? false : (count ?? 0) > page * limit
+  const hasMore = isDateRangeQuery ? false : sortedData.length > (page * limit)
 
   return NextResponse.json({
     bookings: formatted,
