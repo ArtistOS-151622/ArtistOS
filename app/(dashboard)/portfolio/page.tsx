@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { FolderPlus, Loader2, Search } from "lucide-react";
+import { FolderPlus, HardDrive, LayoutGrid, List, Loader2, Search, Sparkles } from "lucide-react";
 
-import { PageHeader } from "@/components/common/dashboard/dashboard-header-context";
+import { HeaderPortal, PageHeader } from "@/components/common/dashboard/dashboard-header-context";
 import { AppModal } from "@/components/common/shared/app-modal";
 import { FloatingInput } from "@/components/common/shared/floating-input";
 import { PortfolioFolderGrid } from "@/components/portfolio/portfolio-folder-grid";
@@ -24,6 +24,7 @@ import type {
   QuotaInfo,
   StoragePlanRow,
 } from "@/lib/portfolio/types";
+import { cn } from "@/lib/utils";
 
 export default function PortfolioPage() {
   const [folders, setFolders] = useState<PortfolioFolderWithStats[]>([]);
@@ -32,6 +33,7 @@ export default function PortfolioPage() {
   const [gstRate, setGstRate] = useState<number>(0.18);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [createOpen, setCreateOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   const [shareFolder, setShareFolder] =
@@ -100,47 +102,91 @@ export default function PortfolioPage() {
   return (
     <>
       <PageHeader title="Portfolio" />
-      <div className="mx-auto max-w-6xl space-y-6 pb-12">
-        <Card className="rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
-          <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4">
-            <div>
-              <CardTitle className="text-xl">Storage & Folders</CardTitle>
-              <CardDescription>
-                Organize photos, videos, and deliverables into folders. Share
-                folders with clients via public links.
-              </CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              className="rounded-2xl shrink-0"
-              onClick={() => setPlansOpen(true)}
-            >
-              Upgrade Storage
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <StorageMeter quota={quota} />
-          </CardContent>
-        </Card>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-3 size-4 text-slate-400" />
+      <HeaderPortal
+        search={
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#858aa5]" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search folders…"
-              className="h-11 rounded-2xl pl-10 border-slate-200"
+              className="h-10 sm:h-11 rounded-2xl border-slate-100/80 bg-white pl-10 text-sm shadow-md shadow-purple-950/5 w-full"
             />
           </div>
-          <Button
-            className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9]"
-            onClick={() => setCreateOpen(true)}
-          >
-            <FolderPlus className="mr-2 size-4" />
-            New Folder
-          </Button>
-        </div>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="flex bg-slate-100/50 rounded-2xl p-1 h-10 sm:h-11 items-center border border-slate-100/80 shadow-inner">
+              <Button
+                type="button"
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                className={cn(
+                  "h-8 sm:h-9 rounded-xl px-3 flex items-center gap-1.5 transition-all",
+                  viewMode === "grid"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                )}
+                onClick={() => setViewMode("grid")}
+                title="Grid View"
+              >
+                <LayoutGrid className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant={viewMode === "list" ? "default" : "ghost"}
+                className={cn(
+                  "h-8 sm:h-9 rounded-xl px-3 flex items-center gap-1.5 transition-all",
+                  viewMode === "list"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                )}
+                onClick={() => setViewMode("list")}
+                title="List View"
+              >
+                <List className="size-4" />
+              </Button>
+            </div>
+
+            <Button
+              className="h-10 sm:h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-semibold shadow-md shadow-purple-600/20 px-4"
+              onClick={() => setCreateOpen(true)}
+            >
+              <FolderPlus className="mr-1.5 size-4" />
+              <span className="hidden sm:inline">New Folder</span>
+              <span className="sm:hidden">Folder</span>
+            </Button>
+          </div>
+        }
+      />
+      <div className="mx-auto max-w-6xl space-y-6 pb-12">
+        {/* Storage Card Header */}
+        <Card className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-md shadow-purple-950/[0.03] overflow-hidden">
+          <CardHeader className="!p-4 sm:!p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-purple-50 text-[#7c3aed] border border-purple-100 flex items-center justify-center shrink-0 shadow-2xs">
+                <HardDrive className="size-5 text-[#7c3aed]" />
+              </div>
+              <div>
+                <CardTitle className="text-base sm:text-lg font-bold text-slate-900">
+                  Storage & Deliverables
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Organize photos, videos, and deliverables into folders. Share folders with clients via public links.
+                </CardDescription>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              className="rounded-xl h-9 text-[#7c3aed] border-purple-200 hover:bg-purple-50 font-semibold shrink-0"
+              onClick={() => setPlansOpen(true)}
+            >
+              <Sparkles className="mr-1.5 size-4 text-[#7c3aed]" /> Upgrade Storage
+            </Button>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5">
+            <StorageMeter quota={quota} />
+          </CardContent>
+        </Card>
 
         {loading ? (
           <div className="flex min-h-[30vh] items-center justify-center">
@@ -149,6 +195,7 @@ export default function PortfolioPage() {
         ) : (
           <PortfolioFolderGrid
             folders={folders}
+            viewMode={viewMode}
             onDelete={handleDeleteFolder}
             onShare={setShareFolder}
           />

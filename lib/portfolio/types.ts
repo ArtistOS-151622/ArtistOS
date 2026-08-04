@@ -81,4 +81,5 @@ export type PortfolioFolderWithStats = PortfolioFolderRow & {
   file_count?: number
   total_size?: number
   share_url?: string | null
+  preview_files?: { id: number; public_url: string; mime_type: string }[]
 }

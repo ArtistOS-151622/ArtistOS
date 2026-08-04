@@ -158,10 +158,25 @@ export async function listFolders(
       continue
     }
 
+    // Fetch up to 4 preview files for folder icon 2x2 grid preview
+    const { data: previewData } = await supabase
+      .from("portfolio_files")
+      .select("id, storage_path, mime_type")
+      .eq("folder_id", folder.id)
+      .order("sort_order", { ascending: true })
+      .limit(4)
+
+    const preview_files = (previewData ?? []).map((f) => ({
+      id: f.id as number,
+      public_url: getPublicUrl(f.storage_path as string),
+      mime_type: f.mime_type as string,
+    }))
+
     result.push({
       ...folder,
       file_count: fileCount,
       total_size: totalSize,
+      preview_files,
       share_url: folder.is_shared
         ? buildShareUrl(folder.uuid)
         : null,
