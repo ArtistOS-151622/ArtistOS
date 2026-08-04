@@ -31,6 +31,10 @@ import {
   Loader2,
   ExternalLink,
   PhoneCall,
+  Navigation,
+  Map,
+  Receipt,
+  FolderPlus,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context";
@@ -169,7 +173,8 @@ export default function BookingDetailsPage() {
   const [editExpenseAmount, setEditExpenseAmount] = useState("");
   const [editExpenseDescription, setEditExpenseDescription] = useState("");
   const [editExpenseDate, setEditExpenseDate] = useState("");
-
+  // Custom Expense Manager Modal State
+  const [customExpenseModalOpen, setCustomExpenseModalOpen] = useState(false);
   // Edit Services Modal State
   const [editServicesOpen, setEditServicesOpen] = useState(false);
   const [editingServices, setEditingServices] = useState<BookingService[]>([]);
@@ -247,7 +252,7 @@ export default function BookingDetailsPage() {
     null,
   );
 
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const handleAddCustomExpense = async () => {
     if (!newCustomExpense.trim()) return;
@@ -477,29 +482,29 @@ export default function BookingDetailsPage() {
   };
 
   const handleDownloadPDF = async () => {
-    setIsGeneratingPDF(true)
+    setIsGeneratingPDF(true);
     try {
-      const response = await fetch(`/api/bookings/${bookingId}/pdf`)
+      const response = await fetch(`/api/bookings/${bookingId}/pdf`);
       if (!response.ok) {
-        throw new Error("Failed to generate PDF")
+        throw new Error("Failed to generate PDF");
       }
-      
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `Quotation-${booking?.user_booking_index ?? booking?.id}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Quotation-${booking?.user_booking_index ?? booking?.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error(err)
-      alert("Failed to download PDF. Please try again.")
+      console.error(err);
+      alert("Failed to download PDF. Please try again.");
     } finally {
-      setIsGeneratingPDF(false)
+      setIsGeneratingPDF(false);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -609,134 +614,142 @@ export default function BookingDetailsPage() {
               title="Send Update"
             >
               <Send className="size-3.5" />
-              <span className="hidden sm:inline text-xs sm:text-sm font-medium">Send Update</span>
+              <span className="hidden sm:inline text-xs sm:text-sm font-medium">
+                Send Update
+              </span>
             </Button>
           </div>
         </div>
       </Card>
 
-      {/* Customer Info Card */}
-      <Card className="relative overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-lg shadow-purple-950/[0.04] mb-6 transition-all duration-300 hover:shadow-purple-950/[0.08]">
-        {/* Decorative background gradients */}
-        <div className="absolute -right-12 -top-12 size-48 rounded-full bg-gradient-to-br from-purple-200/30 to-indigo-200/20 blur-2xl pointer-events-none" />
-        <div className="absolute -left-12 -bottom-12 size-48 rounded-full bg-gradient-to-tr from-purple-100/40 to-slate-100/20 blur-2xl pointer-events-none" />
-
-        <CardContent className="p-0 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100/90">
-            {/* Client Profile & Actions */}
-            <div className="p-4 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 min-w-0">
-                <Avatar className="size-14 border-2 border-purple-200/70 shadow-md shadow-purple-500/10 ring-4 ring-purple-50/60 shrink-0">
-                  <AvatarFallback className="bg-gradient-to-br from-[#7c3aed] to-indigo-600 text-white font-bold text-lg tracking-wider">
-                    {booking.customer.customer_name
-                      .substring(0, 2)
-                      .toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#7c3aed] bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">
-                      Client
-                    </span>
-                  </div>
-                  <p className="font-bold text-slate-900 text-base leading-tight truncate">
+      {/* Overview Card (Single Unified Container) */}
+      <Card className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-md shadow-purple-950/[0.03] mb-4 overflow-hidden">
+        <CardContent className="p-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+            {/* 1. Client Card Section */}
+            <div className="p-3.5 sm:p-4 flex items-center justify-between gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="size-11 rounded-xl border-2 border-purple-200 bg-purple-50 flex items-center justify-center text-[#7c3aed] shadow-2xs shrink-0">
+                  <User className="size-5 text-[#7c3aed]" />
+                </div>
+                <div className="min-w-0 flex flex-col justify-center">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#7c3aed] mb-0.5">
+                    Customer Details
+                  </span>
+                  <h3 className="font-bold text-slate-900 text-sm leading-snug truncate">
                     {booking.customer.customer_name}
-                  </p>
-                  <p className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1 truncate">
-                    <Phone className="size-3 text-slate-400 shrink-0" />
-                    <span className="truncate">{booking.customer.phone}</span>
-                  </p>
+                  </h3>
                 </div>
               </div>
 
-              {/* Quick Actions */}
               <div className="flex items-center gap-1.5 shrink-0">
                 <a
                   href={`tel:${booking.customer.phone}`}
-                  className="flex size-9 items-center justify-center rounded-xl bg-purple-50 text-[#7c3aed] hover:bg-[#7c3aed] hover:text-white transition-all shadow-xs border border-purple-100 hover:border-[#7c3aed]"
+                  className="flex size-8 items-center justify-center rounded-lg bg-purple-50 text-[#7c3aed] hover:bg-[#7c3aed] hover:text-white transition-all border border-purple-100"
                   title="Call Client"
                 >
-                  <PhoneCall className="size-4" />
+                  <PhoneCall className="size-3.5" />
                 </a>
                 <a
                   href={`https://wa.me/${booking.customer.phone.replace(/\D/g, "")}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex size-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 hover:bg-[#25D366] hover:text-white transition-all shadow-xs border border-emerald-100 hover:border-[#25D366]"
+                  className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-[#25D366] hover:text-white transition-all border border-emerald-100"
                   title="Chat on WhatsApp"
                 >
-                  <MessageCircle className="size-4" />
+                  <MessageCircle className="size-3.5" />
                 </a>
               </div>
             </div>
 
-            {/* Location & Navigation */}
-            <div className="p-4 flex flex-col justify-center">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="flex size-6 items-center justify-center rounded-md bg-purple-100/70 text-[#7c3aed]">
-                    <MapPin className="size-3.5" />
-                  </div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            {/* 2. Event Location Section */}
+            <div className="p-3.5 sm:p-4 flex items-center justify-between gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="size-11 rounded-xl border-2 border-purple-200 bg-purple-50 flex items-center justify-center text-[#7c3aed] shadow-2xs shrink-0">
+                  <MapPin className="size-5 text-[#7c3aed]" />
+                </div>
+                <div className="min-w-0 flex flex-col justify-center">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#7c3aed] mb-0.5">
                     Event Location
                   </span>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-snug line-clamp-2">
+                    {booking.booking_address}
+                  </p>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
                 <a
                   href={`https://maps.google.com/?q=${encodeURIComponent(booking.booking_address)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs font-medium text-[#7c3aed] hover:text-[#6d28d9] flex items-center gap-1 hover:underline shrink-0"
+                  className="flex size-8 items-center justify-center rounded-lg bg-purple-50 text-[#7c3aed] hover:bg-[#7c3aed] hover:text-white transition-all border border-purple-100"
+                  title="Open Google Maps"
                 >
-                  Maps <ExternalLink className="size-3" />
+                  <Navigation className="size-3.5" />
                 </a>
               </div>
-              <p className="text-sm font-medium text-slate-700 leading-snug line-clamp-2">
-                {booking.booking_address}
-              </p>
             </div>
 
-            {/* Financial Overview */}
-            <div className="p-4 flex flex-col justify-between bg-gradient-to-br from-purple-50/60 via-purple-50/20 to-indigo-50/30">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Total Value
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] font-bold px-2 py-0.5 border ${
-                      paidPercentage >= 100
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : paidPercentage > 0
-                          ? "bg-amber-50 text-amber-700 border-amber-200"
-                          : "bg-slate-50 text-slate-600 border-slate-200"
-                    }`}
-                  >
-                    {paidPercentage >= 100
-                      ? "Fully Paid"
+            {/* 3. Financial Overview Section */}
+            <div className="p-3.5 sm:p-4 flex flex-col justify-between">
+              {/* <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Total Value
+                </span>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-bold px-2 py-0.5 border ${
+                    paidPercentage >= 100
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                       : paidPercentage > 0
-                        ? `${Math.round(paidPercentage)}% Paid`
-                        : "Unpaid"}
-                  </Badge>
-                </div>
-                <h3 className="text-3xl font-extrabold tracking-tight text-[#7c3aed]">
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-slate-50 text-slate-600 border-slate-200"
+                  }`}
+                >
+                  {paidPercentage >= 100
+                    ? "Fully Paid"
+                    : paidPercentage > 0
+                      ? `${Math.round(paidPercentage)}% Paid`
+                      : "Unpaid"}
+                </Badge>
+              </div> */}
+
+              <div className="flex items-center justify-between gap-2 my-0.5">
+                <h3 className="text-base sm:text-lg font-extrabold text-[#7c3aed] tracking-tight">
                   ₹{grandTotal.toLocaleString()}
                 </h3>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-bold px-2 py-0.5 border ${
+                    paidPercentage >= 100
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : paidPercentage > 0
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-slate-50 text-slate-600 border-slate-200"
+                  }`}
+                >
+                  {paidPercentage >= 100
+                    ? "Fully Paid"
+                    : paidPercentage > 0
+                      ? `${Math.round(paidPercentage)}% Paid`
+                      : "Unpaid"}
+                </Badge>
               </div>
 
-              <div className="mt-3 space-y-1.5">
+              <div className="space-y-1.5">
                 <Progress
                   value={paidPercentage}
-                  className="h-2 bg-purple-100/70"
+                  className="h-1 bg-purple-100/80"
                 />
-                <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-                  <span className="flex items-center gap-1.5">
-                    <span className="size-2 rounded-full bg-emerald-500" />₹
+                <div className="flex items-center justify-between text-[11px] font-medium text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-emerald-500" />₹
                     {totalPaid.toLocaleString()} paid
                   </span>
                   {dueAmount > 0 ? (
-                    <span className="flex items-center gap-1.5 text-amber-600">
-                      <span className="size-2 rounded-full bg-amber-500" />₹
+                    <span className="flex items-center gap-1 text-amber-600">
+                      <span className="size-1.5 rounded-full bg-amber-500" />₹
                       {dueAmount.toLocaleString()} due
                     </span>
                   ) : (
@@ -752,30 +765,30 @@ export default function BookingDetailsPage() {
       </Card>
 
       {/* Main Tabs Segment */}
-      <Tabs defaultValue="quotation" className="w-full">
+      <Tabs defaultValue="quotation" className="w-full gap-0">
         <div className="w-full overflow-x-auto hide-scrollbar">
-          <TabsList className="flex sm:grid-cols-4 w-max min-w-full sm:w-full max-w-md h-12 items-center justify-center rounded-2xl bg-slate-100/80 p-1 mb-4 text-slate-500 mx-auto sm:mx-0">
+          <TabsList className="flex sm:grid-cols-4 w-max min-w-full sm:w-full max-w-md h-20 items-center justify-center rounded-2xl bg-slate-100/80 p-1 mb-4 text-slate-500 mx-auto sm:mx-0">
             <TabsTrigger
               value="quotation"
-              className="flex-1 px-4 sm:px-0 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#7c3aed] data-[state=active]:shadow-sm transition-all h-full text-xs sm:text-sm font-medium"
+              className="flex-1 px-4 sm:px-0 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#7c3aed] data-[state=active]:shadow-sm transition-all h-full text-xs sm:text-sm font-semibold"
             >
               Quotation
             </TabsTrigger>
             <TabsTrigger
               value="payments"
-              className="flex-1 px-4 sm:px-0 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#7c3aed] data-[state=active]:shadow-sm transition-all h-full text-xs sm:text-sm font-medium"
+              className="flex-1 px-4 sm:px-0 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#7c3aed] data-[state=active]:shadow-sm transition-all h-full text-xs sm:text-sm font-semibold"
             >
               Payments
             </TabsTrigger>
             <TabsTrigger
               value="expenses"
-              className="flex-1 px-4 sm:px-0 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#7c3aed] data-[state=active]:shadow-sm transition-all h-full text-xs sm:text-sm font-medium"
+              className="flex-1 px-4 sm:px-0 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#7c3aed] data-[state=active]:shadow-sm transition-all h-full text-xs sm:text-sm font-semibold"
             >
               Expenses
             </TabsTrigger>
             <TabsTrigger
               value="portfolio"
-              className="flex-1 px-4 sm:px-0 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#7c3aed] data-[state=active]:shadow-sm transition-all h-full text-xs sm:text-sm font-medium"
+              className="flex-1 px-4 sm:px-0 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#7c3aed] data-[state=active]:shadow-sm transition-all h-full text-xs sm:text-sm font-semibold"
             >
               Portfolio
             </TabsTrigger>
@@ -787,19 +800,47 @@ export default function BookingDetailsPage() {
           value="quotation"
           className="space-y-6 outline-none animate-in fade-in slide-in-from-bottom-4 duration-500"
         >
-          <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5 p-5">
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
-              <div>
-                <CardTitle className="text-lg">Service Breakdown</CardTitle>
-                <CardDescription>
-                  Detailed quotation of all services and add-ons.
-                </CardDescription>
+          <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b !p-4">
+              {/* Row 1 on Mobile: Title on Left, Icon-only Action Buttons on Right */}
+              <div className="flex items-center justify-between w-full sm:w-auto">
+                <CardTitle className="text-base sm:text-lg">Service Breakdown</CardTitle>
+                <div className="flex items-center gap-2 sm:hidden">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-xl h-8 w-8 text-[#7c3aed] border-purple-200 hover:bg-purple-50 shrink-0"
+                    onClick={() => {
+                      setEditingServices([...booking.services]);
+                      setEditServicesOpen(true);
+                    }}
+                    title="Edit Services"
+                  >
+                    <Edit className="size-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-xl h-8 w-8 shrink-0"
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingPDF}
+                    title="Download PDF"
+                  >
+                    {isGeneratingPDF ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Download className="size-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
-              <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
-                <div className="flex items-center gap-2 border-slate-200 sm:pr-4 sm:border-r">
+
+              {/* Row 2 on Mobile / Right side on Desktop */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                <div className="flex items-center justify-between sm:justify-start gap-2 border-slate-200 sm:pr-4 sm:border-r w-full sm:w-auto">
                   <Label
                     htmlFor="additional-charges-toggle"
-                    className="text-sm font-medium text-slate-600 cursor-pointer"
+                    className="text-xs sm:text-sm font-medium text-slate-600 cursor-pointer"
                   >
                     Additional Charges
                   </Label>
@@ -809,11 +850,13 @@ export default function BookingDetailsPage() {
                     onCheckedChange={setShowAdditionalCharges}
                   />
                 </div>
-                <div className="flex items-center gap-2">
+
+                {/* Desktop Buttons */}
+                <div className="hidden sm:flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="rounded-xl h-9 text-[#7c3aed] border-purple-200 hover:bg-purple-50 flex-1 sm:flex-none"
+                    className="rounded-xl h-9 text-[#7c3aed] border-purple-200 hover:bg-purple-50"
                     onClick={() => {
                       setEditingServices([...booking.services]);
                       setEditServicesOpen(true);
@@ -821,63 +864,80 @@ export default function BookingDetailsPage() {
                   >
                     <Edit className="mr-2 size-4" /> Edit Services
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="rounded-xl h-9 flex-1 sm:flex-none"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl h-9"
                     onClick={handleDownloadPDF}
                     disabled={isGeneratingPDF}
                   >
                     {isGeneratingPDF ? (
                       <Loader2 className="mr-2 size-4 animate-spin" />
                     ) : (
-                      <Download className="mr-2 size-4" /> 
+                      <Download className="mr-2 size-4" />
                     )}
                     PDF
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="rounded-2xl border border-slate-100 overflow-hidden">
-                <table className="w-full text-sm text-left block sm:table">
-                  <thead className="bg-slate-50 text-slate-500 hidden sm:table-header-group">
+            <CardContent className="p-3.5 sm:p-4">
+              <div className="rounded-2xl border border-slate-100 overflow-hidden bg-white">
+                {/* Mobile View: Clean Service Item Cards */}
+                <div className="divide-y divide-slate-100 sm:hidden">
+                  {booking.services.map((service, idx) => (
+                    <div key={idx} className="p-3.5 space-y-1.5 hover:bg-slate-50/50 transition-colors">
+                      <div className="flex items-start justify-between gap-3">
+                        <h4 className="font-semibold text-slate-900 text-sm leading-snug">
+                          {service.service_name}
+                        </h4>
+                        <span className="font-extrabold text-[#7c3aed] text-sm shrink-0">
+                          ₹{(Number(service.price) * service.quantity).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
+                        <span>
+                          Qty: <strong className="text-slate-700 font-semibold">{service.quantity}</strong>
+                        </span>
+                        <span className="text-slate-300">•</span>
+                        <span>
+                          Rate: <strong className="text-slate-700 font-semibold">₹{Number(service.price).toLocaleString()}</strong>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop View: Full Data Table */}
+                <table className="w-full text-sm text-left hidden sm:table">
+                  <thead className="bg-slate-50/80 text-slate-500 font-medium border-b border-slate-100">
                     <tr>
-                      <th className="px-6 py-4 font-medium">Service Name</th>
-                      <th className="px-6 py-4 font-medium text-center">Qty</th>
-                      <th className="px-6 py-4 font-medium text-right">
+                      <th className="px-6 py-3.5 font-semibold">Service Name</th>
+                      <th className="px-6 py-3.5 font-semibold text-center">Qty</th>
+                      <th className="px-6 py-3.5 font-semibold text-right">
                         Unit Price
                       </th>
-                      <th className="px-6 py-4 font-medium text-right">
+                      <th className="px-6 py-3.5 font-semibold text-right">
                         Total
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 block sm:table-row-group">
+                  <tbody className="divide-y divide-slate-100">
                     {booking.services.map((service, idx) => (
                       <tr
                         key={idx}
-                        className="hover:bg-slate-50/50 transition-colors block sm:table-row p-4 sm:p-0"
+                        className="hover:bg-slate-50/50 transition-colors"
                       >
-                        <td className="sm:px-6 sm:py-4 font-medium text-slate-800 block sm:table-cell mb-2 sm:mb-0">
+                        <td className="px-6 py-4 font-medium text-slate-900">
                           {service.service_name}
                         </td>
-                        <td className="sm:px-6 sm:py-4 sm:text-center block sm:table-cell mb-1 sm:mb-0 text-slate-500 sm:text-slate-800">
-                          <span className="sm:hidden font-medium mr-2">
-                            Qty:
-                          </span>
+                        <td className="px-6 py-4 text-center font-medium text-slate-700">
                           {service.quantity}
                         </td>
-                        <td className="sm:px-6 sm:py-4 sm:text-right text-slate-500 block sm:table-cell mb-1 sm:mb-0">
-                          <span className="sm:hidden font-medium mr-2">
-                            Rate:
-                          </span>
+                        <td className="px-6 py-4 text-right text-slate-600">
                           ₹{Number(service.price).toLocaleString()}
                         </td>
-                        <td className="sm:px-6 sm:py-4 sm:text-right font-semibold text-slate-800 block sm:table-cell pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 mt-2 sm:mt-0">
-                          <span className="sm:hidden font-medium mr-2">
-                            Total:
-                          </span>
+                        <td className="px-6 py-4 text-right font-bold text-slate-900">
                           ₹
                           {(
                             Number(service.price) * service.quantity
@@ -894,37 +954,37 @@ export default function BookingDetailsPage() {
           {/* Additional Charges Card (Togglable) */}
           {showAdditionalCharges && (
             <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5 mt-6 animate-in slide-in-from-top-4 fade-in duration-300">
-              <CardHeader className="flex flex-row items-center justify-between pb-4">
+              <CardHeader className="flex flex-row items-center justify-between !p-4 border-b">
                 <div>
                   <CardTitle className="text-lg">Additional Charges</CardTitle>
-                  <CardDescription>
-                    Add custom expenses like travel, early morning fees, etc.
-                  </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="px-4 sm:px-6">
+              <CardContent className="p-4">
                 {/* Add New Charge Inline Row */}
-                <div className="flex flex-col md:flex-row gap-3 items-start md:items-center bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100 mb-4 sm:mb-6">
+                <div className="flex flex-col md:flex-row gap-2.5 sm:gap-3 items-stretch md:items-center bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100 mb-4">
+                  {/* Charge Name (Full width on mobile, 50% on desktop) */}
                   <Input
                     placeholder="Charge Name (e.g. Travel)"
                     value={newChargeName}
                     onChange={(e) => setNewChargeName(e.target.value)}
-                    className="h-10 sm:h-11 bg-white w-full md:w-auto md:flex-1"
+                    className="h-10 sm:h-11 bg-white w-full md:w-1/2"
                   />
-                  <div className="flex gap-2 sm:gap-3 w-full md:w-auto">
+
+                  {/* Qty, Rate & Add Button (All 3 in 1 row on mobile, 50% total on desktop) */}
+                  <div className="flex items-center gap-2 w-full md:w-1/2">
                     <Input
                       type="number"
                       placeholder="Qty"
                       value={newChargeQty}
                       onChange={(e) => setNewChargeQty(e.target.value)}
-                      className="h-10 sm:h-11 bg-white w-20 sm:w-24 text-center"
+                      className="h-10 sm:h-11 bg-white text-center w-20 shrink-0 md:w-[40%]"
                     />
                     <Input
                       type="number"
                       placeholder="Rate (₹)"
                       value={newChargeRate}
                       onChange={(e) => setNewChargeRate(e.target.value)}
-                      className="h-10 sm:h-11 bg-white flex-1 md:w-32 text-right"
+                      className="h-10 sm:h-11 bg-white text-right flex-1 md:w-[40%]"
                     />
                     <Button
                       onClick={handleAddAdditionalCharge}
@@ -933,7 +993,7 @@ export default function BookingDetailsPage() {
                         !newChargeRate ||
                         isAddingCharge
                       }
-                      className="h-10 sm:h-11 bg-slate-800 hover:bg-slate-900 text-white px-4 shrink-0 rounded-xl"
+                      className="h-10 sm:h-11 bg-slate-800 hover:bg-slate-900 text-white px-4 shrink-0 rounded-xl md:w-[20%]"
                     >
                       {isAddingCharge ? (
                         <Loader2 className="size-4 animate-spin" />
@@ -944,135 +1004,82 @@ export default function BookingDetailsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-100 overflow-hidden mb-4">
-                  <table className="w-full text-sm text-left block sm:table">
-                    <thead className="bg-slate-50 text-slate-500 hidden sm:table-header-group">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">Charge Name</th>
-                        <th className="px-4 py-3 font-medium text-center w-24">
-                          Qty
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right w-32">
-                          Rate
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right w-32">
-                          Total
-                        </th>
-                        <th className="px-4 py-3 font-medium text-center w-12"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 block sm:table-row-group">
-                      {booking.additional_charges.map((charge) => (
-                        <tr
-                          key={charge.id}
-                          className="hover:bg-slate-50/50 transition-colors block sm:table-row relative p-4 sm:p-0"
-                        >
-                          {editingChargeId === charge.id ? (
-                            <>
-                              <td className="sm:px-4 sm:py-2 block sm:table-cell">
-                                <span className="sm:hidden text-xs font-medium text-slate-500 mb-1 block">
-                                  Charge Name
-                                </span>
-                                <Input
-                                  value={editChargeName}
-                                  onChange={(e) =>
-                                    setEditChargeName(e.target.value)
-                                  }
-                                  className="h-9 sm:h-8 text-sm"
-                                />
-                              </td>
-                              <td className="sm:px-4 sm:py-2 block sm:table-cell flex-1 mt-2 sm:mt-0">
-                                <span className="sm:hidden text-xs font-medium text-slate-500 mb-1 block">
-                                  Qty
-                                </span>
-                                <Input
-                                  type="number"
-                                  value={editChargeQty}
-                                  onChange={(e) =>
-                                    setEditChargeQty(e.target.value)
-                                  }
-                                  className="h-9 sm:h-8 text-sm text-center"
-                                />
-                              </td>
-                              <td className="sm:px-4 sm:py-2 block sm:table-cell flex-[2] mt-2 sm:mt-0">
-                                <span className="sm:hidden text-xs font-medium text-slate-500 mb-1 block">
-                                  Rate
-                                </span>
-                                <Input
-                                  type="number"
-                                  value={editChargeRate}
-                                  onChange={(e) =>
-                                    setEditChargeRate(e.target.value)
-                                  }
-                                  className="h-9 sm:h-8 text-sm text-right"
-                                />
-                              </td>
-                              <td className="sm:px-4 sm:py-3 text-right font-semibold text-slate-800 block sm:table-cell pt-2 sm:pt-3">
-                                <span className="sm:hidden font-medium text-slate-500 mr-2">
-                                  Total:
-                                </span>
-                                ₹
-                                {(
-                                  Number(editChargeRate) * Number(editChargeQty)
-                                ).toLocaleString()}
-                              </td>
-                              <td className="sm:px-4 sm:py-2 flex gap-2 justify-end sm:justify-center sm:table-cell mt-2 sm:mt-0">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-9 sm:size-7 sm:p-0 text-emerald-600 border-emerald-200 hover:bg-emerald-50 bg-emerald-50 sm:bg-transparent"
-                                  onClick={handleUpdateAdditionalCharge}
-                                  disabled={isUpdatingCharge}
-                                >
-                                  {isUpdatingCharge ? (
-                                    <Loader2 className="size-4 sm:size-3.5 mr-1 sm:mr-0 animate-spin" />
-                                  ) : (
-                                    <Check className="size-4 sm:size-3.5 mr-1 sm:mr-0" />
-                                  )}{" "}
-                                  <span className="sm:hidden">Save</span>
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-9 sm:size-7 sm:p-0 text-slate-600 border-slate-200 hover:bg-slate-100"
-                                  onClick={() => setEditingChargeId(null)}
-                                >
-                                  <X className="size-4 sm:size-3.5 mr-1 sm:mr-0" />{" "}
-                                  <span className="sm:hidden">Cancel</span>
-                                </Button>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td className="sm:px-4 sm:py-3 font-medium text-slate-800 block sm:table-cell mb-1 sm:mb-0 pr-16 sm:pr-4">
+                <div className="rounded-2xl border border-slate-100 overflow-hidden bg-white">
+                  {/* Mobile View: Clean Additional Charge Cards */}
+                  <div className="divide-y divide-slate-100 sm:hidden">
+                    {booking.additional_charges.map((charge) => (
+                      <div key={charge.id} className="p-3.5 space-y-2 hover:bg-slate-50/50 transition-colors">
+                        {editingChargeId === charge.id ? (
+                          <div className="space-y-2">
+                            <Input
+                              placeholder="Charge Name"
+                              value={editChargeName}
+                              onChange={(e) => setEditChargeName(e.target.value)}
+                              className="h-9 text-xs bg-white"
+                            />
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                placeholder="Qty"
+                                value={editChargeQty}
+                                onChange={(e) => setEditChargeQty(e.target.value)}
+                                className="h-9 text-xs text-center w-20 shrink-0 bg-white"
+                              />
+                              <Input
+                                type="number"
+                                placeholder="Rate"
+                                value={editChargeRate}
+                                onChange={(e) => setEditChargeRate(e.target.value)}
+                                className="h-9 text-xs text-right flex-1 bg-white"
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-9 px-3 text-emerald-600 border-emerald-200 hover:bg-emerald-50 bg-emerald-50 shrink-0"
+                                onClick={handleUpdateAdditionalCharge}
+                                disabled={isUpdatingCharge}
+                              >
+                                {isUpdatingCharge ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Check className="size-3.5" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-9 px-3 text-slate-600 border-slate-200 hover:bg-slate-100 shrink-0"
+                                onClick={() => setEditingChargeId(null)}
+                              >
+                                <X className="size-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-start justify-between gap-3">
+                              <h4 className="font-semibold text-slate-900 text-sm leading-snug">
                                 {charge.charge_name}
-                              </td>
-                              <td className="sm:px-4 sm:py-3 sm:text-center block sm:table-cell text-sm text-slate-500 sm:text-slate-800">
-                                <span className="sm:hidden font-medium mr-2">
-                                  Qty:
+                              </h4>
+                              <span className="font-extrabold text-[#7c3aed] text-sm shrink-0">
+                                ₹{(Number(charge.rate) * charge.quantity).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 text-xs text-slate-500 font-medium">
+                              <div className="flex items-center gap-2">
+                                <span>
+                                  Qty: <strong className="text-slate-700 font-semibold">{charge.quantity}</strong>
                                 </span>
-                                {charge.quantity}
-                              </td>
-                              <td className="sm:px-4 sm:py-3 sm:text-right text-slate-500 block sm:table-cell text-sm">
-                                <span className="sm:hidden font-medium mr-2">
-                                  Rate:
+                                <span className="text-slate-300">•</span>
+                                <span>
+                                  Rate: <strong className="text-slate-700 font-semibold">₹{Number(charge.rate).toLocaleString()}</strong>
                                 </span>
-                                ₹{Number(charge.rate).toLocaleString()}
-                              </td>
-                              <td className="sm:px-4 sm:py-3 sm:text-right font-semibold text-slate-800 block sm:table-cell border-t sm:border-0 border-slate-100 mt-2 pt-2 sm:mt-0 sm:pt-3">
-                                <span className="sm:hidden font-medium text-slate-500 mr-2">
-                                  Total:
-                                </span>
-                                ₹
-                                {(
-                                  Number(charge.rate) * charge.quantity
-                                ).toLocaleString()}
-                              </td>
-                              <td className="absolute top-3 right-3 sm:static sm:px-4 sm:py-3 text-center flex gap-1 justify-center block sm:table-cell">
+                              </div>
+                              <div className="flex items-center gap-1">
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="size-8 sm:size-7 rounded-lg text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50"
+                                  className="size-7 rounded-lg text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50"
                                   onClick={() => {
                                     setEditingChargeId(charge.id);
                                     setEditChargeName(charge.charge_name);
@@ -1080,35 +1087,154 @@ export default function BookingDetailsPage() {
                                     setEditChargeRate(String(charge.rate));
                                   }}
                                 >
-                                  <Edit className="size-4 sm:size-3.5" />
+                                  <Edit className="size-3.5" />
                                 </Button>
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="size-8 sm:size-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                                  onClick={() =>
-                                    handleDeleteAdditionalCharge(charge.id)
-                                  }
+                                  className="size-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                  onClick={() => handleDeleteAdditionalCharge(charge.id)}
                                   disabled={deletingChargeId === charge.id}
                                 >
                                   {deletingChargeId === charge.id ? (
-                                    <Loader2 className="size-4 sm:size-3.5 animate-spin" />
+                                    <Loader2 className="size-3.5 animate-spin" />
                                   ) : (
-                                    <Trash className="size-4 sm:size-3.5" />
+                                    <Trash className="size-3.5" />
                                   )}
                                 </Button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                    {booking.additional_charges.length === 0 && (
+                      <div className="p-6 text-center text-xs text-slate-500">
+                        No additional charges added.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Desktop View: Full Data Table with Proportional Widths */}
+                  <table className="w-full text-sm text-left hidden sm:table">
+                    <thead className="bg-slate-50/80 text-slate-500 font-medium border-b border-slate-100">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold w-[45%]">Additional Item</th>
+                        <th className="px-4 py-3 font-semibold text-center w-[15%]">Qty</th>
+                        <th className="px-4 py-3 font-semibold text-right w-[15%]">Rate</th>
+                        <th className="px-4 py-3 font-semibold text-right w-[15%]">Total</th>
+                        <th className="px-4 py-3 font-semibold text-center w-[10%]">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {booking.additional_charges.map((charge) => (
+                        <tr key={charge.id} className="hover:bg-slate-50/50 transition-colors">
+                          {editingChargeId === charge.id ? (
+                            <>
+                              <td className="px-4 py-2">
+                                <Input
+                                  value={editChargeName}
+                                  onChange={(e) => setEditChargeName(e.target.value)}
+                                  className="h-8 text-sm"
+                                />
+                              </td>
+                              <td className="px-4 py-2">
+                                <Input
+                                  type="number"
+                                  value={editChargeQty}
+                                  onChange={(e) => setEditChargeQty(e.target.value)}
+                                  className="h-8 text-sm text-center"
+                                />
+                              </td>
+                              <td className="px-4 py-2">
+                                <Input
+                                  type="number"
+                                  value={editChargeRate}
+                                  onChange={(e) => setEditChargeRate(e.target.value)}
+                                  className="h-8 text-sm text-right"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-right font-bold text-slate-900">
+                                ₹{(Number(editChargeRate) * Number(editChargeQty)).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                <div className="flex gap-1 justify-center">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="size-7 text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                    onClick={handleUpdateAdditionalCharge}
+                                    disabled={isUpdatingCharge}
+                                  >
+                                    {isUpdatingCharge ? (
+                                      <Loader2 className="size-3.5 animate-spin" />
+                                    ) : (
+                                      <Check className="size-3.5" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="size-7 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                    onClick={() => setEditingChargeId(null)}
+                                  >
+                                    <X className="size-3.5" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="px-4 py-3.5 font-medium text-slate-900">
+                                {charge.charge_name}
+                              </td>
+                              <td className="px-4 py-3.5 text-center font-medium text-slate-700">
+                                {charge.quantity}
+                              </td>
+                              <td className="px-4 py-3.5 text-right text-slate-600">
+                                ₹{Number(charge.rate).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3.5 text-right font-bold text-slate-900">
+                                ₹{(Number(charge.rate) * charge.quantity).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3.5 text-center">
+                                <div className="flex gap-1 justify-center">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="size-7 rounded-lg text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50"
+                                    onClick={() => {
+                                      setEditingChargeId(charge.id);
+                                      setEditChargeName(charge.charge_name);
+                                      setEditChargeQty(String(charge.quantity));
+                                      setEditChargeRate(String(charge.rate));
+                                    }}
+                                  >
+                                    <Edit className="size-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="size-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                    onClick={() => handleDeleteAdditionalCharge(charge.id)}
+                                    disabled={deletingChargeId === charge.id}
+                                  >
+                                    {deletingChargeId === charge.id ? (
+                                      <Loader2 className="size-3.5 animate-spin" />
+                                    ) : (
+                                      <Trash className="size-3.5" />
+                                    )}
+                                  </Button>
+                                </div>
                               </td>
                             </>
                           )}
                         </tr>
                       ))}
                       {booking.additional_charges.length === 0 && (
-                        <tr className="block sm:table-row">
-                          <td
-                            colSpan={5}
-                            className="px-4 py-8 text-center text-slate-500 block sm:table-cell"
-                          >
-                            No additional charges.
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                            No additional charges added.
                           </td>
                         </tr>
                       )}
@@ -1201,110 +1327,111 @@ export default function BookingDetailsPage() {
         >
           <div className="grid gap-6 md:grid-cols-[1fr_350px]">
             <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5 h-fit">
-              <CardHeader className="flex flex-row items-center justify-between pb-4">
+              <CardHeader className="flex flex-row items-center justify-between !p-4 border-b">
                 <div>
                   <CardTitle className="text-lg">Payment History</CardTitle>
-                  <CardDescription>
-                    Track all transactions for this booking.
-                  </CardDescription>
                 </div>
                 <Button
                   onClick={() => setPaymentOpen(true)}
                   size="sm"
-                  className="rounded-xl h-9 bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
+                  className="rounded-xl h-9 px-2.5 sm:px-3 bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-600/20 font-semibold"
+                  title="Add Payment"
                 >
-                  <Plus className="mr-1.5 size-4" /> Add Payment
+                  <Plus className="size-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Add Payment</span>
                 </Button>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
+              <CardContent className="p-3.5 sm:p-4">
+                <div className="space-y-3">
                   {payments.length === 0 && (
-                    <div className="py-8 text-center text-slate-500 text-sm">
+                    <div className="py-12 text-center text-slate-400 text-sm">
                       No payments recorded yet.
                     </div>
                   )}
-                  {payments.map((payment, idx) => (
-                    <div key={payment.id} className="flex gap-4 group">
-                      <div className="flex flex-col items-center">
-                        <div className="flex size-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shrink-0">
+                  {payments.map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="p-3.5 sm:p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-200/80 shadow-2xs hover:shadow-sm transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="size-10 sm:size-11 rounded-xl bg-purple-50 text-[#7c3aed] border border-purple-100 flex items-center justify-center shrink-0 shadow-2xs">
                           <CheckCircle2 className="size-5" />
                         </div>
-                        {idx !== payments.length - 1 && (
-                          <div className="w-px h-full bg-slate-200 my-2"></div>
-                        )}
-                      </div>
-                      <div className="flex-1 pb-6">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                          <div>
-                            <h4 className="font-semibold text-slate-800">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-slate-900 text-sm sm:text-base leading-tight truncate">
                               {payment.payment_type} Payment
                             </h4>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              via {payment.payment_method} •{" "}
-                              {new Date(
-                                payment.payment_date,
-                              ).toLocaleDateString()}
-                            </p>
-                            {payment.remark && (
-                              <p className="text-xs text-slate-400 mt-1 italic">
-                                {payment.remark}
-                              </p>
-                            )}
                             <Badge
                               variant="outline"
-                              className="mt-2 text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50 uppercase tracking-wider"
+                              className="text-[9px] font-extrabold text-[#7c3aed] border-purple-200 bg-purple-50 uppercase tracking-wider px-2 py-0.2 shrink-0"
                             >
-                              Completed
+                              Paid
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-1 self-start sm:self-auto bg-slate-50 sm:bg-transparent p-1.5 sm:p-0 rounded-xl border border-slate-100 sm:border-transparent mt-2 sm:mt-0">
-                            <span className="font-bold text-slate-900 mr-2 ml-1">
-                              ₹{Number(payment.amount).toLocaleString()}
-                            </span>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="size-8 sm:size-7 rounded-lg text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50"
-                              onClick={() => {
-                                setEditingPayment(payment);
-                                setEditPaymentType(payment.payment_type);
-                                setEditPaymentMethod(payment.payment_method);
-                                setEditPaymentAmount(String(payment.amount));
-                                setEditPaymentDate(payment.payment_date);
-                                setEditPaymentRemark(payment.remark ?? "");
-                                setEditPaymentOpen(true);
-                              }}
-                            >
-                              <Edit className="size-4 sm:size-3.5" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="size-8 sm:size-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                              onClick={async () => {
-                                setDeletingPaymentId(payment.id);
-                                try {
-                                  const res = await fetch(
-                                    `/api/bookings/${bookingId}/payments?paymentId=${payment.id}`,
-                                    { method: "DELETE" },
+                          <p className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1.5 truncate">
+                            <span>via <strong className="text-slate-700">{payment.payment_method}</strong></span>
+                            <span>•</span>
+                            <span>{new Date(payment.payment_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                          </p>
+                          {payment.remark && (
+                            <p className="text-xs text-slate-400 mt-1 italic line-clamp-1">
+                              "{payment.remark}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2.5 sm:pt-0 border-t sm:border-0 border-slate-200/60">
+                        <span className="text-base sm:text-lg font-black text-[#7c3aed] tracking-tight">
+                          +₹{Number(payment.amount).toLocaleString()}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-8 rounded-lg bg-purple-50 text-[#7c3aed] border border-purple-100 hover:bg-[#7c3aed] hover:text-white transition-all"
+                            onClick={() => {
+                              setEditingPayment(payment);
+                              setEditPaymentType(payment.payment_type);
+                              setEditPaymentMethod(payment.payment_method);
+                              setEditPaymentAmount(String(payment.amount));
+                              setEditPaymentDate(payment.payment_date);
+                              setEditPaymentRemark(payment.remark ?? "");
+                              setEditPaymentOpen(true);
+                            }}
+                            title="Edit Payment"
+                          >
+                            <Edit className="size-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-8 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-600 hover:text-white transition-all"
+                            onClick={async () => {
+                              setDeletingPaymentId(payment.id);
+                              try {
+                                const res = await fetch(
+                                  `/api/bookings/${bookingId}/payments?paymentId=${payment.id}`,
+                                  { method: "DELETE" }
+                                );
+                                if (res.ok)
+                                  setPayments((prev) =>
+                                    prev.filter((p) => p.id !== payment.id)
                                   );
-                                  if (res.ok)
-                                    setPayments((prev) =>
-                                      prev.filter((p) => p.id !== payment.id),
-                                    );
-                                } finally {
-                                  setDeletingPaymentId(null);
-                                }
-                              }}
-                              disabled={deletingPaymentId === payment.id}
-                            >
-                              {deletingPaymentId === payment.id ? (
-                                <Loader2 className="size-4 sm:size-3.5 animate-spin" />
-                              ) : (
-                                <Trash className="size-4 sm:size-3.5" />
-                              )}
-                            </Button>
-                          </div>
+                              } finally {
+                                setDeletingPaymentId(null);
+                              }
+                            }}
+                            disabled={deletingPaymentId === payment.id}
+                            title="Delete Payment"
+                          >
+                            {deletingPaymentId === payment.id ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Trash className="size-3.5" />
+                            )}
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -1313,51 +1440,146 @@ export default function BookingDetailsPage() {
               </CardContent>
             </Card>
 
-            <div className="space-y-6">
-              <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5 bg-gradient-to-br from-[#7c3aed] to-[#5b21b6] text-white">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg font-medium text-white/90">
-                    Amount Due
-                  </CardTitle>
+            <div>
+              {/* Single Unified Financial Overview Card */}
+              <Card className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-md shadow-purple-950/[0.03] overflow-hidden">
+                {/* Header */}
+                <CardHeader className="!p-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-9 rounded-xl bg-purple-50 text-[#7c3aed] border border-purple-100 flex items-center justify-center shrink-0 shadow-2xs">
+                      <Wallet className="size-4 text-[#7c3aed]" />
+                    </div>
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      Financial Overview
+                    </CardTitle>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 border ${
+                      dueAmount <= 0
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                  >
+                    {dueAmount <= 0 ? "Fully Settled" : "Balance Due"}
+                  </Badge>
                 </CardHeader>
-                <CardContent>
-                  <h2 className="text-4xl font-bold tracking-tight mb-4">
-                    ₹{dueAmount.toLocaleString()}
-                  </h2>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-purple-200">
-                      <span>Progress</span>
-                      <span>{Math.round(paidPercentage)}% Paid</span>
-                    </div>
-                    <Progress
-                      value={paidPercentage}
-                      className="h-2 bg-purple-900/50"
-                    />
-                  </div>
-                  <Button className="w-full mt-6 rounded-xl bg-white text-[#7c3aed] hover:bg-slate-50 shadow-lg">
-                    Send Payment Reminder
-                  </Button>
-                </CardContent>
-              </Card>
 
-              <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-                      <Wallet className="size-5" />
+                <CardContent className="p-4 sm:p-5 space-y-4">
+                  {/* Highlighted Balance Box (Red when due > 0, Green when settled) */}
+                  <div
+                    className={`p-4 rounded-2xl border transition-all ${
+                      dueAmount > 0
+                        ? "bg-rose-50/80 border-rose-100"
+                        : "bg-emerald-50/80 border-emerald-100"
+                    }`}
+                  >
+                    <span
+                      className={`text-[10px] font-extrabold uppercase tracking-wider block mb-0.5 ${
+                        dueAmount > 0 ? "text-rose-600" : "text-emerald-600"
+                      }`}
+                    >
+                      {dueAmount > 0 ? "Remaining Balance Due" : "All Settled"}
+                    </span>
+                    <h2
+                      className={`text-2xl sm:text-3xl font-black tracking-tight ${
+                        dueAmount > 0 ? "text-rose-700" : "text-emerald-700"
+                      }`}
+                    >
+                      ₹{dueAmount.toLocaleString()}
+                    </h2>
+                  </div>
+
+                  {/* Key Metrics Breakdown List */}
+                  {/* <div className="space-y-2.5 pt-1">
+                    <div className="flex items-center justify-between text-xs sm:text-sm py-1.5 border-b border-slate-100">
+                      <span className="text-slate-500 font-medium">Total Billed</span>
+                      <span className="font-bold text-slate-900">₹{grandTotal.toLocaleString()}</span>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">
-                        Total Billed
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Includes all taxes
-                      </p>
+                    <div className="flex items-center justify-between text-xs sm:text-sm py-1.5 border-b border-slate-100">
+                      <span className="text-slate-500 font-medium">Total Received</span>
+                      <span className="font-extrabold text-emerald-600">₹{totalPaid.toLocaleString()}</span>
+                    </div>
+                  </div> */}
+
+                  {/* 3-Column Vertical Bar Comparison Graph */}
+                  <div className="pt-1 pb-1 space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                      <span>Financial Comparison</span>
+                      <span className="text-[#7c3aed] font-extrabold">
+                        {Math.round(paidPercentage)}% Collected
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 bg-slate-50/70 rounded-2xl border border-slate-100 space-y-2">
+                      {/* Vertical Bars Container */}
+                      <div className="flex items-end justify-between gap-3 h-30 pt-4 px-2">
+                        {/* 1. Total Billed Bar */}
+                        <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                          <span className="text-[12px] font-extrabold text-slate-700 leading-none">
+                            ₹{grandTotal.toLocaleString()}
+                          </span>
+                          <div className="w-full h-full bg-slate-200/80 rounded-t-xl flex items-end overflow-hidden">
+                            <div className="w-full h-full bg-gradient-to-t from-slate-300 to-slate-400 rounded-t-xl" />
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            Billed
+                          </span>
+                        </div>
+
+                        {/* 2. Received Bar */}
+                        <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                          <span className="text-[12px] font-extrabold text-[#7c3aed] leading-none">
+                            ₹{totalPaid.toLocaleString()}
+                          </span>
+                          <div className="w-full h-full bg-purple-100/60 rounded-t-xl flex items-end overflow-hidden">
+                            <div
+                              className="w-full bg-gradient-to-t from-purple-600 to-indigo-600 rounded-t-xl transition-all duration-500"
+                              style={{
+                                height: `${Math.min(100, Math.max(12, paidPercentage))}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">
+                            Received
+                          </span>
+                        </div>
+
+                        {/* 3. Due Bar */}
+                        <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                          <span className="text-[12px] font-extrabold text-rose-600 leading-none">
+                            ₹{dueAmount.toLocaleString()}
+                          </span>
+                          <div className="w-full h-full bg-rose-100/60 rounded-t-xl flex items-end overflow-hidden">
+                            <div
+                              className="w-full bg-gradient-to-t from-rose-500 to-rose-400 rounded-t-xl transition-all duration-500"
+                              style={{
+                                height: `${Math.min(
+                                  100,
+                                  Math.max(12, 100 - paidPercentage),
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">
+                            Due
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <span className="font-bold text-slate-900">
-                    ₹{grandTotal.toLocaleString()}
-                  </span>
+
+                  {/* Send WhatsApp Reminder Action Button */}
+                  <a
+                    href={`https://wa.me/${booking.customer.phone.replace(/\D/g, "")}?text=${encodeURIComponent(
+                      `Hi ${booking.customer.customer_name},\n\nThis is a friendly payment reminder regarding your booking for ${new Date(booking.booking_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}.\n\n*Payment Summary:*\n• Total Billed: ₹${grandTotal.toLocaleString()}\n• Total Received: ₹${totalPaid.toLocaleString()}\n• *Remaining Balance Due: ₹${dueAmount.toLocaleString()}*\n\nPlease let us know once paid. Thank you!`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold h-10 shadow-sm shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 mt-2 text-sm"
+                  >
+                    <MessageCircle className="size-4" /> Send WhatsApp Reminder
+                  </a>
                 </CardContent>
               </Card>
             </div>
@@ -1369,282 +1591,241 @@ export default function BookingDetailsPage() {
           value="expenses"
           className="space-y-6 outline-none animate-in fade-in slide-in-from-bottom-4 duration-500"
         >
-          <div className="grid gap-6 xl:grid-cols-[1fr_320px_320px] lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-[1fr_350px]">
             {/* 1. Logged Expenses */}
             <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5 h-fit">
-              <CardHeader className="flex flex-row items-center justify-between pb-4">
+              <CardHeader className="flex flex-row items-center justify-between !p-4 border-b">
                 <div>
                   <CardTitle className="text-lg">Logged Expenses</CardTitle>
-                  <CardDescription>
-                    Costs incurred for this specific booking.
-                  </CardDescription>
                 </div>
-                <Button
-                  onClick={() => setExpenseOpen(true)}
-                  size="sm"
-                  className="rounded-xl h-9 bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/20"
-                >
-                  <Plus className="mr-1.5 size-4" /> Add Expense
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setCustomExpenseModalOpen(true)}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl h-9 px-2.5 sm:px-3 text-[#7c3aed] border-purple-200 hover:bg-purple-50 font-semibold"
+                    title="Custom Expenses"
+                  >
+                    <FolderPlus className="size-4 text-[#7c3aed] sm:mr-1.5" />
+                    <span className="hidden sm:inline">Custom Expenses</span>
+                  </Button>
+                  <Button
+                    onClick={() => setExpenseOpen(true)}
+                    size="sm"
+                    className="rounded-xl h-9 px-2.5 sm:px-3 bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-600/20 font-semibold"
+                    title="Add Expense"
+                  >
+                    <Plus className="size-4 sm:mr-1.5" />
+                    <span className="hidden sm:inline">Add Expense</span>
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {expenses.map((expense) => (
-                    <div
-                      key={expense.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors gap-3 sm:gap-4"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-500">
-                          <TrendingDown className="size-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-slate-800">
-                            {expense.expense_name}
-                          </h4>
-                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                            <span className="text-xs text-slate-400 shrink-0">
-                              {new Date(
-                                expense.expense_date,
-                              ).toLocaleDateString()}
-                            </span>
-                            {expense.description && (
-                              <span className="text-xs text-slate-400 truncate max-w-[200px] sm:max-w-[160px]">
-                                • {expense.description}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 self-start sm:self-auto bg-slate-50 sm:bg-transparent p-1.5 sm:p-0 rounded-xl border border-slate-100 sm:border-transparent ml-14 sm:ml-0">
-                        <span className="font-bold text-slate-900 mr-2 ml-1">
-                          ₹{Number(expense.amount).toLocaleString()}
-                        </span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="size-8 sm:size-7 rounded-lg text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50"
-                          onClick={() => {
-                            setEditingExpense(expense);
-                            setEditExpenseName(expense.expense_name);
-                            setEditExpenseAmount(String(expense.amount));
-                            setEditExpenseDate(expense.expense_date);
-                            setEditExpenseDescription(
-                              expense.description ?? "",
-                            );
-                            setEditExpenseOpen(true);
-                          }}
-                        >
-                          <Edit className="size-4 sm:size-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="size-8 sm:size-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                          onClick={async () => {
-                            setDeletingExpenseId(expense.id);
-                            try {
-                              const res = await fetch(
-                                `/api/bookings/${bookingId}/expenses?expenseId=${expense.id}`,
-                                { method: "DELETE" },
-                              );
-                              if (res.ok)
-                                setExpenses((prev) =>
-                                  prev.filter((e) => e.id !== expense.id),
-                                );
-                            } finally {
-                              setDeletingExpenseId(null);
-                            }
-                          }}
-                          disabled={deletingExpenseId === expense.id}
-                        >
-                          {deletingExpenseId === expense.id ? (
-                            <Loader2 className="size-4 sm:size-3.5 animate-spin" />
-                          ) : (
-                            <Trash className="size-4 sm:size-3.5" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+              <CardContent className="p-3.5 sm:p-4">
+                <div className="space-y-3">
                   {expenses.length === 0 && (
-                    <div className="py-8 text-center text-slate-500 text-sm">
+                    <div className="py-12 text-center text-slate-400 text-sm">
                       No expenses logged yet.
                     </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 2. Custom Expense Category Manager */}
-            <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5 h-fit">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-medium">
-                  Custom Expenses
-                </CardTitle>
-                <CardDescription>
-                  Track additional expense categories.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Expense name..."
-                    value={newCustomExpense}
-                    onChange={(e) => setNewCustomExpense(e.target.value)}
-                    className="h-9 rounded-xl border-slate-200 bg-slate-50"
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && handleAddCustomExpense()
-                    }
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleAddCustomExpense}
-                    disabled={!newCustomExpense.trim() || isAddingCustomExpense}
-                    className="rounded-xl h-9 bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm"
-                  >
-                    {isAddingCustomExpense ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      "Add"
-                    )}
-                  </Button>
-                </div>
-
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                  {customExpenses.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-2">
-                      No custom expenses added.
-                    </p>
-                  ) : (
-                    customExpenses.map((expense) => (
-                      <div
-                        key={expense.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 bg-white hover:border-purple-100 transition-colors gap-2"
-                      >
-                        {editingCustomExpenseId === expense.id ? (
-                          <div className="flex w-full items-center gap-2">
-                            <Input
-                              value={editingCustomExpenseName}
-                              onChange={(e) =>
-                                setEditingCustomExpenseName(e.target.value)
-                              }
-                              className="h-8 text-sm rounded-lg border-purple-200"
-                              autoFocus
-                              onKeyDown={(e) =>
-                                e.key === "Enter" && handleUpdateCustomExpense()
-                              }
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="size-8 rounded-lg text-emerald-600 hover:bg-emerald-50 shrink-0"
-                              onClick={handleUpdateCustomExpense}
-                              disabled={isUpdatingCustomExpense}
-                            >
-                              {isUpdatingCustomExpense ? (
-                                <Loader2 className="size-4 animate-spin" />
-                              ) : (
-                                <Check className="size-4" />
-                              )}
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="size-8 rounded-lg text-slate-400 hover:bg-slate-50 shrink-0"
-                              onClick={() => setEditingCustomExpenseId(null)}
-                            >
-                              <X className="size-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <span className="text-sm font-medium text-slate-700 break-words flex-1 line-clamp-2">
-                              {expense.name}
-                            </span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="size-8 sm:size-7 rounded-lg text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50"
-                                onClick={() => {
-                                  setEditingCustomExpenseId(expense.id);
-                                  setEditingCustomExpenseName(expense.name);
-                                }}
-                              >
-                                <Edit className="size-4 sm:size-3.5" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="size-8 sm:size-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                                onClick={() =>
-                                  handleDeleteCustomExpense(expense.id)
-                                }
-                                disabled={
-                                  deletingCustomExpenseId === expense.id
-                                }
-                              >
-                                {deletingCustomExpenseId === expense.id ? (
-                                  <Loader2 className="size-4 sm:size-3.5 animate-spin" />
-                                ) : (
-                                  <Trash className="size-4 sm:size-3.5" />
-                                )}
-                              </Button>
-                            </div>
-                          </>
-                        )}
+                  {expenses.map((expense) => (
+                    <div
+                      key={expense.id}
+                      className="p-3.5 sm:p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-200/80 shadow-2xs hover:shadow-sm transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="size-10 sm:size-11 rounded-xl bg-purple-50 text-[#7c3aed] border border-purple-100 flex items-center justify-center shrink-0 shadow-2xs">
+                          <TrendingDown className="size-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-slate-900 text-sm sm:text-base leading-tight truncate">
+                            {expense.expense_name}
+                          </h4>
+                          <p className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1.5 truncate">
+                            <span>{new Date(expense.expense_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                            {expense.description && (
+                              <>
+                                <span>•</span>
+                                <span className="truncate">{expense.description}</span>
+                              </>
+                            )}
+                          </p>
+                        </div>
                       </div>
-                    ))
-                  )}
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2.5 sm:pt-0 border-t sm:border-0 border-slate-200/60">
+                        <span className="text-base sm:text-lg font-black text-[#7c3aed] tracking-tight">
+                          -₹{Number(expense.amount).toLocaleString()}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-8 rounded-lg bg-purple-50 text-[#7c3aed] border border-purple-100 hover:bg-[#7c3aed] hover:text-white transition-all"
+                            onClick={() => {
+                              setEditingExpense(expense);
+                              setEditExpenseName(expense.expense_name);
+                              setEditExpenseAmount(String(expense.amount));
+                              setEditExpenseDate(expense.expense_date);
+                              setEditExpenseDescription(
+                                expense.description ?? "",
+                              );
+                              setEditExpenseOpen(true);
+                            }}
+                            title="Edit Expense"
+                          >
+                            <Edit className="size-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-8 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-600 hover:text-white transition-all"
+                            onClick={async () => {
+                              setDeletingExpenseId(expense.id);
+                              try {
+                                const res = await fetch(
+                                  `/api/bookings/${bookingId}/expenses?expenseId=${expense.id}`,
+                                  { method: "DELETE" },
+                                );
+                                if (res.ok)
+                                  setExpenses((prev) =>
+                                    prev.filter((e) => e.id !== expense.id),
+                                  );
+                              } finally {
+                                setDeletingExpenseId(null);
+                              }
+                            }}
+                            disabled={deletingExpenseId === expense.id}
+                            title="Delete Expense"
+                          >
+                            {deletingExpenseId === expense.id ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Trash className="size-3.5" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
 
-            {/* 3. Profitability Analysis */}
-            <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5 h-fit">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium">
-                  Profitability Analysis
-                </CardTitle>
+            {/* 2. Profitability Overview Card */}
+            <Card className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-md shadow-purple-950/[0.03] overflow-hidden h-fit">
+              {/* Header */}
+              <CardHeader className="!p-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="size-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0 shadow-2xs">
+                    <TrendingUp className="size-4 text-emerald-600" />
+                  </div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    Profitability Overview
+                  </CardTitle>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 border ${
+                    netProfit >= 0
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-rose-50 text-rose-700 border-rose-200"
+                  }`}
+                >
+                  {netProfit >= 0 ? "Profitable" : "Loss"}
+                </Badge>
               </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <DollarSign className="size-4" /> Total Revenue
-                  </div>
-                  <span className="font-medium text-slate-800">
-                    ₹{grandTotal.toLocaleString()}
+
+              <CardContent className="p-4 sm:p-5 space-y-4">
+                {/* Highlighted Net Profit Box */}
+                <div
+                  className={`p-4 rounded-2xl border transition-all ${
+                    netProfit >= 0
+                      ? "bg-gradient-to-br from-emerald-50/80 via-emerald-50/40 to-teal-50/30 border-emerald-100"
+                      : "bg-gradient-to-br from-rose-50/80 via-rose-50/40 to-amber-50/30 border-rose-100"
+                  }`}
+                >
+                  <span
+                    className={`text-[10px] font-extrabold uppercase tracking-wider block mb-0.5 ${
+                      netProfit >= 0 ? "text-emerald-600" : "text-rose-600"
+                    }`}
+                  >
+                    {netProfit >= 0 ? "Estimated Net Profit" : "Net Loss"}
                   </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-sm text-rose-500">
-                    <TrendingDown className="size-4" /> Total Expenses
-                  </div>
-                  <span className="font-medium text-rose-600">
-                    - ₹{totalExpenses.toLocaleString()}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600">
-                    <TrendingUp className="size-4" /> Net Profit
-                  </div>
-                  <span className="text-xl font-bold text-emerald-600">
+                  <h2
+                    className={`text-2xl sm:text-3xl font-black tracking-tight ${
+                      netProfit >= 0 ? "text-emerald-700" : "text-rose-700"
+                    }`}
+                  >
                     ₹{netProfit.toLocaleString()}
-                  </span>
+                  </h2>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-slate-100">
-                  <p className="text-xs text-slate-500 mb-2">Profit Margin</p>
-                  <div className="flex items-center gap-3">
-                    <Progress
-                      value={Number(profitMargin)}
-                      className="h-2.5 bg-slate-100 text-emerald-500"
-                    />
-                    <span className="text-sm font-bold text-slate-700">
-                      {profitMargin}%
+                {/* Metrics Breakdown List */}
+                {/* <div className="space-y-2.5 pt-1">
+                  <div className="flex items-center justify-between text-xs sm:text-sm py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                      <DollarSign className="size-3.5 text-slate-400" /> Total Revenue
                     </span>
+                    <span className="font-bold text-slate-900">₹{grandTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs sm:text-sm py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                      <TrendingDown className="size-3.5 text-rose-500" /> Total Expenses
+                    </span>
+                    <span className="font-bold text-rose-600">-₹{totalExpenses.toLocaleString()}</span>
+                  </div>
+                </div> */}
+
+                {/* Revenue vs Expense Vertical Bar Comparison Graph */}
+                <div className="pt-1 pb-1 space-y-3">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span>Revenue vs Expense Ratio</span>
+                    <span className="text-[#7c3aed] font-extrabold">
+                      {profitMargin}% Margin
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50/70 rounded-2xl border border-slate-100 space-y-2">
+                    {/* Vertical Bars Container */}
+                    <div className="flex items-end justify-around gap-4 h-30 pt-4 px-3">
+                      {/* 1. Total Revenue Bar */}
+                      <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end max-w-[100px]">
+                        <span className="text-[12px] font-extrabold text-[#7c3aed] leading-none">
+                          ₹{grandTotal.toLocaleString()}
+                        </span>
+                        <div className="w-full h-full bg-purple-100/60 rounded-t-xl flex items-end overflow-hidden">
+                          <div className="w-full h-full bg-gradient-to-t from-purple-600 to-indigo-600 rounded-t-xl transition-all duration-500" />
+                        </div>
+                        <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">
+                          Revenue
+                        </span>
+                      </div>
+
+                      {/* 2. Total Expenses Bar */}
+                      <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end max-w-[100px]">
+                        <span className="text-[12px] font-extrabold text-rose-600 leading-none">
+                          ₹{totalExpenses.toLocaleString()}
+                        </span>
+                        <div className="w-full h-full bg-rose-100/60 rounded-t-xl flex items-end overflow-hidden">
+                          <div
+                            className="w-full bg-gradient-to-t from-rose-500 to-rose-400 rounded-t-xl transition-all duration-500"
+                            style={{
+                              height: `${
+                                grandTotal > 0
+                                  ? Math.min(
+                                      100,
+                                      Math.max(12, (totalExpenses / grandTotal) * 100),
+                                    )
+                                  : 0
+                              }%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">
+                          Expenses
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -2526,6 +2707,131 @@ export default function BookingDetailsPage() {
                   .toLocaleString()}
               </p>
             </div>
+          </div>
+        </div>
+      </AppModal>
+
+      {/* Custom Expense Categories Modal */}
+      <AppModal
+        open={customExpenseModalOpen}
+        icon={<FolderPlus className="size-5 text-[#7c3aed]" />}
+        onClose={() => setCustomExpenseModalOpen(false)}
+        title="Custom Expenses"
+        description="Add, edit, or track custom expense categories."
+      >
+        <div className="space-y-4 pt-1">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Expense category name..."
+              value={newCustomExpense}
+              onChange={(e) => setNewCustomExpense(e.target.value)}
+              className="h-10 rounded-xl border-slate-200 bg-slate-50 text-sm"
+              onKeyDown={(e) =>
+                e.key === "Enter" && handleAddCustomExpense()
+              }
+            />
+            <Button
+              size="sm"
+              onClick={handleAddCustomExpense}
+              disabled={!newCustomExpense.trim() || isAddingCustomExpense}
+              className="rounded-xl h-10 bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm font-semibold px-4 shrink-0"
+            >
+              {isAddingCustomExpense ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                "Add Category"
+              )}
+            </Button>
+          </div>
+
+          <div className="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+            {customExpenses.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-sm">
+                No custom expense categories added yet.
+              </div>
+            ) : (
+              customExpenses.map((expense) => (
+                <div
+                  key={expense.id}
+                  className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-purple-100 transition-colors gap-2"
+                >
+                  {editingCustomExpenseId === expense.id ? (
+                    <div className="flex w-full items-center gap-2">
+                      <Input
+                        value={editingCustomExpenseName}
+                        onChange={(e) =>
+                          setEditingCustomExpenseName(e.target.value)
+                        }
+                        className="h-9 text-sm rounded-lg border-purple-200"
+                        autoFocus
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleUpdateCustomExpense()
+                        }
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 rounded-lg text-emerald-600 hover:bg-emerald-50 shrink-0"
+                        onClick={handleUpdateCustomExpense}
+                        disabled={isUpdatingCustomExpense}
+                      >
+                        {isUpdatingCustomExpense ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Check className="size-4" />
+                        )}
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 rounded-lg text-slate-400 hover:bg-slate-50 shrink-0"
+                        onClick={() => setEditingCustomExpenseId(null)}
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-sm font-semibold text-slate-800 break-words flex-1">
+                        {expense.name}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 rounded-lg bg-purple-50 text-[#7c3aed] border border-purple-100 hover:bg-[#7c3aed] hover:text-white transition-all"
+                          onClick={() => {
+                            setEditingCustomExpenseId(expense.id);
+                            setEditingCustomExpenseName(expense.name);
+                          }}
+                          title="Edit Category"
+                        >
+                          <Edit className="size-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-600 hover:text-white transition-all"
+                          onClick={() =>
+                            handleDeleteCustomExpense(expense.id)
+                          }
+                          disabled={
+                            deletingCustomExpenseId === expense.id
+                          }
+                          title="Delete Category"
+                        >
+                          {deletingCustomExpenseId === expense.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Trash className="size-3.5" />
+                          )}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
       </AppModal>

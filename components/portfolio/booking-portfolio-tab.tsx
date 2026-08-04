@@ -46,36 +46,37 @@ export function BookingPortfolioTab({ bookingId, onQuotaExceeded }: BookingPortf
 
   return (
     <>
-      <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5">
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <div>
-            <CardTitle className="text-lg">Project Deliverables</CardTitle>
-            <CardDescription>Upload final portfolio deliveries here.</CardDescription>
+      <Card className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-md shadow-purple-950/[0.03] overflow-hidden">
+        <CardHeader className="!p-4 sm:!p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+          <div className="flex items-center gap-2.5">
+            <div className="size-9 rounded-xl bg-purple-50 text-[#7c3aed] border border-purple-100 flex items-center justify-center shrink-0 shadow-2xs">
+              <ImageIcon className="size-4 text-[#7c3aed]" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-bold text-slate-900">
+                Project Deliverables
+              </CardTitle>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <PortfolioUploader
+              bookingId={bookingId}
+              folderId={folderId ?? undefined}
+              section="delivery"
+              onUploaded={loadPortfolio}
+              onQuotaExceeded={onQuotaExceeded}
+              label="Upload Deliverables"
+            />
           </div>
         </CardHeader>
-        <CardContent>
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <ImageIcon className="size-4 text-slate-400" /> Final Delivery
-              </h4>
-              <PortfolioUploader
-                bookingId={bookingId}
-                folderId={folderId ?? undefined}
-                section="delivery"
-                onUploaded={loadPortfolio}
-                onQuotaExceeded={onQuotaExceeded}
-                label="Upload Final Photos"
-              />
-            </div>
-            {!loading && (
-              <PortfolioFileGrid
-                files={deliveryFiles}
-                onDelete={handleDelete}
-                onPreview={setPreviewFile}
-              />
-            )}
-          </div>
+        <CardContent className="p-4 sm:p-5">
+          {!loading && (
+            <PortfolioFileGrid
+              files={deliveryFiles}
+              onDelete={handleDelete}
+              onPreview={setPreviewFile}
+            />
+          )}
         </CardContent>
       </Card>
 

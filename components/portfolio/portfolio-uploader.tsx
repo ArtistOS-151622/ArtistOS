@@ -96,7 +96,7 @@ export function PortfolioUploader({
         type="button"
         size="sm"
         disabled={uploading}
-        className="rounded-xl h-9 bg-slate-900 text-white hover:bg-slate-800"
+        className="rounded-xl h-9 bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-600/20 font-semibold"
         onClick={() => inputRef.current?.click()}
       >
         {uploading ? (
