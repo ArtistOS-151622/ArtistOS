@@ -188,6 +188,8 @@ export default function BookingDetailsPage() {
   const [isSavingExpense, setIsSavingExpense] = useState(false)
   const [deletingExpenseId, setDeletingExpenseId] = useState<number | null>(null)
 
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+
   const handleAddCustomExpense = async () => {
     if (!newCustomExpense.trim()) return
     const res = await fetch(`/api/bookings/${bookingId}/expense-categories`, {
@@ -381,6 +383,31 @@ export default function BookingDetailsPage() {
     }, 2000)
   }
 
+  const handleDownloadPDF = async () => {
+    setIsGeneratingPDF(true)
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}/pdf`)
+      if (!response.ok) {
+        throw new Error("Failed to generate PDF")
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `Quotation-${booking?.user_booking_index ?? booking?.id}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error(err)
+      alert("Failed to download PDF. Please try again.")
+    } finally {
+      setIsGeneratingPDF(false)
+    }
+  }
+
   if (loading) {
     return (
       <>
@@ -558,8 +585,19 @@ export default function BookingDetailsPage() {
                   >
                     <Edit className="mr-2 size-4" /> Edit Services
                   </Button>
-                  <Button variant="outline" size="sm" className="rounded-xl h-9 flex-1 sm:flex-none">
-                    <Download className="mr-2 size-4" /> PDF
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="rounded-xl h-9 flex-1 sm:flex-none"
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingPDF}
+                  >
+                    {isGeneratingPDF ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 size-4" /> 
+                    )}
+                    PDF
                   </Button>
                 </div>
               </div>
