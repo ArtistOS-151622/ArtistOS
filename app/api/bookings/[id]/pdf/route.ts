@@ -61,7 +61,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // 2. Fetch Payments to calculate due amount
     const { data: payments } = await supabase
-      .from("payments")
+      .from("booking_payments")
       .select("amount")
       .eq("booking_id", bookingId)
 
@@ -86,8 +86,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const servicesTotal = services.reduce((acc: number, s: any) => acc + (Number(s.price) * (s.quantity ?? 1)), 0)
     const additionalTotal = additional_charges.reduce((acc: number, c: any) => acc + (Number(c.rate) * Number(c.quantity)), 0)
     const subTotal = servicesTotal + additionalTotal
-    const grandTotal = Math.max(0, subTotal - Number(booking.discount))
-    const dueAmount = grandTotal - totalPaid
+    const grandTotal = Math.max(0, subTotal - Number(booking.discount) - totalPaid)
+    const dueAmount = grandTotal
 
     const calculations = {
       subTotal,
