@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Copy, Loader2, Share2 } from "lucide-react"
+import { Copy, Loader2, Share2, Check } from "lucide-react"
 
 import { AppModal } from "@/components/common/shared/app-modal"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,7 @@ export function PortfolioShareModal({
   const [loading, setLoading] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(folder?.share_url ?? null)
   const [isShared, setIsShared] = useState(folder?.is_shared ?? false)
+  const [copied, setCopied] = useState(false)
 
   async function toggleShare(enable: boolean) {
     if (!folder) return
@@ -97,9 +98,11 @@ export function PortfolioShareModal({
                       ? new URL(new URL(shareUrl).pathname, window.location.origin).toString()
                       : shareUrl;
                     navigator.clipboard.writeText(formatted);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
                   }}
                 >
-                  <Copy className="size-4" />
+                  {copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
                 </Button>
               </div>
               <p className="text-xs text-slate-500">
