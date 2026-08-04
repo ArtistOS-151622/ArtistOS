@@ -194,13 +194,13 @@ export default function ProfilePage() {
                       </div>
                     )}
                   </Avatar>
-                  <div className="absolute inset-0 flex items-end justify-center pb-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-0 flex items-end justify-center pb-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <PortfolioUploader
                       setAsStudioLogo
                       onUploaded={loadProfile}
                       onQuotaExceeded={() => setPlansOpen(true)}
                       label="Logo"
-                      className="scale-90"
+                      className="scale-90 shadow-sm"
                     />
                   </div>
                 </div>

@@ -3,6 +3,7 @@ import { renderToStream } from "@react-pdf/renderer"
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 import { QuotationPDF } from "@/components/pdf/quotation-pdf"
+import { getPublicUrl } from "@/lib/r2/url"
 
 export const runtime = "nodejs"
 
@@ -119,15 +120,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (artist.studio_logo_file_id) {
       const { data: fileData } = await supabase
         .from("portfolio_files")
-        .select("file_path")
+        .select("storage_path")
         .eq("id", artist.studio_logo_file_id)
         .single()
         
-      if (fileData?.file_path) {
-        const { data: publicUrlData } = supabase.storage
-          .from("portfolio")
-          .getPublicUrl(fileData.file_path)
-        studio_logo_url = publicUrlData?.publicUrl
+      if (fileData?.storage_path) {
+        studio_logo_url = getPublicUrl(fileData.storage_path)
       }
     }
 

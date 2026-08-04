@@ -81,14 +81,23 @@ export function PortfolioShareModal({
               <div className="flex gap-2">
                 <input
                   readOnly
-                  value={shareUrl}
+                  value={
+                    typeof window !== "undefined"
+                      ? new URL(new URL(shareUrl).pathname, window.location.origin).toString()
+                      : shareUrl
+                  }
                   className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
                 />
                 <Button
                   type="button"
                   variant="outline"
                   className="rounded-xl"
-                  onClick={() => navigator.clipboard.writeText(shareUrl)}
+                  onClick={() => {
+                    const formatted = typeof window !== "undefined"
+                      ? new URL(new URL(shareUrl).pathname, window.location.origin).toString()
+                      : shareUrl;
+                    navigator.clipboard.writeText(formatted);
+                  }}
                 >
                   <Copy className="size-4" />
                 </Button>
