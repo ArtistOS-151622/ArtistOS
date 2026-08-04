@@ -54,11 +54,30 @@ export async function findOrCreateBookingFolder(
   userId: number,
   bookingId: number
 ): Promise<PortfolioFolderRow> {
-  const existing = await findFolderByBooking(supabase, userId, bookingId)
-  if (existing) return existing
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("id, customer:customers(customer_name)")
+    .eq("id", bookingId)
+    .eq("user_id", userId)
+    .maybeSingle()
 
+  const customerName = (booking?.customer as any)?.customer_name
   const index = await getBookingIndex(supabase, userId, bookingId)
-  const name = `Booking #${index}`
+  const name = customerName ? `${customerName} (#${index})` : `Booking #${index}`
+
+  const existing = await findFolderByBooking(supabase, userId, bookingId)
+  if (existing) {
+    if (existing.name.startsWith("Booking #") && customerName) {
+      const { data: updated } = await supabase
+        .from("portfolio_folders")
+        .update({ name })
+        .eq("id", existing.id)
+        .select("*")
+        .single()
+      if (updated) return updated as PortfolioFolderRow
+    }
+    return existing
+  }
 
   const { data, error } = await supabase
     .from("portfolio_folders")
@@ -156,6 +175,26 @@ export async function listFolders(
     // Skip booking folders that have no files uploaded yet
     if (folder.booking_id !== null && fileCount === 0) {
       continue
+    }
+
+    // Auto-update folder name to include Customer Name if it currently uses generic "Booking #"
+    if (folder.booking_id !== null && folder.name.startsWith("Booking #")) {
+      const { data: booking } = await supabase
+        .from("bookings")
+        .select("id, customer:customers(customer_name)")
+        .eq("id", folder.booking_id)
+        .maybeSingle()
+
+      const customerName = (booking?.customer as any)?.customer_name
+      if (customerName) {
+        const index = await getBookingIndex(supabase, userId, folder.booking_id)
+        const newName = `${customerName} (#${index})`
+        await supabase
+          .from("portfolio_folders")
+          .update({ name: newName })
+          .eq("id", folder.id)
+        folder.name = newName
+      }
     }
 
     // Fetch up to 4 preview files for folder icon 2x2 grid preview

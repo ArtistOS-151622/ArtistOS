@@ -113,7 +113,7 @@ export default function PortfolioFolderPage() {
   return (
     <>
       <PageHeader title={folder.name} />
-      <div className="mx-auto max-w-6xl space-y-6 pb-12">
+      <div className="space-y-6 pb-12">
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/portfolio"

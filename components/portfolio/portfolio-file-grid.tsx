@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   FileArchive,
   FileAudio,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { PortfolioFileWithUrl } from "@/lib/portfolio/types"
 import { cn } from "@/lib/utils"
 
@@ -33,6 +35,23 @@ function FileIcon({ mimeType }: { mimeType: string }) {
     return <FileArchive className="size-8 text-amber-500" />
   }
   return <FileText className="size-8 text-slate-400" />
+}
+
+function FileImageWithSkeleton({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false)
+
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-slate-100">
+      {!loaded && <Skeleton className="absolute inset-0 h-full w-full rounded-none bg-slate-200/80" />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        onLoad={() => setLoaded(true)}
+        className={cn("h-full w-full object-cover transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")}
+      />
+    </div>
+  )
 }
 
 export function PortfolioFileGrid({
@@ -78,16 +97,11 @@ export function PortfolioFileGrid({
 
             <button
               type="button"
-              className="flex h-full w-full flex-col items-center justify-center p-2"
+              className="flex h-full w-full flex-col items-center justify-center p-0"
               onClick={() => onPreview?.(file)}
             >
               {isImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={file.public_url}
-                  alt={file.original_name}
-                  className="h-full w-full object-cover"
-                />
+                <FileImageWithSkeleton src={file.public_url} alt={file.original_name} />
               ) : isVideo ? (
                 <div className="relative flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 group-hover:from-violet-600 group-hover:via-fuchsia-600 group-hover:to-pink-600 transition-colors">
                   <PlayCircle className="size-12 text-white drop-shadow-md" />

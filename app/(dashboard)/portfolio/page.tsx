@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { FolderPlus, HardDrive, LayoutGrid, List, Loader2, Search, Sparkles } from "lucide-react";
+import { CheckCircle2, FolderPlus, HardDrive, LayoutGrid, List, Loader2, Search, Server, ShieldCheck, Sparkles, Zap } from "lucide-react";
 
 import { HeaderPortal, PageHeader } from "@/components/common/dashboard/dashboard-header-context";
 import { AppModal } from "@/components/common/shared/app-modal";
+import { SideDrawer } from "@/components/common/shared/side-drawer";
 import { FloatingInput } from "@/components/common/shared/floating-input";
-import { PortfolioFolderGrid } from "@/components/portfolio/portfolio-folder-grid";
+import { PortfolioFolderGrid, PortfolioFolderSkeleton } from "@/components/portfolio/portfolio-folder-grid";
 import { PortfolioShareModal } from "@/components/portfolio/portfolio-share-modal";
 import { StorageMeter } from "@/components/storage/storage-meter";
 import { StoragePlansModal } from "@/components/storage/storage-plans-modal";
@@ -34,6 +35,7 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [storageDrawerOpen, setStorageDrawerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   const [shareFolder, setShareFolder] =
@@ -41,6 +43,11 @@ export default function PortfolioPage() {
   const [newFolderName, setNewFolderName] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [editFolder, setEditFolder] =
+    useState<PortfolioFolderWithStats | null>(null);
+  const [editFolderName, setEditFolderName] = useState("");
+  const [updatingFolder, setUpdatingFolder] = useState(false);
+  const [editError, setEditError] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -97,6 +104,36 @@ export default function PortfolioPage() {
     if (!confirm("Delete this folder and all its files?")) return;
     await fetch(`/api/portfolio/folders/${id}`, { method: "DELETE" });
     void loadData();
+  }
+
+  async function handleUpdateFolder() {
+    if (!editFolder || !editFolderName.trim()) return;
+    setUpdatingFolder(true);
+    setEditError("");
+    try {
+      const res = await fetch(`/api/portfolio/folders/${editFolder.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editFolderName.trim() }),
+      });
+      const json = await res.json();
+      if (!json.status) throw new Error(json.message);
+      setEditFolder(null);
+      setEditFolderName("");
+      void loadData();
+    } catch (err) {
+      setEditError(
+        err instanceof Error ? err.message : "Failed to update folder",
+      );
+    } finally {
+      setUpdatingFolder(false);
+    }
+  }
+
+  function startEditFolder(folder: PortfolioFolderWithStats) {
+    setEditFolder(folder);
+    setEditFolderName(folder.name);
+    setEditError("");
   }
 
   return (
@@ -158,59 +195,206 @@ export default function PortfolioPage() {
           </div>
         }
       />
-      <div className="mx-auto max-w-6xl space-y-6 pb-12">
-        {/* Storage Card Header */}
-        <Card className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-md shadow-purple-950/[0.03] overflow-hidden">
-          <CardHeader className="!p-4 sm:!p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-purple-50 text-[#7c3aed] border border-purple-100 flex items-center justify-center shrink-0 shadow-2xs">
-                <HardDrive className="size-5 text-[#7c3aed]" />
-              </div>
-              <div>
-                <CardTitle className="text-base sm:text-lg font-bold text-slate-900">
-                  Storage & Deliverables
-                </CardTitle>
-                <CardDescription className="text-xs text-slate-500">
-                  Organize photos, videos, and deliverables into folders. Share folders with clients via public links.
-                </CardDescription>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              className="rounded-xl h-9 text-[#7c3aed] border-purple-200 hover:bg-purple-50 font-semibold shrink-0"
-              onClick={() => setPlansOpen(true)}
-            >
-              <Sparkles className="mr-1.5 size-4 text-[#7c3aed]" /> Upgrade Storage
-            </Button>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-5">
-            <StorageMeter quota={quota} />
-          </CardContent>
-        </Card>
 
-        {loading ? (
-          <div className="flex min-h-[30vh] items-center justify-center">
-            <Loader2 className="size-8 animate-spin text-[#7c3aed]" />
-          </div>
-        ) : (
-          <PortfolioFolderGrid
-            folders={folders}
-            viewMode={viewMode}
-            onDelete={handleDeleteFolder}
-            onShare={setShareFolder}
+      {/* Mobile Control Row: Search, Grid/List Switch & New Folder Button */}
+      <div className="flex items-center gap-2.5 w-full md:hidden mb-4">
+        {/* Search Input */}
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search folders..."
+            className="h-11 rounded-2xl border-slate-200/80 bg-white pl-10 shadow-xs text-sm"
           />
+        </div>
+
+        {/* View Switcher */}
+        <div className="flex bg-slate-100/70 rounded-2xl p-1 h-11 items-center border border-slate-200/60 shrink-0">
+          <Button
+            type="button"
+            variant={viewMode === "grid" ? "default" : "ghost"}
+            className={cn(
+              "h-9 rounded-xl px-2.5 flex items-center justify-center transition-all",
+              viewMode === "grid"
+                ? "bg-white text-slate-800 shadow-xs"
+                : "text-slate-500 hover:text-slate-800"
+            )}
+            onClick={() => setViewMode("grid")}
+            title="Grid View"
+          >
+            <LayoutGrid className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant={viewMode === "list" ? "default" : "ghost"}
+            className={cn(
+              "h-9 rounded-xl px-2.5 flex items-center justify-center transition-all",
+              viewMode === "list"
+                ? "bg-white text-slate-800 shadow-xs"
+                : "text-slate-500 hover:text-slate-800"
+            )}
+            onClick={() => setViewMode("list")}
+            title="List View"
+          >
+            <List className="size-4" />
+          </Button>
+        </div>
+
+        {/* New Folder Button */}
+        <Button
+          type="button"
+          className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-600/20 px-3 shrink-0"
+          onClick={() => setCreateOpen(true)}
+          title="Create Folder"
+        >
+          <FolderPlus className="size-4" />
+        </Button>
+      </div>
+
+      <div className="space-y-6 pb-12">
+        {loading ? (
+          <Card className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-md shadow-purple-950/[0.03] p-5 min-h-auto sm:min-h-[calc(100vh-8.5rem)] overflow-hidden">
+            <PortfolioFolderSkeleton viewMode={viewMode} />
+          </Card>
+        ) : (
+          <Card className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-md shadow-purple-950/[0.03] p-5 min-h-auto sm:min-h-[calc(100vh-8.5rem)] overflow-hidden">
+            <PortfolioFolderGrid
+              folders={folders}
+              viewMode={viewMode}
+              onDelete={handleDeleteFolder}
+              onShare={setShareFolder}
+              onEdit={startEditFolder}
+            />
+          </Card>
         )}
       </div>
 
+      {/* Screen Ratio Y-Axis Centered Floating Button on Right Side */}
+      <button
+        type="button"
+        onClick={() => setStorageDrawerOpen(true)}
+        className="fixed top-1/2 -translate-y-1/2 right-0 z-40 bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-2xl shadow-purple-950/20 px-3.5 py-3.5 rounded-l-2xl flex items-center gap-2.5 font-semibold text-sm transition-all hover:pr-4 hover:pl-5 active:scale-95 cursor-pointer border-y border-l border-purple-300/40 backdrop-blur-xs group"
+        title="Storage & Deliverables"
+      >
+        <HardDrive className="size-5 shrink-0 group-hover:rotate-12 transition-transform" />
+        {/* <span className="hidden sm:inline-block font-bold">Storage & Deliverables</span> */}
+      </button>
+
+      {/* Right-side Drawer Modal for Storage & Deliverables */}
+      <SideDrawer
+        open={storageDrawerOpen}
+        side="right"
+        icon={<HardDrive className="size-5 text-white" />}
+        onClose={() => setStorageDrawerOpen(false)}
+        title="Storage & Deliverables"
+        description="Organize photos, videos, and deliverables into folders. Share folders with clients via public links."
+        footer={
+          <Button
+            className="w-full h-11 rounded-2xl bg-gradient-to-r from-[#8b5cf6] to-[#7c3aed] hover:from-[#7c3aed] hover:to-[#6d28d9] text-white font-bold shadow-lg shadow-purple-600/25 transition-all"
+            onClick={() => {
+              setStorageDrawerOpen(false);
+              setPlansOpen(true);
+            }}
+          >
+            <Sparkles className="mr-2 size-4 text-amber-300" /> Upgrade Storage Plan
+          </Button>
+        }
+      >
+        <div className="space-y-6">
+          {/* Storage Hero Card - Compact Height Design */}
+          <div className="relative overflow-hidden rounded-2xl border border-purple-100 bg-gradient-to-b from-purple-50/70 via-white to-white p-3.5 sm:p-4 shadow-2xs space-y-2.5">
+            {/* Top Header Row */}
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                Storage Status
+              </span>
+              {quota && (
+                <span className="rounded-full bg-purple-100/80 border border-purple-200/60 px-2.5 py-0.5 text-[10px] font-black text-[#7c3aed] uppercase tracking-wider">
+                  {quota.subscription_status === "none" ? "Free Tier" : `${quota.subscription_status} Plan`}
+                </span>
+              )}
+            </div>
+
+            {/* Storage Meter Chart Component */}
+            <StorageMeter quota={quota} theme="light" />
+
+            {/* Stat Pillars */}
+            {quota && (
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-purple-100/60 text-center">
+                <div className="bg-white rounded-xl p-1.5 border border-purple-100/80 shadow-2xs">
+                  <p className="text-[9px] text-purple-600 font-extrabold uppercase tracking-wider">Used</p>
+                  <p className="text-xs font-black text-slate-900 mt-0.5 truncate">{quota.used_bytes_human}</p>
+                </div>
+                <div className="bg-white rounded-xl p-1.5 border border-emerald-100/80 shadow-2xs">
+                  <p className="text-[9px] text-emerald-600 font-extrabold uppercase tracking-wider">Free</p>
+                  <p className="text-xs font-black text-emerald-700 mt-0.5 truncate">{quota.remaining_bytes_human}</p>
+                </div>
+                <div className="bg-white rounded-xl p-1.5 border border-slate-100 shadow-2xs">
+                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Total</p>
+                  <p className="text-xs font-black text-slate-900 mt-0.5 truncate">{quota.total_bytes_human}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Deliverables Capabilities Overview */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
+              Deliverables & Storage Features
+            </h4>
+
+            <div className="space-y-3">
+              <div className="flex items-start gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs hover:border-purple-200 hover:bg-purple-50/30 transition-all group">
+                <div className="size-10 rounded-2xl bg-purple-50 text-[#7c3aed] border border-purple-100 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                  <Zap className="size-5" />
+                </div>
+                <div>
+                  <h5 className="text-sm font-bold text-slate-900">High-Speed CDN Delivery</h5>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                    Lightning-fast media streaming powered by Cloudflare R2 global CDN network.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs hover:border-emerald-200 hover:bg-emerald-50/30 transition-all group">
+                <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                  <ShieldCheck className="size-5" />
+                </div>
+                <div>
+                  <h5 className="text-sm font-bold text-slate-900">Public Client Links</h5>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                    Share folders securely with optional passcode protection and custom link expiration.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs hover:border-blue-200 hover:bg-blue-50/30 transition-all group">
+                <div className="size-10 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                  <Server className="size-5" />
+                </div>
+                <div>
+                  <h5 className="text-sm font-bold text-slate-900">Auto Customer Folders</h5>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                    Booking folders are automatically created with customer names for seamless organization.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SideDrawer>
+
+      {/* Standard AppModal for Create Folder */}
       <AppModal
         open={createOpen}
-        icon={<FolderPlus className="size-5" />}
+        icon={<FolderPlus className="size-5 text-[#7c3aed]" />}
         onClose={() => setCreateOpen(false)}
         title="Create Folder"
         description="Folder names must be unique."
         footer={
           <Button
-            className="w-full h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10"
+            className="w-full h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-semibold shadow-md shadow-purple-600/20"
             disabled={creating || !newFolderName.trim()}
             onClick={() => void handleCreateFolder()}
           >
@@ -229,6 +413,37 @@ export default function PortfolioPage() {
             label="Folder name"
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
+          />
+        </div>
+      </AppModal>
+
+      <AppModal
+        open={!!editFolder}
+        icon={<FolderPlus className="size-5 text-[#7c3aed]" />}
+        onClose={() => setEditFolder(null)}
+        title="Edit Folder Name"
+        description="Folder names must be unique."
+        footer={
+          <Button
+            className="w-full h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-semibold shadow-md shadow-purple-600/20"
+            disabled={updatingFolder || !editFolderName.trim()}
+            onClick={() => void handleUpdateFolder()}
+          >
+            {updatingFolder ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              "Save Changes"
+            )}
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          {editError && <p className="text-sm text-rose-600">{editError}</p>}
+          <FloatingInput
+            id="edit-folder-name"
+            label="Folder name"
+            value={editFolderName}
+            onChange={(e) => setEditFolderName(e.target.value)}
           />
         </div>
       </AppModal>
