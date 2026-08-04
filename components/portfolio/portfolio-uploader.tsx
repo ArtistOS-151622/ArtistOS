@@ -12,6 +12,7 @@ type PortfolioUploaderProps = {
   bookingId?: number
   section?: "reference" | "delivery" | null
   setAsAvatar?: boolean
+  setAsStudioLogo?: boolean
   onUploaded?: () => void
   onQuotaExceeded?: () => void
   className?: string
@@ -23,6 +24,7 @@ export function PortfolioUploader({
   bookingId,
   section,
   setAsAvatar,
+  setAsStudioLogo,
   onUploaded,
   onQuotaExceeded,
   className,
@@ -46,6 +48,7 @@ export function PortfolioUploader({
         if (bookingId) body.set("booking_id", String(bookingId))
         if (section) body.set("section", section)
         if (setAsAvatar) body.set("set_as_avatar", "true")
+        if (setAsStudioLogo) body.set("set_as_studio_logo", "true")
 
         const uploadRes = await fetch("/api/portfolio/files/upload", {
           method: "POST",
@@ -68,7 +71,7 @@ export function PortfolioUploader({
         if (inputRef.current) inputRef.current.value = ""
       }
     },
-    [folderId, bookingId, section, setAsAvatar, onUploaded, onQuotaExceeded]
+    [folderId, bookingId, section, setAsAvatar, setAsStudioLogo, onUploaded, onQuotaExceeded]
   )
 
   return (

@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("users")
-      .select("id, phone, artist_name, studio_name, email, address, avatar_file_id")
+      .select("id, phone, artist_name, studio_name, email, address, avatar_file_id, studio_logo_file_id")
       .eq("id", session.id)
       .maybeSingle()
 
@@ -40,11 +40,22 @@ export async function GET(request: NextRequest) {
       if (avatarFile) avatar_url = enrichFile(avatarFile).public_url
     }
 
+    let studio_logo_url: string | null = null
+    if (data.studio_logo_file_id) {
+      const { data: logoFile } = await supabase
+        .from("portfolio_files")
+        .select("*")
+        .eq("id", data.studio_logo_file_id)
+        .maybeSingle()
+
+      if (logoFile) studio_logo_url = enrichFile(logoFile).public_url
+    }
+
     const quotaRow = await getOrCreateQuota(supabase, session.id)
     const quota = QuotaService.fromRow(quotaRow).getQuotaInfo()
 
     return NextResponse.json({
-      profile: { ...data, avatar_url },
+      profile: { ...data, avatar_url, studio_logo_url },
       storage: quota,
     })
   } catch (err: unknown) {

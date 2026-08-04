@@ -26,6 +26,7 @@ type ProfileData = {
   email: string | null
   address: string
   avatar_url?: string | null
+  studio_logo_url?: string | null
 }
 
 export default function ProfilePage() {
@@ -55,6 +56,7 @@ export default function ProfilePage() {
         ...profileData.profile,
         email: profileData.profile.email || "",
         avatar_url: profileData.profile.avatar_url,
+        studio_logo_url: profileData.profile.studio_logo_url,
       })
       setQuota(profileData.storage ?? storageData.data?.quota ?? null)
       if (storageData.status) setPlans(storageData.data.plans ?? [])
@@ -183,25 +185,21 @@ export default function ProfilePage() {
             <form onSubmit={handleSave} className="space-y-6">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
                 <div className="relative group">
-                  <Avatar className="size-24 border-4 border-white shadow-lg">
-                    {profile?.avatar_url && (
-                      <AvatarImage src={profile.avatar_url} alt={profile.artist_name} />
+                  <Avatar className="size-24 border-4 border-white shadow-lg rounded-xl">
+                    {profile?.studio_logo_url ? (
+                      <AvatarImage src={profile.studio_logo_url} alt={profile.studio_name} className="object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-400">
+                        <Building2 className="size-8" />
+                      </div>
                     )}
-                    <AvatarFallback className="bg-purple-100 text-2xl font-bold text-[#7c3aed]">
-                      {profile?.artist_name
-                        ?.split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .substring(0, 2)
-                        .toUpperCase() || "AS"}
-                    </AvatarFallback>
                   </Avatar>
                   <div className="absolute inset-0 flex items-end justify-center pb-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <PortfolioUploader
-                      setAsAvatar
+                      setAsStudioLogo
                       onUploaded={loadProfile}
                       onQuotaExceeded={() => setPlansOpen(true)}
-                      label="Photo"
+                      label="Logo"
                       className="scale-90"
                     />
                   </div>

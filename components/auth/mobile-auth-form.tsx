@@ -2,9 +2,8 @@
 
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { ArrowRight, Lock, Mail, MapPin, Store, User } from "lucide-react"
-
 import { CheckItem } from "@/components/common/shared/check-item"
 import { BrandLogo } from "@/components/common/brand/brand-logo"
 import { FloatingInput, FloatingPhoneInput } from "@/components/common/shared/floating-input"
@@ -35,6 +34,8 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
   const [studioName, setStudioName] = useState("")
   const [address, setAddress] = useState("")
   const [email, setEmail] = useState("")
+  const [studioLogo, setStudioLogo] = useState<string>("")
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   const isSignup = mode === "signup"
   const title = isSignup ? "Create your ArtistOS account" : "Welcome back to ArtistOS"
@@ -82,6 +83,7 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
             studioName,
             address,
             email,
+            studioLogo,
           }),
         })
 
@@ -127,11 +129,26 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
     }
   }
 
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Logo must be less than 5MB")
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setStudioLogo(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   return (
     <main className="relative min-h-svh bg-gradient-to-br from-[#d2d9f9] via-[#e7ebf8] to-[#d7ebd8] p-4 text-[#15172e] flex items-center justify-center">
       <div className="relative z-10 w-full max-w-6xl py-8">
         <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] items-center">
-          
+
           {/* Left Hero Column */}
           <section className="hidden lg:block">
             <BrandLogo className="mb-12" imageClassName="h-16" priority />
@@ -221,6 +238,31 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="studioLogo" className="text-sm text-slate-700 pl-1 font-medium flex justify-between">
+                        <span>Studio Logo (Optional)</span>
+                        {studioLogo && <span className="text-[#7c3aed] text-xs">Selected</span>}
+                      </Label>
+                      <input
+                        type="file"
+                        id="studioLogo"
+                        accept="image/*"
+                        ref={logoInputRef}
+                        className="hidden"
+                        onChange={handleLogoChange}
+                        disabled={loading}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-start text-muted-foreground font-normal rounded-2xl h-14 px-4 border-slate-200"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={loading}
+                      >
+                        {studioLogo ? "Change Logo" : "Upload Studio Logo"}
+                      </Button>
+                    </div>
                   </>
                 ) : null}
 

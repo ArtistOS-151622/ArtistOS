@@ -7,7 +7,7 @@ import { createArtistToken, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/session"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { phone, password, artistName, studioName, address, email } = body
+    const { phone, password, artistName, studioName, address, email, studioLogo } = body
 
     if (!phone || !password || !artistName || !studioName || !address) {
       return NextResponse.json(
@@ -85,11 +85,48 @@ export async function POST(request: Request) {
       free_storage_bytes: STORAGE_FREE_TIER_BYTES,
     })
 
-    await supabase.from("portfolio_folders").insert({
+    const { data: defaultFolder } = await supabase.from("portfolio_folders").insert({
       user_id: data.id,
       name: "My Portfolio",
       created_by: data.id,
-    })
+    }).select().single()
+
+    if (studioLogo && defaultFolder) {
+      const match = studioLogo.match(/^data:([a-zA-Z0-9-+\/]+);base64,(.+)$/)
+      if (match) {
+        const mimeType = match[1]
+        const buffer = Buffer.from(match[2], "base64")
+        const extension = mimeType.split("/")[1] || "jpeg"
+        const filename = `studio-logo.${extension}`
+        const fileSize = buffer.length
+
+        // Import these dynamically or at the top of the file
+        const { prepareUploadKey, overwriteFileInR2, confirmFileUpload } = await import("@/lib/portfolio/files")
+        const { key, extension: ext } = prepareUploadKey(data.id, defaultFolder.id, filename)
+
+        try {
+          await overwriteFileInR2(key, buffer, mimeType)
+
+          const uploaded = await confirmFileUpload(supabase, {
+            userId: data.id,
+            folderId: defaultFolder.id,
+            storagePath: key,
+            originalName: filename,
+            mimeType,
+            extension: ext,
+            fileSize,
+          })
+
+          await supabase
+            .from("users")
+            .update({ studio_logo_file_id: uploaded.id })
+            .eq("id", data.id)
+        } catch (err) {
+          console.error("Failed to upload studio logo during signup:", err)
+          // Don't fail signup if logo upload fails
+        }
+      }
+    }
 
     // Create session object
     const sessionData = {

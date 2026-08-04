@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
   const bookingIdValue = formData.get("booking_id")
   const sectionValue = formData.get("section")
   const setAsAvatar = formData.get("set_as_avatar") === "true"
+  const setAsStudioLogo = formData.get("set_as_studio_logo") === "true"
 
   if (!(file instanceof File)) return portfolioError("file is required", 400)
 
@@ -82,6 +83,13 @@ export async function POST(request: NextRequest) {
       await supabase
         .from("users")
         .update({ avatar_file_id: uploaded.id })
+        .eq("id", session.id)
+    }
+
+    if (setAsStudioLogo) {
+      await supabase
+        .from("users")
+        .update({ studio_logo_file_id: uploaded.id })
         .eq("id", session.id)
     }
 

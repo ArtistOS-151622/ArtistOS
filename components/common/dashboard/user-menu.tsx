@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Bell, ChevronDown, LogOut, Settings, LifeBuoy } from "lucide-react"
 
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +33,7 @@ export function UserMenu({
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [displayName, setDisplayName] = useState(propName || "Artist Studio")
   const [displayInitials, setDisplayInitials] = useState(propInitials || "AS")
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (propName) {
@@ -51,6 +52,9 @@ export function UserMenu({
           if (data?.user) {
             const artistName = data.user.artist_name || "Artist Studio"
             setDisplayName(artistName)
+            if (data.user.studio_logo_url || data.user.avatar_url) {
+              setLogoUrl(data.user.studio_logo_url || data.user.avatar_url)
+            }
 
             // Generate initials
             const parts = artistName.split(" ").filter(Boolean)
@@ -99,7 +103,8 @@ export function UserMenu({
         {/* User Capsule Menu Trigger */}
         <DropdownMenu>
           <DropdownMenuTrigger className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/80 bg-white/95 p-1 pl-1 pr-2.5 text-xs font-semibold shadow-md shadow-purple-950/5 outline-none transition hover:bg-white focus-visible:ring-2 focus-visible:ring-[#7c3aed]/35 cursor-pointer">
-            <Avatar className="size-8 border border-purple-100 bg-white shadow-sm">
+            <Avatar className="size-8 border border-purple-100 bg-white shadow-sm overflow-hidden">
+              {logoUrl && <AvatarImage src={logoUrl} alt={displayName} className="object-cover" />}
               <AvatarFallback className="bg-white text-[#7c3aed] font-bold text-xs">
                 {displayInitials}
               </AvatarFallback>
