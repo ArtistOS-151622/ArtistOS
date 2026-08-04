@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginBottom: 4,
   },
-  
+
   // Title
   titleContainer: {
     paddingVertical: 25,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   col2: { width: "15%", textAlign: "center" },
   col3: { width: "15%", textAlign: "right" },
   col4: { width: "20%", textAlign: "right", paddingRight: 4 },
-  
+
   // Totals
   totalsContainer: {
     paddingHorizontal: 40,
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     fontSize: 12,
   },
-  
+
   // Footer
   footer: {
     position: "absolute",
@@ -194,7 +194,25 @@ const styles = StyleSheet.create({
   footerText: {
     color: colors.textMuted,
     fontSize: 9,
-  }
+  },
+
+  // Watermark
+  watermarkContainer: {
+    position: "absolute",
+    top: 0,
+    left: -60,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    transform: "rotate(-45deg)",
+  },
+  watermarkImage: {
+    width: 300,
+    height: 300,
+    opacity: 0.08,
+    objectFit: "contain",
+  },
 })
 
 export type QuotationData = {
@@ -207,9 +225,10 @@ export type QuotationData = {
     totalPaid: number
     dueAmount: number
   }
+  artistosLogoUrl?: string
 }
 
-export const QuotationPDF = ({ booking, artist, calculations }: QuotationData) => {
+export const QuotationPDF = ({ booking, artist, calculations, artistosLogoUrl }: QuotationData) => {
   const { subTotal, discount, grandTotal, totalPaid } = calculations
 
   const formatDate = (dateStr: string) => {
@@ -238,7 +257,7 @@ export const QuotationPDF = ({ booking, artist, calculations }: QuotationData) =
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        
+
         {/* TOP BANNER */}
         <View style={styles.topBanner}>
           <View style={styles.logoBox}>
@@ -250,7 +269,7 @@ export const QuotationPDF = ({ booking, artist, calculations }: QuotationData) =
               </Text>
             )}
           </View>
-          
+
           <View style={styles.studioInfo}>
             <Text style={[styles.studioText, { fontFamily: "Helvetica-Bold", fontSize: 18, marginBottom: 6 }]}>
               {artist.studio_name || artist.artist_name || "Artist Studio"}
@@ -272,7 +291,7 @@ export const QuotationPDF = ({ booking, artist, calculations }: QuotationData) =
             <Text style={styles.infoBlockText}>{booking.customer.phone}</Text>
             <Text style={styles.infoBlockText}>{booking.booking_address}</Text>
           </View>
-          
+
           <View style={styles.infoBlock}>
             <Text style={styles.infoBlockTitle}>BOOKING</Text>
             <Text style={styles.infoBlockText}>Date: {formatDate(booking.booking_date)}</Text>
@@ -290,7 +309,7 @@ export const QuotationPDF = ({ booking, artist, calculations }: QuotationData) =
             <Text style={[styles.col3, styles.tableHeaderCell]}>RATE</Text>
             <Text style={[styles.col4, styles.tableHeaderCell]}>AMOUNT</Text>
           </View>
-          
+
           {allItems.map((item: any, index: number) => (
             <View style={[styles.tableRow, index % 2 === 1 ? styles.tableRowStripe : {}]} key={index}>
               <Text style={styles.col1}>{item.service_name}</Text>
@@ -308,17 +327,17 @@ export const QuotationPDF = ({ booking, artist, calculations }: QuotationData) =
               <Text style={styles.totalText}>Gross Total</Text>
               <Text style={styles.totalValue}>{formatCurrency(subTotal)}</Text>
             </View>
-            
+
             <View style={styles.totalRow}>
               <Text style={styles.deductionText}>Advance Payment</Text>
               <Text style={styles.deductionValue}>-{formatCurrency(totalPaid)}</Text>
             </View>
-            
+
             <View style={styles.totalRow}>
               <Text style={styles.deductionText}>Discount</Text>
               <Text style={styles.deductionValue}>-{formatCurrency(discount)}</Text>
             </View>
-            
+
             <View style={styles.grandTotalBox}>
               <Text style={styles.grandTotalText}>Grand Total</Text>
               <Text style={styles.grandTotalText}>{formatCurrency(grandTotal)}</Text>
@@ -332,7 +351,14 @@ export const QuotationPDF = ({ booking, artist, calculations }: QuotationData) =
             Terms: Advance payment is non-refundable • Balance due on day of service • Rescheduling needs 24 hrs notice.
           </Text>
         </View>
-        
+
+        {/* WATERMARK */}
+        {artistosLogoUrl && (
+          <View style={styles.watermarkContainer}>
+            <Image src={artistosLogoUrl} style={styles.watermarkImage} />
+          </View>
+        )}
+
       </Page>
     </Document>
   )

@@ -136,9 +136,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       studio_logo_url,
     }
 
+    const protocol = request.headers.get("x-forwarded-proto") || "http"
+    const host = request.headers.get("host") || "localhost:3000"
+    const artistosLogoUrl = `${protocol}://${host}/brand/artistos-sort-watermark.png`
+
     // 4. Generate PDF Stream
     const stream = await renderToStream(
-      QuotationPDF({ booking: formattedBooking, artist: formattedArtist, calculations })
+      QuotationPDF({ booking: formattedBooking, artist: formattedArtist, calculations, artistosLogoUrl })
     )
 
     // Convert Node ReadableStream to Buffer for NextResponse
