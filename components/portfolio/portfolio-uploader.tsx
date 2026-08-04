@@ -35,30 +35,35 @@ export function PortfolioUploader({
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState("")
 
-  const uploadFile = useCallback(
-    async (file: File) => {
+  const uploadFiles = useCallback(
+    async (files: File[]) => {
       setUploading(true)
-      setProgress(10)
+      setProgress(5)
       setError("")
 
       try {
-        const body = new FormData()
-        body.set("file", file)
-        if (folderId) body.set("folder_id", String(folderId))
-        if (bookingId) body.set("booking_id", String(bookingId))
-        if (section) body.set("section", section)
-        if (setAsAvatar) body.set("set_as_avatar", "true")
-        if (setAsStudioLogo) body.set("set_as_studio_logo", "true")
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          const body = new FormData()
+          body.set("file", file)
+          if (folderId) body.set("folder_id", String(folderId))
+          if (bookingId) body.set("booking_id", String(bookingId))
+          if (section) body.set("section", section)
+          if (setAsAvatar) body.set("set_as_avatar", "true")
+          if (setAsStudioLogo) body.set("set_as_studio_logo", "true")
 
-        const uploadRes = await fetch("/api/portfolio/files/upload", {
-          method: "POST",
-          body,
-        })
+          const uploadRes = await fetch("/api/portfolio/files/upload", {
+            method: "POST",
+            body,
+          })
 
-        const uploadJson = await uploadRes.json()
-        if (!uploadJson.status) {
-          if (uploadRes.status === 402) onQuotaExceeded?.()
-          throw new Error(uploadJson.message || "Upload failed")
+          const uploadJson = await uploadRes.json()
+          if (!uploadJson.status) {
+            if (uploadRes.status === 402) onQuotaExceeded?.()
+            throw new Error(uploadJson.message || "Upload failed")
+          }
+          
+          setProgress(5 + Math.floor(((i + 1) / files.length) * 95))
         }
 
         setProgress(100)
@@ -79,10 +84,11 @@ export function PortfolioUploader({
       <input
         ref={inputRef}
         type="file"
+        multiple
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) void uploadFile(file)
+          const files = e.target.files
+          if (files && files.length > 0) void uploadFiles(Array.from(files))
         }}
       />
 

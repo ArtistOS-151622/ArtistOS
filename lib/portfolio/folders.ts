@@ -151,9 +151,16 @@ export async function listFolders(
       0
     )
 
+    const fileCount = count ?? 0
+    
+    // Skip booking folders that have no files uploaded yet
+    if (folder.booking_id !== null && fileCount === 0) {
+      continue
+    }
+
     result.push({
       ...folder,
-      file_count: count ?? 0,
+      file_count: fileCount,
       total_size: totalSize,
       share_url: folder.is_shared
         ? buildShareUrl(folder.uuid)

@@ -88,7 +88,8 @@ export async function proxy(request: NextRequest) {
 
   // Protected routes check
   const isProtected = protectedPrefixes.some(prefix => pathname.startsWith(prefix))
-  if (isProtected) {
+  
+  if (isProtected && !pathname.startsWith("/portfolio/shared")) {
     if (!session?.value || isExpiredSession(session.value)) return redirectToLogin(request)
   }
 

@@ -8,6 +8,7 @@ import {
   FileVideo,
   Trash2,
   Download,
+  PlayCircle,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -88,7 +89,9 @@ export function PortfolioFileGrid({
                   className="h-full w-full object-cover"
                 />
               ) : isVideo ? (
-                <video src={file.public_url} className="h-full w-full object-cover" muted />
+                <div className="relative flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 group-hover:from-violet-600 group-hover:via-fuchsia-600 group-hover:to-pink-600 transition-colors">
+                  <PlayCircle className="size-12 text-white drop-shadow-md" />
+                </div>
               ) : (
                 <>
                   <FileIcon mimeType={file.mime_type} />

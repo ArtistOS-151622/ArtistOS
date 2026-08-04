@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { Loader2, PlayCircle } from "lucide-react"
 
 import type { PortfolioFileWithUrl } from "@/lib/portfolio/types"
 
@@ -81,25 +81,25 @@ export default function PublicPortfolioSharePage() {
               The artist&apos;s storage plan needs renewal. Please ask them to renew their ArtistOS subscription.
             </p>
           </div>
-        ) : data.files.length === 0 ? (
-          <p className="text-center text-slate-500 py-20">No files in this folder yet.</p>
+        ) : data.files.filter(f => f.mime_type.startsWith("image/") || f.mime_type.startsWith("video/")).length === 0 ? (
+          <p className="text-center text-slate-500 py-20">No media in this folder yet.</p>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {data.files.map((file) => (
+            {data.files
+              .filter(f => f.mime_type.startsWith("image/") || f.mime_type.startsWith("video/"))
+              .map((file) => (
               <button
                 key={file.id}
                 type="button"
                 onClick={() => setPreview(file)}
-                className="aspect-square overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
+                className="group relative aspect-square overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
               >
                 {file.mime_type.startsWith("image/") ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={file.public_url} alt={file.original_name} className="h-full w-full object-cover" />
-                ) : file.mime_type.startsWith("video/") ? (
-                  <video src={file.public_url} className="h-full w-full object-cover" muted />
                 ) : (
-                  <div className="flex h-full items-center justify-center p-2 text-xs text-slate-600">
-                    {file.original_name}
+                  <div className="relative flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 group-hover:from-violet-600 group-hover:via-fuchsia-600 group-hover:to-pink-600 transition-colors">
+                    <PlayCircle className="size-12 text-white drop-shadow-md" />
                   </div>
                 )}
               </button>
