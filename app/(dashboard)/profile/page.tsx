@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Loader2, Phone, Save, User, Building2, MapPin, Mail, LogOut, ImageIcon, Smartphone } from "lucide-react"
+import { Loader2, Phone, Save, User, Building2, MapPin, Mail, LogOut, ImageIcon, Smartphone, Download, Camera } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
@@ -29,6 +29,20 @@ type ProfileData = {
   studio_logo_url?: string | null
 }
 
+function isIos() {
+  if (typeof window === "undefined") return false
+  return /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+}
+
+function isStandalone() {
+  if (typeof window === "undefined") return false
+  const navigatorWithStandalone = window.navigator as Navigator & { standalone?: boolean }
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    navigatorWithStandalone.standalone === true
+  )
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<ProfileData | null>(null)
@@ -40,6 +54,31 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState("")
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [plansOpen, setPlansOpen] = useState(false)
+  const [canInstall, setCanInstall] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(false)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLogoUploading(true)
+    try {
+      const body = new FormData()
+      body.set("file", file)
+      body.set("set_as_studio_logo", "true")
+      const res = await fetch("/api/portfolio/files/upload", { method: "POST", body })
+      const json = await res.json()
+      if (!json.status) {
+        if (res.status === 402) setPlansOpen(true)
+      } else {
+        await loadProfile()
+      }
+    } finally {
+      setLogoUploading(false)
+      if (logoInputRef.current) logoInputRef.current.value = ""
+    }
+  }
 
   const loadProfile = useCallback(async () => {
     try {
@@ -70,6 +109,44 @@ export default function ProfilePage() {
   useEffect(() => {
     void loadProfile()
   }, [loadProfile])
+
+  useEffect(() => {
+    setIsInstalled(isStandalone() || localStorage.getItem("artistos-pwa-installed") === "true")
+
+    if ((window as any).deferredPwaPrompt) {
+      setCanInstall(true)
+    }
+
+    const handler = () => {
+      setCanInstall(true)
+    }
+    window.addEventListener("beforeinstallprompt", handler)
+    return () => window.removeEventListener("beforeinstallprompt", handler)
+  }, [])
+
+  async function handleInstallApp() {
+    const promptEvent = (window as any).deferredPwaPrompt
+    if (!promptEvent) {
+      if (isIos()) {
+        alert("To install on iOS: tap the Share button, then 'Add to Home Screen'.")
+      } else {
+        alert("Browser install is not ready yet. Try refreshing the page.")
+      }
+      return
+    }
+
+    try {
+      await promptEvent.prompt()
+      const choice = await promptEvent.userChoice
+      if (choice.outcome === "accepted") {
+        localStorage.setItem("artistos-pwa-installed", "true")
+        setIsInstalled(true)
+        setCanInstall(false)
+      }
+    } catch (e) {
+      console.error("Failed to prompt install", e)
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -125,92 +202,103 @@ export default function ProfilePage() {
   return (
     <>
       <PageHeader title="Profile" />
-      <div className="mx-auto max-w-4xl space-y-6 pb-12">
-        <Card id="storage" className="rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
-          <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4">
-            <div>
-              <CardTitle className="text-xl">Storage</CardTitle>
-              <CardDescription>
-                10 MB free included. Upgrade for more portfolio space with monthly autopay.
-              </CardDescription>
+      <div className="space-y-4 pb-12">
+
+        {/* Profile Hero Card */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#5b21b6] via-[#7c3aed] to-[#a855f7] p-5 sm:p-7">
+          {/* Decorative blobs */}
+          <div className="pointer-events-none absolute -top-10 -right-10 size-44 rounded-full bg-white/5" />
+          <div className="pointer-events-none absolute -bottom-6 -left-6 size-32 rounded-full bg-white/5" />
+          <div className="pointer-events-none absolute top-2 right-1/3 size-20 rounded-full bg-white/5" />
+
+          {/* Logout — always top-right */}
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setLogoutOpen(true)}
+            className="absolute top-4 right-4 h-8 rounded-xl bg-white/10 text-white hover:bg-white/20 border border-white/20 px-3 text-xs sm:text-sm sm:h-9 sm:px-4"
+          >
+            <LogOut className="mr-1.5 size-3.5" />
+            Logout
+          </Button>
+
+          {/* Main content */}
+          <div className="relative flex items-center gap-4 pr-24 sm:pr-28">
+            {/* Avatar with edit badge */}
+            <div className="relative shrink-0">
+              {/* Hidden file input */}
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleLogoUpload}
+              />
+              <Avatar className="size-16 sm:size-20 border-[3px] border-white/40 shadow-xl rounded-xl">
+                {profile?.studio_logo_url ? (
+                  <AvatarImage src={profile.studio_logo_url} alt={profile?.studio_name} className="object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-white/15 text-white/80">
+                    <Building2 className="size-7 sm:size-8" />
+                  </div>
+                )}
+              </Avatar>
+              {/* Edit badge */}
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={logoUploading}
+                className="absolute -bottom-1.5 -right-1.5 flex size-7 items-center justify-center rounded-full bg-white shadow-md border-2 border-white/80 text-violet-600 hover:bg-violet-50 transition-colors disabled:opacity-60"
+                title="Change logo"
+              >
+                {logoUploading ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Camera className="size-3.5" />
+                )}
+              </button>
             </div>
-            <Button variant="outline" className="rounded-2xl shrink-0" onClick={() => setPlansOpen(true)}>
-              Upgrade
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <StorageMeter quota={quota} />
-            <Link
-              href="/portfolio"
-              className="inline-flex items-center text-sm font-medium text-[#7c3aed] hover:underline"
-            >
-              <ImageIcon className="mr-1.5 size-4" />
-              Manage portfolio folders
-            </Link>
-          </CardContent>
-        </Card>
 
-        <Card className="rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl">Notifications</CardTitle>
-            <CardDescription>
-              Turn notifications on for each phone or browser you want booking alerts on.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <PushNotificationToggle />
-          </CardContent>
-        </Card>
+            {/* Name & studio */}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight truncate">
+                {profile?.artist_name || "Artist"}
+              </h1>
+              <p className="mt-0.5 text-white/75 font-medium text-sm truncate">{profile?.studio_name}</p>
+              <p className="mt-0.5 text-white/45 text-xs sm:text-sm">{profile?.phone}</p>
+            </div>
+          </div>
+        </div>
 
-        <Card className="rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl">Personal Information</CardTitle>
-            <CardDescription>
-              Manage your artist profile and studio details. This information is used across ArtistOS.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+
+        {/* Personal Information */}
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+          {/* Card top stripe */}
+          <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-violet-50">
+              <User className="size-4 text-violet-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Personal Information</p>
+              <p className="text-xs text-slate-500">Manage your artist profile and studio details.</p>
+            </div>
+          </div>
+
+          {/* Card body */}
+          <div className="p-5">
             {error && (
-              <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">
+              <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 p-3.5 text-sm text-red-600">
                 {error}
               </div>
             )}
-
             {success && (
-              <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-600 font-medium">
+              <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3.5 text-sm text-emerald-600 font-medium">
                 {success}
               </div>
             )}
 
-            <form onSubmit={handleSave} className="space-y-6">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-                <div className="relative group">
-                  <Avatar className="size-24 border-4 border-white shadow-lg rounded-xl">
-                    {profile?.studio_logo_url ? (
-                      <AvatarImage src={profile.studio_logo_url} alt={profile.studio_name} className="object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-400">
-                        <Building2 className="size-8" />
-                      </div>
-                    )}
-                  </Avatar>
-                  <div className="absolute inset-0 flex items-end justify-center pb-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                    <PortfolioUploader
-                      setAsStudioLogo
-                      onUploaded={loadProfile}
-                      onQuotaExceeded={() => setPlansOpen(true)}
-                      label="Logo"
-                      className="scale-90 shadow-sm"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">{profile?.artist_name || "Artist"}</h3>
-                  <p className="text-sm text-muted-foreground">{profile?.studio_name}</p>
-                </div>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
+            <form onSubmit={handleSave} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <FloatingInput
                   id="artist_name"
                   label="Artist Name"
@@ -219,7 +307,6 @@ export default function ProfilePage() {
                   onChange={(e) => setProfile(prev => prev ? { ...prev, artist_name: e.target.value } : null)}
                   required
                 />
-
                 <FloatingInput
                   id="studio_name"
                   label="Studio Name"
@@ -228,7 +315,6 @@ export default function ProfilePage() {
                   onChange={(e) => setProfile(prev => prev ? { ...prev, studio_name: e.target.value } : null)}
                   required
                 />
-
                 <FloatingInput
                   id="phone"
                   label="Mobile Number (Read-only)"
@@ -236,7 +322,6 @@ export default function ProfilePage() {
                   value={profile?.phone || ""}
                   disabled
                 />
-
                 <FloatingInput
                   id="email"
                   label="Email Address"
@@ -245,38 +330,28 @@ export default function ProfilePage() {
                   value={profile?.email || ""}
                   onChange={(e) => setProfile(prev => prev ? { ...prev, email: e.target.value } : null)}
                 />
-
                 <FloatingTextarea
                   id="address"
                   label="Studio / Default Booking Address"
                   icon={<MapPin className="size-4" />}
                   value={profile?.address || ""}
                   onChange={(e) => setProfile(prev => prev ? { ...prev, address: e.target.value } : null)}
-                  containerClassName="md:col-span-2"
-                  className="min-h-24"
+                  containerClassName="sm:col-span-2"
+                  className="min-h-20"
                   required
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setLogoutOpen(true)}
-                  className="h-11 rounded-2xl border-rose-200 bg-rose-50 text-rose-600 px-6 hover:bg-rose-100 transition-all md:hidden"
-                >
-                  <LogOut className="mr-2 size-4" />
-                  Logout
-                </Button>
+              <div className="flex justify-end pt-1">
                 <Button
                   type="submit"
                   disabled={saving || !profile?.artist_name || !profile?.studio_name || !profile?.address}
-                  className="h-11 rounded-2xl bg-[#7c3aed] text-white px-8 shadow-md shadow-purple-950/10 hover:bg-[#6d28d9] transition-all ml-auto"
+                  className="h-10 rounded-xl bg-[#7c3aed] text-white px-7 shadow-md shadow-purple-950/15 hover:bg-[#6d28d9] transition-all"
                 >
                   {saving ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
-                      Saving changes...
+                      Saving…
                     </>
                   ) : (
                     <>
@@ -287,8 +362,96 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+        {/* Second row: Storage + App Install */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Storage */}
+          <div id="storage" className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-violet-50">
+                  <ImageIcon className="size-4 text-violet-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Storage</p>
+                  <p className="text-xs text-slate-500">10 MB free. Upgrade for more space.</p>
+                </div>
+              </div>
+              <Button variant="outline" className="rounded-xl shrink-0 h-8 text-xs px-3" onClick={() => setPlansOpen(true)}>
+                Upgrade
+              </Button>
+            </div>
+            <div className="p-5 space-y-3">
+              <StorageMeter quota={quota} />
+              <Link
+                href="/portfolio"
+                className="inline-flex items-center text-sm font-medium text-[#7c3aed] hover:underline"
+              >
+                <ImageIcon className="mr-1.5 size-4" />
+                Manage portfolio folders
+              </Link>
+            </div>
+          </div>
+
+          {/* App Install */}
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-violet-50">
+                <Smartphone className="size-4 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">App Installation</p>
+                <p className="text-xs text-slate-500">Install for a faster native experience.</p>
+              </div>
+            </div>
+            <div className="p-5">
+              {isInstalled ? (
+                <div className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3.5 text-emerald-700">
+                  <Smartphone className="size-5 shrink-0" />
+                  <span className="font-medium text-sm">App is already installed on this device.</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3.5">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100">
+                      <Smartphone className="size-5 text-violet-600" />
+                    </div>
+                    <div className="text-sm">
+                      <p className="font-medium text-slate-900">ArtistOS Desktop / Mobile App</p>
+                      <p className="text-slate-500 text-xs mt-0.5">Quick access from your home screen.</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleInstallApp}
+                    className="w-full rounded-xl bg-[#7c3aed] text-white hover:bg-[#6d28d9]"
+                  >
+                    <Download className="mr-2 size-4" />
+                    Install App
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Notifications */}
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+          <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-violet-50">
+              <Smartphone className="size-4 text-violet-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Notifications</p>
+              <p className="text-xs text-slate-500">Turn on booking alerts for each device you use.</p>
+            </div>
+          </div>
+          <div className="p-5">
+            <PushNotificationToggle />
+          </div>
+        </div>
+
       </div>
 
       <StoragePlansModal
@@ -309,3 +472,4 @@ export default function ProfilePage() {
     </>
   )
 }
+

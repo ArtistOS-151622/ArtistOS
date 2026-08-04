@@ -39,21 +39,19 @@ export function PwaInstallPrompt() {
     }
 
     localStorage.removeItem("artistos-pwa-install-dismissed")
-    if (isStandalone() || localStorage.getItem(INSTALLED_KEY) === "true") return
-    if (sessionStorage.getItem(DISMISSED_KEY) === "true") return
 
-    const fallbackTimer = window.setTimeout(() => {
-      setHint(
-        isIos()
-          ? "Use Share, then Add to Home Screen."
-          : "Open in Chrome/Edge on localhost or HTTPS, then refresh once."
-      )
-      setVisible(true)
-    }, 900)
+    let fallbackTimer: number | undefined
 
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault()
       window.clearTimeout(fallbackTimer)
+      
+      // Store globally so other components can access it
+      ;(window as any).deferredPwaPrompt = event
+
+      if (isStandalone() || localStorage.getItem(INSTALLED_KEY) === "true") return
+      if (localStorage.getItem(DISMISSED_KEY) === "true") return
+
       setPromptEvent(event as InstallPromptEvent)
       setHint("Add it to your device for faster access.")
       setVisible(true)
@@ -67,6 +65,17 @@ export function PwaInstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt)
     window.addEventListener("appinstalled", onAppInstalled)
+
+    if (!isStandalone() && localStorage.getItem(INSTALLED_KEY) !== "true" && localStorage.getItem(DISMISSED_KEY) !== "true") {
+      fallbackTimer = window.setTimeout(() => {
+        setHint(
+          isIos()
+            ? "Use Share, then Add to Home Screen."
+            : "Open in Chrome/Edge on localhost or HTTPS, then refresh once."
+        )
+        setVisible(true)
+      }, 900)
+    }
 
     return () => {
       window.clearTimeout(fallbackTimer)
@@ -95,7 +104,7 @@ export function PwaInstallPrompt() {
   }
 
   function dismiss() {
-    sessionStorage.setItem(DISMISSED_KEY, "true")
+    localStorage.setItem(DISMISSED_KEY, "true")
     setVisible(false)
   }
 

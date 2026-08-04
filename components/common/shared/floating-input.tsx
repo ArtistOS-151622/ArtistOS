@@ -30,7 +30,7 @@ export function FloatingInput({
   const id = externalId ?? autoId
 
   return (
-    <div className={cn("relative group", containerClassName)}>
+    <div className={cn("relative group self-start w-full", containerClassName)}>
       <input
         id={id}
         value={value}
