@@ -304,31 +304,6 @@ export default function PortfolioFolderPage() {
               <Share2 className={cn("size-4", folder?.is_shared ? "text-white" : "text-[#7c3aed]")} />
             </Button>
 
-            {/* Storage Pill — Desktop */}
-            <div className="hidden md:flex items-center gap-2">
-              {quota && (
-                <div className="flex items-center gap-2 h-9 sm:h-10 px-3 rounded-xl border border-slate-200/80 bg-slate-50/80 shrink-0">
-                  <HardDrive className="size-3.5 text-[#7c3aed] shrink-0" />
-                  <div className="flex flex-col items-start min-w-[72px]">
-                    <div className="flex items-center justify-between w-full">
-                      <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wide">Storage</span>
-                      <span className="text-[9px] font-black text-[#7c3aed]">
-                        {Math.round((quota.used_bytes / quota.total_bytes) * 100)}%
-                      </span>
-                    </div>
-                    <div className="w-full h-1 rounded-full bg-slate-200/80 overflow-hidden mt-0.5">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-[#7c3aed] to-indigo-600 transition-all"
-                        style={{ width: `${Math.min(100, Math.round((quota.used_bytes / quota.total_bytes) * 100))}%` }}
-                      />
-                    </div>
-                    <span className="text-[8px] text-slate-400 font-semibold mt-0.5">
-                      {quota.used_bytes_human} / {quota.total_bytes_human}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Desktop Only Inline Upload Button + Universal Floating FAB */}
             <PortfolioUploader folderId={folder?.id} onUploaded={() => void loadFolder(true)} label="Upload File" className="hidden md:inline-flex" />
