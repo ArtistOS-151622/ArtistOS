@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, FolderPlus, HardDrive, LayoutGrid, List, Loader2, Search, Server, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { CheckCircle2, FolderPlus, HardDrive, LayoutGrid, List, Loader2, Search, ShieldCheck, Sparkles, Zap } from "lucide-react";
 
 import { HeaderPortal, PageHeader } from "@/components/common/dashboard/dashboard-header-context";
 import { AppModal } from "@/components/common/shared/app-modal";
@@ -153,6 +153,35 @@ export default function PortfolioPage() {
         }
         actions={
           <div className="flex items-center gap-2">
+            {/* Storage Usage Pill - Desktop Only */}
+            {quota && (
+              <button
+                type="button"
+                onClick={() => setStorageDrawerOpen(true)}
+                className="hidden md:flex items-center gap-2 h-10 sm:h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white hover:bg-slate-50 hover:border-purple-200 transition-all shadow-xs group"
+                title="Storage Usage"
+              >
+                <HardDrive className="size-4 text-[#7c3aed] shrink-0 group-hover:rotate-12 transition-transform" />
+                <div className="flex flex-col items-start min-w-[80px]">
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide">Storage</span>
+                    <span className="text-[10px] font-black text-[#7c3aed]">
+                      {Math.round((quota.used_bytes / quota.total_bytes) * 100)}%
+                    </span>
+                  </div>
+                  <div className="w-full h-1 rounded-full bg-slate-100 overflow-hidden mt-0.5">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[#7c3aed] to-indigo-600 transition-all"
+                      style={{ width: `${Math.min(100, Math.round((quota.used_bytes / quota.total_bytes) * 100))}%` }}
+                    />
+                  </div>
+                  <span className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                    {quota.used_bytes_human} / {quota.total_bytes_human}
+                  </span>
+                </div>
+              </button>
+            )}
+
             <div className="flex bg-slate-100/50 rounded-2xl p-1 h-10 sm:h-11 items-center border border-slate-100/80 shadow-inner">
               <Button
                 type="button"
@@ -369,17 +398,6 @@ export default function PortfolioPage() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs hover:border-blue-200 hover:bg-blue-50/30 transition-all group">
-                <div className="size-10 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                  <Server className="size-5" />
-                </div>
-                <div>
-                  <h5 className="text-sm font-bold text-slate-900">Auto Customer Folders</h5>
-                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                    Booking folders are automatically created with customer names for seamless organization.
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         </div>

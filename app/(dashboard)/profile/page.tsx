@@ -16,6 +16,7 @@ import { StoragePlansModal } from "@/components/storage/storage-plans-modal"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { QuotaInfo, StoragePlanRow } from "@/lib/portfolio/types"
 
 type ProfileData = {
@@ -192,8 +193,95 @@ export default function ProfilePage() {
     return (
       <>
         <PageHeader title="Profile" />
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-primary" />
+        <div className="space-y-4 pb-12">
+          {/* Hero skeleton */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#5b21b6] via-[#7c3aed] to-[#a855f7] p-5 sm:p-7">
+            <div className="pointer-events-none absolute -top-10 -right-10 size-44 rounded-full bg-white/5" />
+            <div className="pointer-events-none absolute -bottom-6 -left-6 size-32 rounded-full bg-white/5" />
+            {/* logout button skeleton */}
+            <Skeleton className="absolute top-4 right-4 h-8 w-20 rounded-xl bg-white/20" />
+            <div className="relative flex items-center gap-4 pr-24 sm:pr-28">
+              {/* avatar skeleton */}
+              <Skeleton className="size-16 sm:size-20 shrink-0 rounded-xl bg-white/20" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-6 w-40 rounded-lg bg-white/20" />
+                <Skeleton className="h-4 w-28 rounded-md bg-white/15" />
+                <Skeleton className="h-3.5 w-24 rounded-md bg-white/10" />
+              </div>
+            </div>
+          </div>
+
+          {/* Personal info card skeleton */}
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+              <Skeleton className="size-8 rounded-lg bg-slate-100" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-36 bg-slate-100" />
+                <Skeleton className="h-3 w-52 bg-slate-100" />
+              </div>
+            </div>
+            <div className="p-5">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-xl bg-slate-100" />
+                ))}
+                <Skeleton className="h-20 w-full rounded-xl bg-slate-100 sm:col-span-2" />
+              </div>
+              <div className="flex justify-end pt-4">
+                <Skeleton className="h-10 w-32 rounded-xl bg-slate-100" />
+              </div>
+            </div>
+          </div>
+
+          {/* Second row skeleton */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Storage skeleton */}
+            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="size-8 rounded-lg bg-slate-100" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-20 bg-slate-100" />
+                    <Skeleton className="h-3 w-40 bg-slate-100" />
+                  </div>
+                </div>
+                <Skeleton className="h-8 w-20 rounded-xl bg-slate-100 shrink-0" />
+              </div>
+              <div className="p-5 space-y-3">
+                <Skeleton className="h-3 w-full rounded-full bg-slate-100" />
+                <Skeleton className="h-4 w-36 rounded-md bg-slate-100" />
+              </div>
+            </div>
+
+            {/* App Install skeleton */}
+            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                <Skeleton className="size-8 rounded-lg bg-slate-100" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-28 bg-slate-100" />
+                  <Skeleton className="h-3 w-44 bg-slate-100" />
+                </div>
+              </div>
+              <div className="p-5 space-y-3">
+                <Skeleton className="h-16 w-full rounded-xl bg-slate-100" />
+                <Skeleton className="h-10 w-full rounded-xl bg-slate-100" />
+              </div>
+            </div>
+          </div>
+
+          {/* Notifications skeleton */}
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+              <Skeleton className="size-8 rounded-lg bg-slate-100" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-28 bg-slate-100" />
+                <Skeleton className="h-3 w-52 bg-slate-100" />
+              </div>
+            </div>
+            <div className="p-5">
+              <Skeleton className="h-14 w-full rounded-xl bg-slate-100" />
+            </div>
+          </div>
         </div>
       </>
     )

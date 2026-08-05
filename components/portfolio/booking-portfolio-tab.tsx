@@ -70,13 +70,12 @@ export function BookingPortfolioTab({ bookingId, onQuotaExceeded }: BookingPortf
           </div>
         </CardHeader>
         <CardContent className="p-4 sm:p-5">
-          {!loading && (
-            <PortfolioFileGrid
-              files={deliveryFiles}
-              onDelete={handleDelete}
-              onPreview={setPreviewFile}
-            />
-          )}
+          <PortfolioFileGrid
+            files={deliveryFiles}
+            loading={loading}
+            onDelete={handleDelete}
+            onPreview={setPreviewFile}
+          />
         </CardContent>
       </Card>
 
