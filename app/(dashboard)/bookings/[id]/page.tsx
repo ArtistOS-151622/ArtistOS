@@ -57,6 +57,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -115,6 +116,111 @@ type Expense = {
   description: string | null;
 };
 type ExpenseCategory = { id: number; category_name: string };
+
+function BookingDetailsSkeleton() {
+  return (
+    <>
+      <PageHeader title="Booking Details" />
+
+      {/* Header Actions Card Skeleton */}
+      <Card className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-md shadow-purple-950/[0.03] mb-4 p-3 sm:p-5">
+        <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3.5 min-w-0">
+            <Skeleton className="size-8 sm:size-10 rounded-xl sm:rounded-2xl shrink-0 bg-slate-100" />
+            <div className="min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <Skeleton className="h-5 sm:h-7 w-32 sm:w-48 bg-slate-100" />
+              <Skeleton className="hidden sm:inline-block h-4 w-24 bg-slate-100" />
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <Skeleton className="h-8 sm:h-10 w-20 sm:w-28 rounded-xl bg-slate-100" />
+            <Skeleton className="size-8 sm:size-10 rounded-xl bg-slate-100" />
+          </div>
+        </div>
+      </Card>
+
+      {/* Overview Card Skeleton */}
+      <Card className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-md shadow-purple-950/[0.03] mb-4 overflow-hidden">
+        <CardContent className="p-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+            {/* 1. Client Card Section */}
+            <div className="p-3.5 sm:p-4 flex items-center justify-between gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0 w-full">
+                <Skeleton className="size-11 rounded-xl shrink-0 bg-slate-100" />
+                <div className="min-w-0 flex flex-col justify-center gap-1.5 w-full">
+                  <Skeleton className="h-3 w-20 bg-slate-100" />
+                  <Skeleton className="h-4 w-32 bg-slate-100" />
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Event Location Section */}
+            <div className="hidden md:flex p-3.5 sm:p-4 items-center justify-between gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0 w-full">
+                <Skeleton className="size-11 rounded-xl shrink-0 bg-slate-100" />
+                <div className="min-w-0 flex flex-col justify-center gap-1.5 w-full">
+                  <Skeleton className="h-3 w-24 bg-slate-100" />
+                  <Skeleton className="h-4 w-40 bg-slate-100" />
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Financial Overview Section */}
+            <div className="hidden md:flex p-3.5 sm:p-4 flex-col justify-between gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <Skeleton className="h-5 w-24 bg-slate-100" />
+                <Skeleton className="h-5 w-16 rounded-full bg-slate-100" />
+              </div>
+              <div className="space-y-1.5">
+                <Skeleton className="h-1 w-full bg-slate-100" />
+                <div className="flex justify-between">
+                  <Skeleton className="h-3 w-16 bg-slate-100" />
+                  <Skeleton className="h-3 w-16 bg-slate-100" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabs List Skeleton */}
+      <div className="w-full gap-0">
+        <div className="w-full overflow-x-auto hide-scrollbar">
+          <div className="flex sm:grid-cols-4 w-max min-w-full sm:w-full max-w-md h-20 items-center justify-center rounded-2xl bg-slate-100/80 p-1 mb-4 mx-auto sm:mx-0">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex-1 px-4 sm:px-2 h-full py-2">
+                <Skeleton className="w-full h-full rounded-xl bg-slate-200/50" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab Content Skeleton (Quotation-like layout) */}
+        <div className="space-y-6">
+          <Card className="rounded-[1.75rem] border-slate-100 shadow-md shadow-purple-950/5 p-4 sm:p-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-6 w-40 bg-slate-100" />
+                <Skeleton className="h-9 w-24 rounded-lg bg-slate-100" />
+              </div>
+              <div className="space-y-3 mt-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex justify-between items-center p-3 sm:p-4 border border-slate-100 rounded-2xl">
+                    <div className="flex flex-col gap-2">
+                      <Skeleton className="h-5 w-32 sm:w-48 bg-slate-100" />
+                      <Skeleton className="h-3 w-20 sm:w-24 bg-slate-100" />
+                    </div>
+                    <Skeleton className="h-5 w-20 sm:w-28 bg-slate-100" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+}
 
 export default function BookingDetailsPage() {
   const router = useRouter();
@@ -507,15 +613,7 @@ export default function BookingDetailsPage() {
   };
 
   if (loading) {
-    return (
-      <>
-        <PageHeader title="Booking Details" />
-        <AppLoader
-          label="Loading booking details..."
-          className="min-h-[52vh] rounded-[2rem] bg-white/45"
-        />
-      </>
-    );
+    return <BookingDetailsSkeleton />;
   }
 
   if (error || !booking) {
@@ -659,11 +757,20 @@ export default function BookingDetailsPage() {
                 >
                   <MessageCircle className="size-3.5" />
                 </a>
+                <a
+                  href={`https://maps.google.com/?q=${encodeURIComponent(booking.booking_address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="md:hidden flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all border border-blue-100"
+                  title="Open Google Maps"
+                >
+                  <Navigation className="size-3.5" />
+                </a>
               </div>
             </div>
 
             {/* 2. Event Location Section */}
-            <div className="p-3.5 sm:p-4 flex items-center justify-between gap-3 min-w-0">
+            <div className="hidden md:flex p-3.5 sm:p-4 items-center justify-between gap-3 min-w-0">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="size-11 rounded-xl border-2 border-purple-200 bg-purple-50 flex items-center justify-center text-[#7c3aed] shadow-2xs shrink-0">
                   <MapPin className="size-5 text-[#7c3aed]" />
@@ -692,7 +799,7 @@ export default function BookingDetailsPage() {
             </div>
 
             {/* 3. Financial Overview Section */}
-            <div className="p-3.5 sm:p-4 flex flex-col justify-between">
+            <div className="hidden md:flex p-3.5 sm:p-4 flex-col justify-between">
               {/* <div className="flex items-center justify-between gap-2 mb-1">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                   Total Value
