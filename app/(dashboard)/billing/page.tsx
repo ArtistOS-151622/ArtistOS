@@ -55,10 +55,11 @@ const statusColor: Record<string, string> = {
 export default function BillingPage() {
   const { setTitle } = useHeaderContext()
 
-  const { data: billing, isLoading: billingLoading } = useSWR<BillingData>("/api/billing", fetcher)
+  const { data: billing, isLoading: billingLoading, mutate: mutateBilling } = useSWR<BillingData>("/api/billing", fetcher)
   const { data: plans, isLoading: plansLoading } = useSWR<Plan[]>("/api/platform-subscriptions", fetcher)
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null)
 
   const isLoading = billingLoading || plansLoading
   const currentPlan = billing?.subscription?.platform_subscriptions ?? null
@@ -91,6 +92,116 @@ export default function BillingPage() {
     }
   }
 
+  async function loadRazorpayScript() {
+    if ((window as any).Razorpay) return
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script")
+      script.src = "https://checkout.razorpay.com/v1/checkout.js"
+      script.onload = () => resolve()
+      script.onerror = () => reject(new Error("Failed to load Razorpay"))
+      document.body.appendChild(script)
+    })
+  }
+
+  const handlePurchase = async (plan: Plan) => {
+    if (plan.name.toLowerCase() === 'custom') {
+      toast.info("Please contact support to setup a custom plan.")
+      return
+    }
+
+    setLoadingPlanId(plan.id)
+    try {
+      const res = await fetch("/api/platform-subscriptions/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan_id: plan.id }),
+      })
+      const json = await res.json()
+      if (!json.status) throw new Error(json.message || "Purchase failed")
+
+      if (json.data.free_plan) {
+        toast.success("Free plan activated successfully!")
+        mutateBilling()
+        setLoadingPlanId(null)
+        return
+      }
+
+      const checkout = json.data.checkout
+
+      await loadRazorpayScript()
+
+      const options: Record<string, unknown> = {
+        key: checkout.key,
+        name: checkout.name,
+        description: checkout.description,
+        amount: checkout.amount,
+        currency: "INR",
+        order_id: checkout.order_id,
+        handler: async (response: any) => {
+          setLoadingPlanId(plan.id)
+          try {
+            const verifyRes = await fetch("/api/platform-subscriptions/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                payment_id: checkout.payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            })
+            const verifyJson = await verifyRes.json()
+            if (!verifyJson.status) {
+              throw new Error(verifyJson.message || "Payment verification failed")
+            }
+
+            toast.success("Subscription updated successfully!")
+            mutateBilling()
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Verification failed")
+          } finally {
+            setLoadingPlanId(null)
+          }
+        },
+        modal: {
+          ondismiss: async () => {
+            setLoadingPlanId(null)
+            try {
+              await fetch("/api/platform-subscriptions/cancel", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ payment_id: checkout.payment_id }),
+              })
+            } catch (e) {
+              console.error(e)
+            }
+          },
+        },
+      }
+
+      const rzp = new (window as any).Razorpay(options)
+      rzp.on('payment.failed', async function (response: any) {
+        try {
+          await fetch("/api/platform-subscriptions/failed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              payment_id: checkout.payment_id,
+              error_description: response.error?.description || "Payment failed"
+            }),
+          })
+        } catch (e) {
+          console.error(e)
+        }
+      })
+      rzp.open()
+
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Purchase failed")
+      setLoadingPlanId(null)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-16">
 
@@ -118,7 +229,7 @@ export default function BillingPage() {
                 <p className="mt-1 text-white/70 text-sm">{currentPlan.description}</p>
                 <div className="mt-4 flex items-end gap-1">
                   <span className="text-4xl font-bold">
-                    {currentPlan.amount_inr === 0 ? "Custom" : `₹${currentPlan.amount_inr}`}
+                    ₹{currentPlan.amount_inr}
                   </span>
                   {currentPlan.billing_period && (
                     <span className="text-white/60 text-sm mb-1">{currentPlan.billing_period}</span>
@@ -201,7 +312,7 @@ export default function BillingPage() {
                   </p>
                   <div className="flex items-end gap-1 mb-3">
                     <span className={`text-3xl font-bold ${isFeatured ? "text-white" : "text-slate-900"}`}>
-                      {plan.amount_inr === 0 ? "Custom" : `₹${plan.amount_inr}`}
+                      ₹{plan.amount_inr}
                     </span>
                     {plan.billing_period && (
                       <span className={`text-xs mb-1 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>{plan.billing_period}</span>
@@ -217,7 +328,8 @@ export default function BillingPage() {
                     ))}
                   </div>
                   <button
-                    disabled={isCurrent}
+                    disabled={isCurrent || loadingPlanId === plan.id}
+                    onClick={() => handlePurchase(plan)}
                     className={`w-full h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                       isCurrent
                         ? "bg-emerald-50 text-emerald-700 cursor-not-allowed"
@@ -226,7 +338,13 @@ export default function BillingPage() {
                           : "bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-md shadow-purple-600/20"
                     }`}
                   >
-                    {isCurrent ? (<><ShieldCheck className="size-3.5" /> Current Plan</>) : (<>Get Started <ArrowRight className="size-3.5" /></>)}
+                    {isCurrent ? (
+                      <><ShieldCheck className="size-3.5" /> Current Plan</>
+                    ) : loadingPlanId === plan.id ? (
+                      <><Loader2 className="size-3.5 animate-spin" /> Processing...</>
+                    ) : (
+                      <><Crown className="size-3.5" /> Get Started</>
+                    )}
                   </button>
                 </div>
               )

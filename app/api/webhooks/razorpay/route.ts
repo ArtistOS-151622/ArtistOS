@@ -44,14 +44,28 @@ export async function POST(request: NextRequest) {
         payload.payload?.subscription?.entity?.notes ??
         {}
 
-      const purchaseId = Number(notes.purchase_id)
-      if (purchaseId) {
-        await completePurchase(supabase, purchaseId, {
-          rp_payment_id: payload.payload?.payment?.entity?.id,
-          rp_subscription_id: payload.payload?.subscription?.entity?.id,
-          rp_event_id: eventId,
-          payment_method: payload.payload?.payment?.entity?.method,
-        })
+      const type = notes.type as string | undefined
+      
+      if (type === "platform_subscription") {
+        const paymentId = Number(notes.payment_id)
+        if (paymentId) {
+          const { completePlatformPayment } = await import("@/lib/platform-billing")
+          await completePlatformPayment(supabase, paymentId, {
+            rp_payment_id: payload.payload?.payment?.entity?.id,
+            rp_event_id: eventId,
+            payment_method: payload.payload?.payment?.entity?.method,
+          })
+        }
+      } else {
+        const purchaseId = Number(notes.purchase_id)
+        if (purchaseId) {
+          await completePurchase(supabase, purchaseId, {
+            rp_payment_id: payload.payload?.payment?.entity?.id,
+            rp_subscription_id: payload.payload?.subscription?.entity?.id,
+            rp_event_id: eventId,
+            payment_method: payload.payload?.payment?.entity?.method,
+          })
+        }
       }
     }
 

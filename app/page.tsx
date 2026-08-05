@@ -802,7 +802,7 @@ function PricingSection() {
             >
               {displayPlans.map((plan: any) => {
                 const isFeatured = plan.is_featured ?? plan.featured
-                const price = plan.amount_inr !== undefined ? (plan.amount_inr === 0 ? "Custom" : `₹${plan.amount_inr}`) : plan.price
+                const price = plan.amount_inr !== undefined ? `₹${plan.amount_inr}` : plan.price
                 return (
                   <article
                     key={plan.id || plan.name}
@@ -846,7 +846,7 @@ function PricingSection() {
           <div className={`hidden lg:grid gap-6 ${gridClass}`}>
             {displayPlans.map((plan: any) => {
               const isFeatured = plan.is_featured ?? plan.featured
-              const price = plan.amount_inr !== undefined ? (plan.amount_inr === 0 ? "Custom" : `₹${plan.amount_inr}`) : plan.price
+              const price = plan.amount_inr !== undefined ? `₹${plan.amount_inr}` : plan.price
               return (
                 <article
                   key={plan.id || plan.name}
@@ -923,7 +923,7 @@ function PricingCardInner({ plan, isFeatured, price }: { plan: any; isFeatured: 
 
       {/* CTA */}
       <a
-        href="#cta"
+        href={plan.name.toLowerCase() === 'custom' ? "#cta" : "/login?next=/billing"}
         className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold tracking-wide transition-all duration-200 ${
           isFeatured
             ? "bg-white text-[#7c3aed] hover:bg-[#f3e8ff] shadow-lg shadow-black/10"

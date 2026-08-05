@@ -8,6 +8,7 @@ export async function GET() {
     const { data: plans, error } = await supabase
       .from("platform_subscriptions")
       .select("*")
+      .order("display_order", { ascending: true })
       .order("id", { ascending: true })
 
     if (error) throw error
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { name, description, amount_inr, billing_period, features, is_active, is_featured, duration_in_days } = body
+    const { name, description, amount_inr, billing_period, features, is_active, is_featured, duration_in_days, display_order } = body
 
     const { data, error } = await supabase
       .from("platform_subscriptions")
@@ -37,7 +38,8 @@ export async function POST(req: Request) {
           features: features || [],
           is_active: is_active ?? true,
           is_featured: is_featured ?? false,
-          duration_in_days: duration_in_days ?? 30
+          duration_in_days: duration_in_days ?? 30,
+          display_order: display_order ?? 0
         }
       ])
       .select()

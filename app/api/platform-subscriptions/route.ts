@@ -9,6 +9,7 @@ export async function GET() {
       .from("platform_subscriptions")
       .select("*")
       .eq("is_active", true)
+      .order("display_order", { ascending: true })
       .order("id", { ascending: true })
 
     if (error) throw error
