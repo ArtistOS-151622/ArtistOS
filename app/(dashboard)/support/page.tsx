@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FloatingInput } from "@/components/common/shared/floating-input";
 import { FloatingTextarea } from "@/components/common/shared/floating-input";
 import { AppModal } from "@/components/common/shared/app-modal";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 type TicketMessage = {
@@ -156,8 +157,66 @@ export default function UserSupportPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-purple-400" />
+      <div className="max-w-6xl mx-auto space-y-6 pb-12 relative h-[calc(100vh-120px)] flex flex-col">
+        {/* Header Skeleton */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white/90 p-6 rounded-3xl border border-slate-100 shadow-sm shadow-purple-900/5">
+          <div className="space-y-2 w-full sm:w-auto">
+            <Skeleton className="h-6 w-48 rounded-md bg-slate-200/80" />
+            <Skeleton className="h-4 w-64 sm:w-72 rounded-md bg-slate-200/60" />
+          </div>
+          <Skeleton className="h-11 w-full sm:w-32 rounded-2xl bg-slate-200/80" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1 min-h-0">
+          {/* Ticket List Skeleton */}
+          <div className="bg-white/90 border border-slate-100 rounded-3xl shadow-sm shadow-purple-900/5 overflow-hidden flex flex-col md:col-span-4 hidden md:flex">
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+              <Skeleton className="h-5 w-32 rounded-md bg-slate-200/80" />
+            </div>
+            <div className="flex-1 p-3 space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="w-full p-4 rounded-[1.25rem] border border-slate-100 bg-white">
+                  <div className="flex justify-between items-start mb-2">
+                    <Skeleton className="h-3 w-12 rounded-sm bg-slate-200/80" />
+                    <Skeleton className="h-4 w-16 rounded-full bg-slate-200/80" />
+                  </div>
+                  <Skeleton className="h-4 w-3/4 rounded-md bg-slate-200/80 mb-2" />
+                  <Skeleton className="h-3 w-24 rounded-sm bg-slate-200/60" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Chat Area Skeleton */}
+          <div className="bg-white/90 border border-slate-100 rounded-3xl shadow-sm shadow-purple-900/5 flex flex-col md:col-span-8 hidden md:flex">
+            <div className="p-5 border-b border-slate-100 bg-white rounded-t-3xl flex items-center justify-between shrink-0">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-48 sm:w-64 rounded-md bg-slate-200/80" />
+                <Skeleton className="h-3 w-32 rounded-sm bg-slate-200/60" />
+              </div>
+            </div>
+            <div className="flex-1 p-6 bg-slate-50/30 space-y-6">
+              <div className="flex flex-col self-start items-start w-[85%] max-w-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <Skeleton className="h-3 w-20 rounded-sm bg-slate-200/60" />
+                </div>
+                <Skeleton className="h-16 w-full rounded-2xl rounded-tl-sm bg-slate-200/80" />
+              </div>
+              <div className="flex flex-col self-end items-end w-[85%] max-w-sm ml-auto">
+                <div className="flex items-center gap-2 mb-1">
+                  <Skeleton className="h-3 w-12 rounded-sm bg-slate-200/60" />
+                </div>
+                <Skeleton className="h-12 w-full rounded-2xl rounded-tr-sm bg-slate-200/80" />
+              </div>
+            </div>
+            <div className="p-4 bg-white border-t border-slate-100 rounded-b-3xl shrink-0 space-y-3">
+              <Skeleton className="h-[100px] w-full rounded-2xl bg-slate-200/60" />
+              <div className="flex justify-end">
+                <Skeleton className="h-10 w-32 rounded-xl bg-slate-200/80" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -165,16 +224,21 @@ export default function UserSupportPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12 relative h-[calc(100vh-120px)] flex flex-col">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white/90 p-5 rounded-3xl border border-slate-100 shadow-sm shadow-purple-900/5">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">How can we help?</h2>
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-gradient-to-r from-purple-500/5 to-transparent bg-white/90 p-6 rounded-3xl border border-purple-100 shadow-sm shadow-purple-900/5 relative overflow-hidden">
+        <div className="absolute -top-10 -right-4 p-8 opacity-[0.03] pointer-events-none">
+          <LifeBuoy className="size-48 text-purple-900" />
+        </div>
+        <div className="relative z-10">
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <LifeBuoy className="size-5 text-[#7c3aed]" /> How can we help?
+          </h2>
           <p className="text-slate-500 text-sm mt-1">
             Submit a ticket for billing, technical issues, or general inquiries.
           </p>
         </div>
         <Button
           onClick={() => setCreateModalOpen(true)}
-          className="h-11 rounded-2xl bg-primary hover:bg-primary/90 text-white shrink-0"
+          className="h-11 rounded-2xl bg-gradient-to-r from-[#7c3aed] to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shrink-0 relative z-10 shadow-md shadow-purple-600/20"
         >
           <Plus className="size-4 mr-2" /> New Ticket
         </Button>
@@ -207,10 +271,10 @@ export default function UserSupportPage() {
                   key={ticket.id}
                   onClick={() => setSelectedTicket(ticket)}
                   className={cn(
-                    "w-full text-left p-4 rounded-2xl border transition-all duration-200",
+                    "w-full text-left p-4 rounded-[1.25rem] border transition-all duration-300 group",
                     selectedTicket?.id === ticket.id
-                      ? "bg-purple-50 border-purple-200 shadow-sm"
-                      : "bg-white border-slate-100 hover:border-purple-200 hover:bg-slate-50",
+                      ? "bg-gradient-to-br from-purple-50 to-white border-purple-200 shadow-md shadow-purple-900/5 ring-1 ring-purple-100"
+                      : "bg-white border-slate-100 hover:border-purple-200 hover:shadow-md hover:shadow-purple-900/5 hover:-translate-y-0.5",
                   )}
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -219,21 +283,21 @@ export default function UserSupportPage() {
                     </span>
                     <span
                       className={cn(
-                        "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                        "text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs",
                         ticket.status === "open"
-                          ? "bg-amber-100 text-amber-700"
+                          ? "bg-amber-100 text-amber-700 border border-amber-200/50"
                           : ticket.status === "in_progress"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-emerald-100 text-emerald-700",
+                            ? "bg-blue-100 text-blue-700 border border-blue-200/50"
+                            : "bg-emerald-100 text-emerald-700 border border-emerald-200/50",
                       )}
                     >
                       {ticket.status.replace("_", " ")}
                     </span>
                   </div>
-                  <h4 className="font-bold text-slate-900 text-sm mb-1 leading-tight line-clamp-2">
+                  <h4 className="font-bold text-slate-900 text-sm mb-1 leading-tight line-clamp-2 group-hover:text-[#7c3aed] transition-colors">
                     {ticket.subject}
                   </h4>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-500 font-medium">
                     {format(new Date(ticket.created_at), "MMM d, yyyy")}
                   </div>
                 </button>
@@ -319,10 +383,10 @@ export default function UserSupportPage() {
                           </div>
                           <div
                             className={cn(
-                              "px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed shadow-sm",
+                              "px-4 py-3 rounded-[1.25rem] text-[13px] sm:text-sm whitespace-pre-wrap leading-relaxed shadow-sm",
                               isUser
-                                ? "bg-primary text-white rounded-tr-sm"
-                                : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm",
+                                ? "bg-gradient-to-br from-[#7c3aed] to-purple-600 text-white rounded-tr-sm shadow-purple-600/20"
+                                : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-slate-200/40",
                             )}
                           >
                             {msg.message}
