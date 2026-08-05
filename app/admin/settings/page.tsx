@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useHeaderContext } from "@/components/common/dashboard/dashboard-header-context"
-import { Loader2, Save, AlertTriangle, Shield, HardDrive, Percent, Server } from "lucide-react"
+import { Loader2, Save, Shield, HardDrive, Server } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { FloatingInput } from "@/components/common/shared/floating-input"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PlatformSubscriptionsTab } from "./platform-subscriptions"
 
 type StoragePlan = {
   id: number
@@ -81,7 +82,7 @@ export default function AdminSettingsPage() {
   const handleSaveAllPlans = async () => {
     setSaving(true)
     try {
-      await Promise.all(plans.map(plan => 
+      await Promise.all(plans.map(plan =>
         fetch("/api/admin/storage-plans", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -107,12 +108,16 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12 relative">
-      <Tabs defaultValue="pricing" className="w-full">
+      <Tabs defaultValue="platform" className="w-full">
         <TabsList className="bg-white border border-slate-200 rounded-xl p-1 mb-6">
+          <TabsTrigger value="platform" className="rounded-lg data-[state=active]:bg-red-50 data-[state=active]:text-red-700 data-[state=active]:shadow-none"><Shield className="size-4 mr-2" /> Platform Subscriptions</TabsTrigger>
           <TabsTrigger value="pricing" className="rounded-lg data-[state=active]:bg-red-50 data-[state=active]:text-red-700 data-[state=active]:shadow-none"><HardDrive className="size-4 mr-2" /> Storage Plans</TabsTrigger>
-          <TabsTrigger value="billing" className="rounded-lg data-[state=active]:bg-red-50 data-[state=active]:text-red-700 data-[state=active]:shadow-none"><Percent className="size-4 mr-2" /> Billing & Tax</TabsTrigger>
           <TabsTrigger value="system" className="rounded-lg data-[state=active]:bg-red-50 data-[state=active]:text-red-700 data-[state=active]:shadow-none"><Server className="size-4 mr-2" /> System</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="platform" className="space-y-6">
+          <PlatformSubscriptionsTab />
+        </TabsContent>
 
         <TabsContent value="pricing" className="space-y-6">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 sm:p-8">
@@ -149,9 +154,9 @@ export default function AdminSettingsPage() {
                   </div>
                 </div>
               ))}
-              
+
               <div className="pt-4 border-t border-slate-100 flex justify-end">
-                <Button 
+                <Button
                   onClick={handleSaveAllPlans}
                   disabled={saving}
                   className="h-11 px-8 rounded-xl bg-red-600 hover:bg-red-700 text-white"
@@ -159,47 +164,6 @@ export default function AdminSettingsPage() {
                   {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
                   Save All Plans
                 </Button>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="billing" className="space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 sm:p-8">
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-slate-900">Tax Configuration</h2>
-              <p className="text-slate-500 text-sm mt-1">Configure global tax rates applied to all purchases.</p>
-            </div>
-
-            <div className="max-w-md space-y-6">
-              <FloatingInput
-                label="Global GST Rate (%)"
-                type="number"
-                step="0.01"
-                value={settings.global_gst_rate ? Number(settings.global_gst_rate) * 100 : 18}
-                onChange={(e) => setSettings({...settings, global_gst_rate: String(Number(e.target.value) / 100)})}
-              />
-              <p className="text-xs text-slate-500">Currently applied to storage plan purchases at checkout.</p>
-
-              <Button 
-                onClick={handleSaveSettings}
-                disabled={saving}
-                className="h-11 px-8 rounded-xl bg-red-600 hover:bg-red-700 text-white"
-              >
-                {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
-                Save Tax Settings
-              </Button>
-            </div>
-          </div>
-          
-          <div className="bg-amber-50 rounded-3xl border border-amber-200 shadow-sm overflow-hidden p-6 sm:p-8">
-            <div className="flex gap-4">
-              <Shield className="size-6 text-amber-600 shrink-0" />
-              <div>
-                <h3 className="font-bold text-amber-900">Payment Gateway Security</h3>
-                <p className="text-amber-800/80 text-sm mt-1 leading-relaxed">
-                  Razorpay API Keys (`RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`) are securely stored in your server's `.env.local` file. This prevents unauthorized database access from compromising your payment gateway. To change API keys, update the environment variables and restart the server.
-                </p>
               </div>
             </div>
           </div>
@@ -216,18 +180,18 @@ export default function AdminSettingsPage() {
               <div className="flex items-center justify-between p-5 rounded-2xl border border-slate-100 bg-slate-50/50">
                 <div className="space-y-1">
                   <div className="font-semibold text-slate-900 flex items-center gap-2">
-                    Maintenance Mode 
+                    Maintenance Mode
                     {settings.maintenance_mode === 'true' && <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Active</span>}
                   </div>
                   <p className="text-sm text-slate-500">Temporarily block all non-admin users from accessing the platform.</p>
                 </div>
-                <Switch 
+                <Switch
                   checked={settings.maintenance_mode === 'true'}
                   onCheckedChange={(checked) => setSettings({...settings, maintenance_mode: checked ? 'true' : 'false'})}
                 />
               </div>
 
-              <Button 
+              <Button
                 onClick={handleSaveSettings}
                 disabled={saving}
                 className="h-11 px-8 rounded-xl bg-red-600 hover:bg-red-700 text-white"

@@ -1,9 +1,12 @@
 "use client"
 
+
 import {
   ArrowRight,
   CalendarCheck2,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   CircleDollarSign,
   GalleryHorizontalEnd,
   Gift,
@@ -13,6 +16,7 @@ import {
   Star,
   UsersRound,
 } from "lucide-react"
+import { useRef } from "react"
 import {
   Area,
   AreaChart,
@@ -23,6 +27,8 @@ import {
   LineChart as RechartsLineChart,
   XAxis,
 } from "recharts"
+import useSWR from "swr"
+import { Skeleton } from "@/components/ui/skeleton"
 
 import {
   ChartContainer,
@@ -712,7 +718,29 @@ function Testimonials() {
   )
 }
 
+const fetcher = (url: string) => fetch(url).then(res => res.json())
+
 function PricingSection() {
+  const { data: plans, isLoading } = useSWR("/api/platform-subscriptions", fetcher)
+  const sliderRef = useRef<HTMLDivElement>(null)
+
+  // Use the fetched plans, fallback to hardcoded ONLY if the API returned an error/non-array
+  const displayPlans = plans && Array.isArray(plans) ? plans : pricingPlans
+
+  // Determine the desktop grid layout based on count
+  const count = displayPlans.length
+  const gridClass =
+    count === 1 ? "lg:grid-cols-1 lg:max-w-sm lg:mx-auto" :
+    count === 2 ? "lg:grid-cols-2 lg:max-w-2xl lg:mx-auto" :
+    count === 4 ? "lg:grid-cols-2" :
+    "lg:grid-cols-3"
+
+  const scrollSlider = (dir: "left" | "right") => {
+    if (!sliderRef.current) return
+    const cardWidth = sliderRef.current.querySelector("article")?.offsetWidth ?? 280
+    sliderRef.current.scrollBy({ left: dir === "right" ? cardWidth + 20 : -(cardWidth + 20), behavior: "smooth" })
+  }
+
   return (
     <section id="pricing" className="px-6 py-20 sm:px-12 lg:px-20">
       <SectionHeading
@@ -722,66 +750,191 @@ function PricingSection() {
         className="animate-fade-up"
       />
 
-      <div className="mt-14 grid gap-6 lg:grid-cols-3">
-        {pricingPlans.map((plan) => (
-          <article
-            key={plan.name}
-            className={`relative flex min-h-[460px] flex-col rounded-[1.75rem] border p-7 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#aeb5d2]/20 ${
-              plan.featured
-                ? "border-[#7c3aed] bg-[#7c3aed] text-white"
-                : "border-[#edf0fa] bg-[#fbfcff] text-[#232542]"
-            }`}
-          >
-            {plan.featured ? (
-              <span className="absolute right-6 top-6 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#7c3aed]">
-                Best value
-              </span>
-            ) : null}
-
-            <div>
-              <h3 className="text-2xl font-semibold">{plan.name}</h3>
-              <p className={`mt-3 min-h-14 leading-7 ${plan.featured ? "text-white/75" : "text-[#666a82]"}`}>
-                {plan.description}
-              </p>
-            </div>
-
-            <div className="mt-8">
-              <p className="flex items-end gap-2">
-                <span className="text-5xl font-semibold tracking-tight">{plan.price}</span>
-                {plan.period ? (
-                  <span className={`pb-2 text-sm font-medium ${plan.featured ? "text-white/70" : "text-[#777b95]"}`}>
-                    {plan.period}
-                  </span>
-                ) : null}
-              </p>
-            </div>
-
-            <div className={`my-7 h-px ${plan.featured ? "bg-white/20" : "bg-[#e5e8f5]"}`} />
-
-            <div className="space-y-4">
-              {plan.features.map((feature) => (
-                <div key={feature} className="flex items-center gap-3 text-sm font-semibold">
-                  <CheckCircle2 className={`size-4 ${plan.featured ? "text-white" : "text-[#58c49f]"}`} />
-                  <span className={plan.featured ? "text-white/90" : "text-[#3b3f62]"}>{feature}</span>
+      {isLoading ? (
+        // Skeleton: mobile slider, desktop grid
+        <div className="mt-14">
+          {/* Mobile skeleton slider */}
+          <div className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide lg:hidden">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex min-h-[460px] w-[80vw] max-w-[320px] shrink-0 snap-start flex-col rounded-[1.75rem] border border-slate-100 bg-white p-7 shadow-sm">
+                <Skeleton className="h-8 w-1/2 mb-4" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-3/4 mb-8" />
+                <Skeleton className="h-12 w-32 mb-12" />
+                <div className="space-y-4 flex-1">
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-4/6" />
+                  <Skeleton className="h-4 w-full" />
                 </div>
-              ))}
+                <Skeleton className="h-12 w-full mt-auto" />
+              </div>
+            ))}
+          </div>
+          {/* Desktop skeleton grid */}
+          <div className="hidden lg:grid gap-6 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex min-h-[460px] flex-col rounded-[1.75rem] border border-slate-100 bg-white p-7 shadow-sm">
+                <Skeleton className="h-8 w-1/2 mb-4" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-3/4 mb-8" />
+                <Skeleton className="h-12 w-32 mb-12" />
+                <div className="space-y-4 flex-1">
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-4/6" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+                <Skeleton className="h-12 w-full mt-auto" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : displayPlans.length === 0 ? (
+        <div className="mt-14 text-center py-16 text-[#888ca6] text-sm">
+          No active pricing plans at the moment. Check back soon!
+        </div>
+      ) : (
+        <div className="mt-14">
+          {/* Mobile: horizontal scroll slider with nav buttons */}
+          <div className="lg:hidden">
+            <div
+              ref={sliderRef}
+              className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
+            >
+              {displayPlans.map((plan: any) => {
+                const isFeatured = plan.is_featured ?? plan.featured
+                const price = plan.amount_inr !== undefined ? (plan.amount_inr === 0 ? "Custom" : `₹${plan.amount_inr}`) : plan.price
+                return (
+                  <article
+                    key={plan.id || plan.name}
+                    className={`relative flex min-h-[480px] w-[82vw] max-w-[330px] shrink-0 snap-start flex-col overflow-hidden rounded-[2rem] p-7 shadow-xl transition ${
+                      isFeatured
+                        ? "border-0 bg-gradient-to-br from-[#7c3aed] via-[#6d28d9] to-[#5b21b6] text-white shadow-[#7c3aed]/30"
+                        : "border border-[#eaedf8] bg-white text-[#232542] shadow-[#b8bdd8]/15"
+                    }`}
+                  >
+                    {isFeatured && (
+                      <span className="absolute right-6 top-6 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#7c3aed]">Best value</span>
+                    )}
+                    <PricingCardInner plan={plan} isFeatured={isFeatured} price={price} />
+                  </article>
+                )
+              })}
             </div>
 
-            <a
-              href="#cta"
-              className={`mt-auto inline-flex h-12 items-center justify-center rounded-md text-sm font-semibold transition ${
-                plan.featured
-                  ? "bg-white text-[#7c3aed] hover:bg-[#f3e8ff]"
-                  : "bg-[#7c3aed] text-white shadow-lg shadow-[#7c3aed]/20 hover:bg-[#6d28d9]"
-              }`}
-              suppressHydrationWarning
-            >
-              {plan.cta}
-            </a>
-          </article>
+            {/* Prev / Next buttons — only shown when >1 plan */}
+            {displayPlans.length > 1 && (
+              <div className="mt-5 flex items-center justify-center gap-3">
+                <button
+                  onClick={() => scrollSlider("left")}
+                  aria-label="Previous plan"
+                  className="flex size-11 items-center justify-center rounded-full border border-[#e0e3f5] bg-white shadow-sm text-[#7c3aed] transition hover:bg-[#7c3aed] hover:text-white active:scale-95"
+                >
+                  <ChevronLeft className="size-5" />
+                </button>
+                <button
+                  onClick={() => scrollSlider("right")}
+                  aria-label="Next plan"
+                  className="flex size-11 items-center justify-center rounded-full border border-[#e0e3f5] bg-white shadow-sm text-[#7c3aed] transition hover:bg-[#7c3aed] hover:text-white active:scale-95"
+                >
+                  <ChevronRight className="size-5" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop: smart grid */}
+          <div className={`hidden lg:grid gap-6 ${gridClass}`}>
+            {displayPlans.map((plan: any) => {
+              const isFeatured = plan.is_featured ?? plan.featured
+              const price = plan.amount_inr !== undefined ? (plan.amount_inr === 0 ? "Custom" : `₹${plan.amount_inr}`) : plan.price
+              return (
+                <article
+                  key={plan.id || plan.name}
+                  className={`relative flex min-h-[480px] flex-col overflow-hidden rounded-[2rem] p-7 shadow-xl transition duration-300 hover:-translate-y-2 hover:shadow-2xl ${
+                    isFeatured
+                      ? "border-0 bg-gradient-to-br from-[#7c3aed] via-[#6d28d9] to-[#5b21b6] text-white shadow-[#7c3aed]/30"
+                      : "border border-[#eaedf8] bg-white text-[#232542] shadow-[#b8bdd8]/15"
+                  }`}
+                >
+                  {isFeatured && (
+                    <span className="absolute right-6 top-6 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#7c3aed]">Best value</span>
+                  )}
+                  <PricingCardInner plan={plan} isFeatured={isFeatured} price={price} />
+                </article>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+
+function PricingCardInner({ plan, isFeatured, price }: { plan: any; isFeatured: boolean; price: string }) {
+  return (
+    <>
+      {/* Decorative orb for featured */}
+      {isFeatured && (
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+      )}
+
+      {/* Header */}
+      <div className="relative">
+        <div className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest mb-4 ${
+          isFeatured ? "bg-white/15 text-white" : "bg-[#f3e8ff] text-[#7c3aed]"
+        }`}>
+          {plan.name}
+        </div>
+
+        {/* Price */}
+        <div className="mt-1 flex items-end gap-1.5">
+          <span className={`text-[3.25rem] font-bold leading-none tracking-tight ${isFeatured ? "text-white" : "text-[#1a1d3a]"}`}>
+            {price}
+          </span>
+          {(plan.billing_period || plan.period) && (
+            <span className={`mb-1.5 text-sm font-medium ${isFeatured ? "text-white/60" : "text-[#9096b5]"}`}>
+              {plan.billing_period || plan.period}
+            </span>
+          )}
+        </div>
+
+        <p className={`mt-3 text-sm leading-6 ${isFeatured ? "text-white/70" : "text-[#6b6f8e]"}`}>
+          {plan.description}
+        </p>
+      </div>
+
+      {/* Divider */}
+      <div className={`my-6 h-px ${isFeatured ? "bg-white/15" : "bg-[#eaecf5]"}`} />
+
+      {/* Features */}
+      <div className="flex-1 space-y-3">
+        {(plan.features || []).map((feature: string) => (
+          <div key={feature} className="flex items-start gap-3">
+            <span className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
+              isFeatured ? "bg-white/20" : "bg-[#f3e8ff]"
+            }`}>
+              <CheckCircle2 className={`size-3 ${ isFeatured ? "text-white" : "text-[#7c3aed]"}`} />
+            </span>
+            <span className={`text-sm leading-6 ${ isFeatured ? "text-white/85" : "text-[#3d4169]"}`}>{feature}</span>
+          </div>
         ))}
       </div>
-    </section>
+
+      {/* CTA */}
+      <a
+        href="#cta"
+        className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold tracking-wide transition-all duration-200 ${
+          isFeatured
+            ? "bg-white text-[#7c3aed] hover:bg-[#f3e8ff] shadow-lg shadow-black/10"
+            : "bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-lg shadow-[#7c3aed]/25"
+        }`}
+        suppressHydrationWarning
+      >
+        {plan.cta || "Get Started"}
+        <ArrowRight className="size-4" />
+      </a>
+    </>
   )
 }
 

@@ -56,15 +56,6 @@ export default function AdminOverview() {
       href: "/admin/users"
     },
     {
-      title: "Total Payments Processed",
-      value: stats?.payments || 0,
-      icon: CreditCard,
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-      border: "border-emerald-100",
-      href: "/admin/payments"
-    },
-    {
       title: "Storage Subscriptions",
       value: stats?.storagePurchases || 0,
       icon: HardDrive,
