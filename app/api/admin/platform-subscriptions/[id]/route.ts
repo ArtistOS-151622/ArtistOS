@@ -10,7 +10,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (isNaN(id)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 })
 
     const body = await req.json()
-    const { name, description, amount_inr, billing_period, features, is_active, is_featured } = body
+    const { name, description, amount_inr, billing_period, features, is_active, is_featured, duration_in_days } = body
 
     const { data, error } = await supabase
       .from("platform_subscriptions")
@@ -21,7 +21,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         billing_period,
         features: features || [],
         is_active,
-        is_featured
+        is_featured,
+        duration_in_days
       })
       .eq("id", id)
       .select()

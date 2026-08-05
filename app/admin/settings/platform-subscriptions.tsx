@@ -15,6 +15,7 @@ export type PlatformSubscription = {
   features: string[]
   is_active: boolean
   is_featured: boolean
+  duration_in_days: number
 }
 
 export function PlatformSubscriptionsTab() {
@@ -51,9 +52,10 @@ export function PlatformSubscriptionsTab() {
       description: "",
       amount_inr: 0,
       billing_period: "/month",
-      features: [""],
+      features: ["One Month Free to Use", "Client CRM", "Portfolio gallery", "Booking calendar"],
       is_active: true,
-      is_featured: false
+      is_featured: false,
+      duration_in_days: 30
     })
   }
 
@@ -334,15 +336,21 @@ export function PlatformSubscriptionsTab() {
                   <FloatingInput 
                     label="Amount (₹)" 
                     type="number"
-                    value={editingPlan.amount_inr} 
-                    onChange={e => updateDraft("amount_inr", Number(e.target.value))} 
+                    value={editingPlan.amount_inr}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, amount_inr: Number(e.target.value) })}
                   />
                   <FloatingInput 
-                    label="Billing Period (e.g. /month)" 
-                    value={editingPlan.billing_period} 
-                    onChange={e => updateDraft("billing_period", e.target.value)} 
+                    label="Duration (in days)" 
+                    type="number"
+                    value={editingPlan.duration_in_days || 30}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, duration_in_days: Number(e.target.value) })}
                   />
                 </div>
+                <FloatingInput 
+                  label="Billing Period Text (e.g. /month)" 
+                  value={editingPlan.billing_period}
+                  onChange={(e) => setEditingPlan({ ...editingPlan, billing_period: e.target.value })}
+                />
                 <FloatingTextarea 
                   label="Description" 
                   value={editingPlan.description || ""} 
