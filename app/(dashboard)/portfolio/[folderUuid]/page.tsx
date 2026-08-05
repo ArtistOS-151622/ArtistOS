@@ -304,10 +304,10 @@ export default function PortfolioFolderPage() {
               <Share2 className={cn("size-4", folder?.is_shared ? "text-white" : "text-[#7c3aed]")} />
             </Button>
 
-            {/* Storage Pill + Upload Button — Desktop */}
+            {/* Storage Pill — Desktop */}
             <div className="hidden md:flex items-center gap-2">
               {quota && (
-                <div className="flex md:hidden items-center gap-2 h-9 sm:h-10 px-3 rounded-xl border border-slate-200/80 bg-slate-50/80 shrink-0">
+                <div className="flex items-center gap-2 h-9 sm:h-10 px-3 rounded-xl border border-slate-200/80 bg-slate-50/80 shrink-0">
                   <HardDrive className="size-3.5 text-[#7c3aed] shrink-0" />
                   <div className="flex flex-col items-start min-w-[72px]">
                     <div className="flex items-center justify-between w-full">
@@ -328,8 +328,10 @@ export default function PortfolioFolderPage() {
                   </div>
                 </div>
               )}
-              <PortfolioUploader folderId={folder?.id} onUploaded={() => void loadFolder(true)} label="Upload File" />
             </div>
+
+            {/* Desktop Only Inline Upload Button + Universal Floating FAB */}
+            <PortfolioUploader folderId={folder?.id} onUploaded={() => void loadFolder(true)} label="Upload File" className="hidden md:inline-flex" />
           </div>
         </div>
       </div>

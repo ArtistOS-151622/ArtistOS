@@ -211,7 +211,7 @@ export function PortfolioUploader({
   }, [allFinished])
 
   return (
-    <div className={cn("inline-block", className)}>
+    <div className="inline-block">
       <input
         ref={inputRef}
         type="file"
@@ -227,7 +227,7 @@ export function PortfolioUploader({
         type="button"
         size="sm"
         disabled={uploading}
-        className="rounded-xl h-9 sm:h-10 bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-600/20 font-semibold px-2.5 sm:px-4"
+        className={cn("rounded-xl h-9 sm:h-10 bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-600/20 font-semibold px-2.5 sm:px-4", className)}
         onClick={() => inputRef.current?.click()}
       >
         {uploading ? (
@@ -238,32 +238,8 @@ export function PortfolioUploader({
         <span className="hidden sm:inline ml-1.5">{label}</span>
       </Button>
 
-      {/* Floating Upload FAB — Mobile: bottom-right circle */}
-      {!showDrawer && (
-        <button
-          type="button"
-          disabled={uploading}
-          onClick={() => inputRef.current?.click()}
-          title="Upload files"
-          className={cn(
-            "md:hidden fixed bottom-6 right-4 z-50",
-            "size-13 rounded-full flex items-center justify-center",
-            "bg-[#7c3aed] hover:bg-[#6d28d9] text-white",
-            "shadow-xl shadow-purple-600/40",
-            "transition-all duration-200 active:scale-95",
-            "disabled:opacity-60 disabled:cursor-not-allowed",
-            "border-2 border-purple-400/30"
-          )}
-        >
-          {uploading ? (
-            <Loader2 className="size-5 animate-spin" />
-          ) : (
-            <Upload className="size-5" />
-          )}
-        </button>
-      )}
 
-      {/* Floating Upload FAB — Desktop: right-edge expanding pill */}
+      {/* Floating Upload FAB — Universal: right-edge expanding pill */}
       {!showDrawer && (
         <button
           type="button"
@@ -271,7 +247,7 @@ export function PortfolioUploader({
           onClick={() => inputRef.current?.click()}
           title="Upload files"
           className={cn(
-            "hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 z-40 group",
+            "flex fixed right-0 top-1/2 -translate-y-1/2 z-[99] group",
             "items-center gap-2.5 rounded-l-2xl",
             "bg-[#7c3aed] hover:bg-[#6d28d9] text-white",
             "shadow-xl shadow-purple-600/40",
