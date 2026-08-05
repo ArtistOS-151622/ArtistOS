@@ -1,5 +1,6 @@
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { FolderOpen, LayoutGrid, Grid3x3, List, Pencil, Share2, Trash2, MoreVertical, FileText, Image as ImageIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -29,12 +30,13 @@ function FolderPreviewImage({ url }: { url: string }) {
   return (
     <div className="relative size-full overflow-hidden bg-[#ffffff26]">
       {!loaded && <Skeleton className="absolute inset-0 size-full rounded-none bg-white/20 animate-pulse" />}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={url}
         alt="preview"
+        fill
+        sizes="100px"
         onLoad={() => setLoaded(true)}
-        className={cn("size-full object-cover transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")}
+        className={cn("object-cover transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")}
       />
     </div>
   )

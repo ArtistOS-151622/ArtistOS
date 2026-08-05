@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import {
   FileArchive,
   FileAudio,
@@ -55,12 +56,13 @@ function FileImageWithSkeleton({ src, alt }: { src: string; alt: string }) {
   return (
     <div className="relative h-full w-full overflow-hidden bg-slate-100">
       {!loaded && <Skeleton className="absolute inset-0 h-full w-full rounded-none bg-slate-200/80" />}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={src}
         alt={alt}
+        fill
+        sizes="(max-width: 768px) 300px, 400px"
         onLoad={() => setLoaded(true)}
-        className={cn("h-full w-full object-cover transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")}
+        className={cn("object-cover transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")}
       />
     </div>
   )

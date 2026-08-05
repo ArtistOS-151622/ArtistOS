@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, FolderPlus, HardDrive, LayoutGrid, List, Loader2, Search, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { useCallback, useState } from "react";
+import useSWR from "swr";
+import { CheckCircle2, FolderPlus, HardDrive, LayoutGrid, List, Loader2, Search, ShieldCheck, Sparkles, Trash2, Zap } from "lucide-react";
 
 import { HeaderPortal, PageHeader } from "@/components/common/dashboard/dashboard-header-context";
 import { AppModal } from "@/components/common/shared/app-modal";
@@ -27,13 +28,19 @@ import type {
 } from "@/lib/portfolio/types";
 import { cn } from "@/lib/utils";
 
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function PortfolioPage() {
-  const [folders, setFolders] = useState<PortfolioFolderWithStats[]>([]);
-  const [quota, setQuota] = useState<QuotaInfo | null>(null);
-  const [plans, setPlans] = useState<StoragePlanRow[]>([]);
-  const [gstRate, setGstRate] = useState<number>(0.18);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const foldersUrl = `/api/portfolio/folders${search ? `?search=${encodeURIComponent(search)}` : ""}`;
+  const { data: foldersJson, mutate: mutateFolders, isLoading: isLoadingFolders } = useSWR(foldersUrl, fetcher);
+  const { data: storageJson, mutate: mutateStorage, isLoading: isLoadingStorage } = useSWR('/api/portfolio/storage-info', fetcher);
+
+  const folders: PortfolioFolderWithStats[] = foldersJson?.status ? foldersJson.data.folders : [];
+  const quota: QuotaInfo | null = storageJson?.status ? storageJson.data.quota : null;
+  const plans: StoragePlanRow[] = storageJson?.status ? (storageJson.data.plans ?? []) : [];
+  const gstRate: number = storageJson?.status && storageJson.data.gstRate !== undefined ? storageJson.data.gstRate : 0.18;
+  const loading = isLoadingFolders || isLoadingStorage;
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [storageDrawerOpen, setStorageDrawerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -42,6 +49,8 @@ export default function PortfolioPage() {
     useState<PortfolioFolderWithStats | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [deleteFolderId, setDeleteFolderId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [editFolder, setEditFolder] =
     useState<PortfolioFolderWithStats | null>(null);
@@ -49,34 +58,7 @@ export default function PortfolioPage() {
   const [updatingFolder, setUpdatingFolder] = useState(false);
   const [editError, setEditError] = useState("");
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [foldersRes, storageRes] = await Promise.all([
-        fetch(
-          `/api/portfolio/folders${search ? `?search=${encodeURIComponent(search)}` : ""}`,
-        ),
-        fetch("/api/portfolio/storage-info"),
-      ]);
-      const foldersJson = await foldersRes.json();
-      const storageJson = await storageRes.json();
 
-      if (foldersJson.status) setFolders(foldersJson.data.folders);
-      if (storageJson.status) {
-        setQuota(storageJson.data.quota);
-        setPlans(storageJson.data.plans ?? []);
-        if (storageJson.data.gstRate !== undefined) {
-          setGstRate(storageJson.data.gstRate);
-        }
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [search]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
 
   async function handleCreateFolder() {
     if (!newFolderName.trim()) return;
@@ -92,7 +74,8 @@ export default function PortfolioPage() {
       if (!json.status) throw new Error(json.message);
       setCreateOpen(false);
       setNewFolderName("");
-      void loadData();
+      void mutateFolders();
+      void mutateStorage();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create folder");
     } finally {
@@ -100,10 +83,23 @@ export default function PortfolioPage() {
     }
   }
 
-  async function handleDeleteFolder(id: number) {
-    if (!confirm("Delete this folder and all its files?")) return;
-    await fetch(`/api/portfolio/folders/${id}`, { method: "DELETE" });
-    void loadData();
+  function handleDeleteFolder(id: number) {
+    setDeleteFolderId(id);
+  }
+
+  async function confirmDeleteFolder() {
+    if (!deleteFolderId) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/portfolio/folders/${deleteFolderId}`, { method: "DELETE" });
+      setDeleteFolderId(null);
+      void mutateFolders();
+      void mutateStorage();
+    } catch (err) {
+      console.error("Failed to delete folder:", err);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleUpdateFolder() {
@@ -120,7 +116,7 @@ export default function PortfolioPage() {
       if (!json.status) throw new Error(json.message);
       setEditFolder(null);
       setEditFolderName("");
-      void loadData();
+      void mutateFolders();
     } catch (err) {
       setEditError(
         err instanceof Error ? err.message : "Failed to update folder",
@@ -466,11 +462,46 @@ export default function PortfolioPage() {
         </div>
       </AppModal>
 
+      <AppModal
+        open={!!deleteFolderId}
+        icon={<Trash2 className="size-5 text-rose-500" />}
+        onClose={() => setDeleteFolderId(null)}
+        title="Delete Folder"
+        description="Are you sure you want to delete this folder and all its files?"
+        footer={
+          <div className="flex gap-3 w-full">
+            <Button
+              variant="outline"
+              className="flex-1 h-11 rounded-2xl"
+              onClick={() => setDeleteFolderId(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 h-11 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-semibold shadow-md shadow-rose-500/20"
+              disabled={deleting}
+              onClick={() => void confirmDeleteFolder()}
+            >
+              {deleting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </div>
+        }
+      >
+        <div className="text-sm text-slate-600">
+          This action cannot be undone. This will permanently delete the folder and remove access for anyone you've shared it with.
+        </div>
+      </AppModal>
+
       <PortfolioShareModal
         open={!!shareFolder}
         onClose={() => setShareFolder(null)}
         folder={shareFolder}
-        onUpdated={loadData}
+        onUpdated={() => void mutateFolders()}
       />
 
       <StoragePlansModal
@@ -478,7 +509,7 @@ export default function PortfolioPage() {
         onClose={() => setPlansOpen(false)}
         plans={plans}
         gstRate={gstRate}
-        onSuccess={loadData}
+        onSuccess={() => { void mutateFolders(); void mutateStorage(); }}
       />
     </>
   );

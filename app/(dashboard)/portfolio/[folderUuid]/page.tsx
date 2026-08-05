@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
+import useSWR from "swr"
 import Link from "next/link"
 import { ArrowLeft, Download, FolderOpen, HardDrive, LayoutGrid, List, Loader2, Search, Share2, Trash2, X } from "lucide-react"
 import { useParams } from "next/navigation"
@@ -17,55 +18,38 @@ import { Input } from "@/components/ui/input"
 import type { PortfolioFileWithUrl, PortfolioFolderWithStats, QuotaInfo } from "@/lib/portfolio/types"
 import { cn } from "@/lib/utils"
 
+const fetcher = (url: string) => fetch(url).then(res => res.json())
+
 export default function PortfolioFolderPage() {
   const params = useParams()
   const folderUuid = params.folderUuid as string
 
-  const [folder, setFolder] = useState<PortfolioFolderWithStats | null>(null)
-  const [files, setFiles] = useState<PortfolioFileWithUrl[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: foldersJson, mutate: mutateFolders } = useSWR("/api/portfolio/folders", fetcher)
+  const { data: storageJson } = useSWR("/api/portfolio/storage-info", fetcher)
+
+  const folder: PortfolioFolderWithStats | null = (foldersJson?.data?.folders ?? []).find(
+    (f: PortfolioFolderWithStats) => f.uuid === folderUuid
+  ) ?? null
+
+  const filesUrl = folder ? `/api/portfolio/folders?folder_id=${folder.id}` : null
+  const { data: filesJson, mutate: mutateFiles, isLoading: isLoadingFiles } = useSWR(filesUrl, fetcher)
+
+  const files: PortfolioFileWithUrl[] = filesJson?.status ? filesJson.data.files : []
+  const quota: QuotaInfo | null = storageJson?.status ? storageJson.data.quota : null
+
+  const loading = Boolean(!foldersJson || (folder && isLoadingFiles))
+
   const [previewFile, setPreviewFile] = useState<PortfolioFileWithUrl | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [search, setSearch] = useState("")
-  const [quota, setQuota] = useState<QuotaInfo | null>(null)
-
-  const loadFolder = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true)
-    try {
-      const [foldersRes, storageRes] = await Promise.all([
-        fetch("/api/portfolio/folders"),
-        fetch("/api/portfolio/storage-info"),
-      ])
-      const foldersJson = await foldersRes.json()
-      const storageJson = await storageRes.json()
-
-      const match = (foldersJson.data?.folders ?? []).find(
-        (f: PortfolioFolderWithStats) => f.uuid === folderUuid
-      )
-      setFolder(match ?? null)
-
-      if (storageJson.status) setQuota(storageJson.data.quota)
-
-      if (match) {
-        const filesRes = await fetch(`/api/portfolio/folders?folder_id=${match.id}`)
-        const filesJson = await filesRes.json()
-        if (filesJson.status) setFiles(filesJson.data.files)
-      }
-    } finally {
-      if (!isSilent) setLoading(false)
-    }
-  }, [folderUuid])
-
-  useEffect(() => {
-    void loadFolder()
-  }, [loadFolder])
 
   async function handleDeleteFile(id: number) {
     await fetch(`/api/portfolio/files/${id}`, { method: "DELETE" })
-    void loadFolder()
+    void mutateFiles()
+    void mutateFolders()
   }
 
   async function handleBulkDelete() {
@@ -76,7 +60,8 @@ export default function PortfolioFolderPage() {
     })
     setSelectedIds([])
     setDeleteOpen(false)
-    void loadFolder()
+    void mutateFiles()
+    void mutateFolders()
   }
 
   async function handleBulkDownload() {
@@ -306,7 +291,7 @@ export default function PortfolioFolderPage() {
 
 
             {/* Desktop Only Inline Upload Button + Universal Floating FAB */}
-            <PortfolioUploader folderId={folder?.id} onUploaded={() => void loadFolder(true)} label="Upload File" className="hidden md:inline-flex" />
+            <PortfolioUploader folderId={folder?.id} onUploaded={() => { void mutateFiles(); void mutateFolders(); }} label="Upload File" className="hidden md:inline-flex" />
           </div>
         </div>
       </div>
@@ -342,7 +327,7 @@ export default function PortfolioFolderPage() {
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         folder={folder}
-        onUpdated={loadFolder}
+        onUpdated={() => void mutateFolders()}
       />
 
       <ConfirmDialog
