@@ -113,12 +113,13 @@ export function DashboardTopbar() {
         </div>
       </div>
 
-      {/* Mobile Search Slot (if present) */}
-      {/* {searchSlot && (
-        <div className="w-full md:hidden">
-          {searchSlot}
+      {/* Mobile Search & Actions Slot */}
+      {(searchSlot || actionsSlot) && (
+        <div className="flex flex-col gap-2.5 w-full max-w-full min-w-0 md:hidden pt-1">
+          {searchSlot && <div className="w-full max-w-full min-w-0">{searchSlot}</div>}
+          {actionsSlot && <div className="w-full max-w-full min-w-0">{actionsSlot}</div>}
         </div>
-      )} */}
+      )}
     </header>
   );
 }

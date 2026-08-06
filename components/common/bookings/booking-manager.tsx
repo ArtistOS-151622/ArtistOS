@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { format } from "date-fns";
 import { Calendar, Filter, Plus, Search, LayoutGrid } from "lucide-react";
 
 import { SkeletonCard } from "@/components/common/shared/skeleton-card";
+import { BookingDateFilter } from "@/components/common/bookings/booking-date-filter";
 import { AppModal } from "@/components/common/shared/app-modal";
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog";
 import { BookingCard } from "@/components/common/bookings/booking-card";
@@ -45,6 +47,8 @@ export function BookingManager() {
   const initialPage = Math.max(1, Number(searchParams.get("page")) || 1);
   const initialSearch = searchParams.get("search") ?? "";
   const initialStatus = searchParams.get("status") ?? "all";
+  const initialDate = searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd");
+  const [date, setDate] = useState(initialDate);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [values, setValues] = useState<BookingFormValues>(emptyBookingForm);
   const [formOpen, setFormOpen] = useState(false);
@@ -99,6 +103,12 @@ export function BookingManager() {
       nextParams.delete("status");
     }
 
+    if (date) {
+      nextParams.set("date", date);
+    } else {
+      nextParams.delete("date");
+    }
+
     nextParams.delete("add");
 
     const query = nextParams.toString();
@@ -122,7 +132,7 @@ export function BookingManager() {
 
     try {
       const res = await fetch(
-        `/api/bookings?page=${pageNum}&search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}`,
+        `/api/bookings?page=${pageNum}&search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}&start_date=${date}&end_date=${date}`,
       );
       const data = (await res.json()) as BookingsResponse;
 
@@ -156,7 +166,7 @@ export function BookingManager() {
       const responses = await Promise.all(
         Array.from({ length: pageNum }, (_, index) =>
           fetch(
-            `/api/bookings?page=${index + 1}&search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}`,
+            `/api/bookings?page=${index + 1}&search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}&start_date=${date}&end_date=${date}`,
           ),
         ),
       );
@@ -199,7 +209,7 @@ export function BookingManager() {
     // The fetch helpers read the latest state; search/status are the only
     // values that should restart this debounce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, statusFilter]);
+  }, [search, statusFilter, date]);
 
   async function saveBooking() {
     setLoading(true);
@@ -301,201 +311,111 @@ export function BookingManager() {
 
   useEffect(() => {
     if (searchParams && searchParams.get("add") === "true") {
-      startCreate();
+      const timeout = window.setTimeout(() => {
+        startCreate();
+      }, 0);
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("add");
       const query = newParams.toString();
       router.replace(`/bookings${query ? `?${query}` : ""}`);
+      return () => window.clearTimeout(timeout);
     }
   }, [searchParams, router]);
 
   return (
-    <div className="space-y-5">
+    <div className="w-full max-w-full min-w-0 space-y-4 overflow-hidden sm:space-y-5">
       {/* Desktop Header Portal */}
       <HeaderPortal
         search={
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full md:w-72 lg:w-80">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#858aa5]" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search booking..."
-              className="h-11 rounded-2xl border-slate-100/80 bg-white pl-10 shadow-md shadow-purple-950/5 w-full"
+              className="h-11 w-full rounded-2xl border-white/80 bg-white/90 pl-10 shadow-md shadow-purple-950/5 backdrop-blur placeholder:text-slate-400"
             />
           </div>
         }
         actions={
-          <div className="flex items-center gap-2">
-            <div className="flex bg-slate-100/50 rounded-2xl p-1 h-11 items-center border border-slate-100/80 shadow-inner">
+          <div className="flex w-full max-w-full min-w-0 items-center justify-between gap-2 overflow-hidden md:w-auto md:justify-end">
+            <div className="flex h-11 shrink-0 items-center rounded-2xl border border-white/80 bg-white/65 p-1 shadow-inner shadow-purple-950/5 backdrop-blur">
               <Button
+                aria-label="List view"
                 variant={viewMode === "list" ? "default" : "ghost"}
                 className={cn(
-                  "h-9 rounded-xl px-3 sm:px-4 flex items-center gap-2 transition-all",
+                  "flex h-9 w-10 items-center justify-center rounded-xl p-0 transition-all sm:w-11",
                   viewMode === "list"
                     ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                    : "text-slate-500 hover:bg-white/60 hover:text-slate-800"
                 )}
                 onClick={() => setViewMode("list")}
               >
                 <LayoutGrid className="size-4" />
-                {/* <span className="hidden sm:inline">Cards</span> */}
               </Button>
               <Button
+                aria-label="Calendar view"
                 variant={viewMode === "calendar" ? "default" : "ghost"}
                 className={cn(
-                  "h-9 rounded-xl px-3 sm:px-4 flex items-center gap-2 transition-all",
+                  "flex h-9 w-10 items-center justify-center rounded-xl p-0 transition-all sm:w-11",
                   viewMode === "calendar"
                     ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                    : "text-slate-500 hover:bg-white/60 hover:text-slate-800"
                 )}
                 onClick={() => setViewMode("calendar")}
               >
                 <Calendar className="size-4" />
-                {/* <span className="hidden sm:inline">Calendar</span> */}
               </Button>
             </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className={cn(
-                  "inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-100/80 bg-white px-3 text-xs font-semibold shadow-md shadow-purple-950/5 outline-none transition hover:bg-slate-50",
-                  statusFilter !== "all" && "bg-purple-50 text-[#7c3aed] border-purple-200"
-                )}
+            <div className="flex items-center gap-2">
+              <Button
+                aria-label="Add booking"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#7c3aed] p-0 text-white shadow-md shadow-purple-950/10 hover:bg-[#6d28d9]"
+                onClick={startCreate}
               >
-                <Filter className="size-4 text-[#7c3aed]" />
-                <span className="capitalize">{statusFilter === "all" ? "All Status" : statusFilter}</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
-                <DropdownMenuLabel className="text-xs font-semibold text-slate-500 px-2 py-1">
-                  Filter Status
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup value={statusFilter} onValueChange={setStatusFilter}>
-                  <DropdownMenuRadioItem value="all" className="rounded-xl cursor-pointer">
-                    All Statuses
-                  </DropdownMenuRadioItem>
+                <Plus className="size-5" />
+              </Button>
 
-                  <DropdownMenuRadioItem value="confirmed" className="rounded-xl cursor-pointer">
-                    Confirmed
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="pending" className="rounded-xl cursor-pointer">
-                    Pending
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="completed" className="rounded-xl cursor-pointer">
-                    Completed
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="canceled" className="rounded-xl cursor-pointer">
-                    Canceled
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={cn(
+                    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/80 bg-white/90 p-0 shadow-md shadow-purple-950/5 outline-none transition hover:bg-slate-50",
+                    statusFilter !== "all" && "bg-purple-50 text-[#7c3aed] border-purple-200"
+                  )}
+                  aria-label="Filter bookings"
+                >
+                  <Filter className="size-5 text-[#7c3aed]" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
+                  <DropdownMenuLabel className="text-xs font-semibold text-slate-500 px-2 py-1">
+                    Filter Status
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup value={statusFilter} onValueChange={setStatusFilter}>
+                    <DropdownMenuRadioItem value="all" className="rounded-xl cursor-pointer">
+                      All Statuses
+                    </DropdownMenuRadioItem>
 
-            <Button
-              className="h-11 rounded-2xl bg-[#7c3aed] text-white shadow-md shadow-purple-950/10 hover:bg-[#6d28d9]"
-              onClick={startCreate}
-            >
-              <Plus className="size-4" />
-              Add booking
-            </Button>
+                    <DropdownMenuRadioItem value="confirmed" className="rounded-xl cursor-pointer">
+                      Confirmed
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="pending" className="rounded-xl cursor-pointer">
+                      Pending
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="completed" className="rounded-xl cursor-pointer">
+                      Completed
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="canceled" className="rounded-xl cursor-pointer">
+                      Canceled
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         }
       />
-
-      {/* Mobile Control Row: View Toggle & Search/Filter */}
-      <div className="flex flex-col gap-3 w-full md:hidden">
-        
-        
-        <div className="flex items-center gap-2 w-full">
-        {/* 80% Width Search */}
-        <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#858aa5]" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search booking..."
-            className="h-11 rounded-2xl border-slate-100/80 bg-white pl-10 shadow-md shadow-purple-950/5 w-full text-sm"
-          />
-        </div>
-
-        <div className="flex bg-slate-100/50 rounded-2xl p-1 h-11 items-center border border-slate-100/80 shadow-inner">
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            className={cn(
-              "flex-1 h-9 rounded-xl px-3 flex items-center justify-center gap-2 transition-all",
-              viewMode === "list"
-                ? "bg-white text-slate-800 shadow-sm"
-                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-            )}
-            onClick={() => setViewMode("list")}
-          >
-            <LayoutGrid className="size-4" />
-            {/* <span>Cards</span> */}
-          </Button>
-          <Button
-            variant={viewMode === "calendar" ? "default" : "ghost"}
-            className={cn(
-              "flex-1 h-9 rounded-xl px-3 flex items-center justify-center gap-2 transition-all",
-              viewMode === "calendar"
-                ? "bg-white text-slate-800 shadow-sm"
-                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-            )}
-            onClick={() => setViewMode("calendar")}
-          >
-            <Calendar className="size-4" />
-            {/* <span>Calendar</span> */}
-          </Button>
-        </div>
-
-        {/* 10% Width Add Booking Button (Plus Icon Only) */}
-        <Button
-          type="button"
-          aria-label="Add booking"
-          className="h-11 w-11 shrink-0 rounded-2xl bg-[#7c3aed] text-white p-0 shadow-md shadow-purple-950/10 hover:bg-[#6d28d9] flex items-center justify-center"
-          onClick={startCreate}
-        >
-          <Plus className="size-5" />
-        </Button>
-
-        
-
-        {/* 10% Width Filter Button (Funnel Icon Only) */}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label="Filter bookings"
-            className={cn(
-              "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-100/80 bg-white p-0 shadow-md shadow-purple-950/5 outline-none transition hover:bg-slate-50",
-              statusFilter !== "all" && "bg-purple-50 text-[#7c3aed] border-purple-200"
-            )}
-          >
-            <Filter className="size-5 text-[#7c3aed]" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
-            <DropdownMenuLabel className="text-xs font-semibold text-slate-500 px-2 py-1">
-              Filter Status
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup value={statusFilter} onValueChange={setStatusFilter}>
-              <DropdownMenuRadioItem value="all" className="rounded-xl cursor-pointer">
-                All Statuses
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="confirmed" className="rounded-xl cursor-pointer">
-                Confirmed
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="pending" className="rounded-xl cursor-pointer">
-                Pending
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="completed" className="rounded-xl cursor-pointer">
-                Completed
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="canceled" className="rounded-xl cursor-pointer">
-                Canceled
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        </div>
-      </div>
 
       {error ? (
         <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
@@ -503,19 +423,32 @@ export function BookingManager() {
         </p>
       ) : null}
 
+      {viewMode === "list" && (
+        <BookingDateFilter
+          selectedDate={date}
+          onChange={(newDate) => {
+            setDate(newDate);
+            const nextParams = new URLSearchParams(searchParams.toString());
+            nextParams.set("date", newDate);
+            nextParams.delete("page");
+            router.replace(`/bookings?${nextParams.toString()}`, { scroll: false });
+          }}
+        />
+      )}
+
       {viewMode === "calendar" ? (
         <ArtistCalendar />
       ) : initialLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 min-[900px]:grid-cols-2 2xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
       ) : bookings.length ? (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 min-[900px]:grid-cols-2 2xl:grid-cols-3">
             {bookings.map((booking) => (
-              <div key={booking.id} data-booking-id={booking.id}>
+              <div key={booking.id} className="min-w-0" data-booking-id={booking.id}>
                 <BookingCard
                   booking={booking}
                   onEdit={startEdit}
@@ -539,8 +472,8 @@ export function BookingManager() {
           ) : null}
         </>
       ) : (
-        <Card className="rounded-[1.75rem] border-dashed border-slate-200 bg-white/80 shadow-md shadow-purple-950/5">
-          <CardContent className="flex flex-col items-center justify-center p-10 text-center">
+        <Card className="rounded-[1.5rem] border-dashed border-slate-200 bg-white/80 shadow-md shadow-purple-950/5 backdrop-blur">
+          <CardContent className="flex flex-col items-center justify-center px-5 py-10 text-center sm:p-12">
             <div className="flex size-12 items-center justify-center rounded-2xl bg-[#f3e8ff] text-[#7c3aed]">
               <Plus className="size-5" />
             </div>
