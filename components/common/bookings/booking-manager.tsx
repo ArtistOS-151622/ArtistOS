@@ -324,27 +324,27 @@ export function BookingManager() {
 
   return (
     <div className="w-full max-w-full min-w-0 space-y-4 overflow-hidden sm:space-y-5">
-      {/* Desktop Header Portal */}
+      {/* Header Portal */}
       <HeaderPortal
         search={
-          <div className="relative w-full md:w-72 lg:w-80">
+          <div className="relative w-full md:w-64 lg:w-72">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#858aa5]" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search booking..."
-              className="h-11 w-full rounded-2xl border-white/80 bg-white/90 pl-10 shadow-md shadow-purple-950/5 backdrop-blur placeholder:text-slate-400"
+              className="h-11 w-full rounded-2xl border-white/80 bg-white/90 pl-10 text-sm shadow-md shadow-purple-950/5 backdrop-blur placeholder:text-slate-400"
             />
           </div>
         }
         actions={
-          <div className="flex w-full max-w-full min-w-0 items-center justify-between gap-2 overflow-hidden md:w-auto md:justify-end">
+          <div className="flex items-center gap-2 shrink-0">
             <div className="flex h-11 shrink-0 items-center rounded-2xl border border-white/80 bg-white/65 p-1 shadow-inner shadow-purple-950/5 backdrop-blur">
               <Button
                 aria-label="List view"
                 variant={viewMode === "list" ? "default" : "ghost"}
                 className={cn(
-                  "flex h-9 w-10 items-center justify-center rounded-xl p-0 transition-all sm:w-11",
+                  "flex h-9 w-9 md:w-10 items-center justify-center rounded-xl p-0 transition-all",
                   viewMode === "list"
                     ? "bg-white text-slate-800 shadow-sm"
                     : "text-slate-500 hover:bg-white/60 hover:text-slate-800"
@@ -357,7 +357,7 @@ export function BookingManager() {
                 aria-label="Calendar view"
                 variant={viewMode === "calendar" ? "default" : "ghost"}
                 className={cn(
-                  "flex h-9 w-10 items-center justify-center rounded-xl p-0 transition-all sm:w-11",
+                  "flex h-9 w-9 md:w-10 items-center justify-center rounded-xl p-0 transition-all",
                   viewMode === "calendar"
                     ? "bg-white text-slate-800 shadow-sm"
                     : "text-slate-500 hover:bg-white/60 hover:text-slate-800"
@@ -368,51 +368,51 @@ export function BookingManager() {
               </Button>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                aria-label="Add booking"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#7c3aed] p-0 text-white shadow-md shadow-purple-950/10 hover:bg-[#6d28d9]"
-                onClick={startCreate}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(
+                  "inline-flex h-11 w-11 md:w-auto items-center justify-center gap-2 rounded-2xl border border-white/80 bg-white/90 px-0 md:px-3 text-xs font-semibold shadow-md shadow-purple-950/5 outline-none transition hover:bg-slate-50 shrink-0",
+                  statusFilter !== "all" && "bg-purple-50 text-[#7c3aed] border-purple-200"
+                )}
+                aria-label="Filter bookings"
               >
-                <Plus className="size-5" />
-              </Button>
+                <Filter className="size-4 text-[#7c3aed]" />
+                <span className="hidden md:inline capitalize">{statusFilter === "all" ? "Sort / Filter" : statusFilter}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
+                <DropdownMenuLabel className="text-xs font-semibold text-slate-500 px-2 py-1">
+                  Filter Status
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={statusFilter} onValueChange={setStatusFilter}>
+                  <DropdownMenuRadioItem value="all" className="rounded-xl cursor-pointer">
+                    All Statuses
+                  </DropdownMenuRadioItem>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  className={cn(
-                    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/80 bg-white/90 p-0 shadow-md shadow-purple-950/5 outline-none transition hover:bg-slate-50",
-                    statusFilter !== "all" && "bg-purple-50 text-[#7c3aed] border-purple-200"
-                  )}
-                  aria-label="Filter bookings"
-                >
-                  <Filter className="size-5 text-[#7c3aed]" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
-                  <DropdownMenuLabel className="text-xs font-semibold text-slate-500 px-2 py-1">
-                    Filter Status
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuRadioGroup value={statusFilter} onValueChange={setStatusFilter}>
-                    <DropdownMenuRadioItem value="all" className="rounded-xl cursor-pointer">
-                      All Statuses
-                    </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="confirmed" className="rounded-xl cursor-pointer">
+                    Confirmed
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="pending" className="rounded-xl cursor-pointer">
+                    Pending
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="completed" className="rounded-xl cursor-pointer">
+                    Completed
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="canceled" className="rounded-xl cursor-pointer">
+                    Canceled
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-                    <DropdownMenuRadioItem value="confirmed" className="rounded-xl cursor-pointer">
-                      Confirmed
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="pending" className="rounded-xl cursor-pointer">
-                      Pending
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="completed" className="rounded-xl cursor-pointer">
-                      Completed
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="canceled" className="rounded-xl cursor-pointer">
-                      Canceled
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            <Button
+              aria-label="Add booking"
+              className="flex h-11 w-11 md:w-auto shrink-0 items-center justify-center rounded-2xl bg-[#7c3aed] px-0 md:px-4 text-white shadow-md shadow-purple-950/10 hover:bg-[#6d28d9]"
+              onClick={startCreate}
+            >
+              <Plus className="size-5 md:size-4" />
+              <span className="hidden md:inline ml-1.5 font-semibold">New booking</span>
+            </Button>
           </div>
         }
       />

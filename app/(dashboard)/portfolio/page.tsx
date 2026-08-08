@@ -137,13 +137,13 @@ export default function PortfolioPage() {
       <PageHeader title="Portfolio" />
       <HeaderPortal
         search={
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full md:w-64">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#858aa5]" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search folders…"
-              className="h-10 sm:h-11 rounded-2xl border-slate-100/80 bg-white pl-10 text-sm shadow-md shadow-purple-950/5 w-full"
+              className="h-11 rounded-2xl border-slate-100/80 bg-white pl-10 text-sm shadow-md shadow-purple-950/5 w-full"
             />
           </div>
         }
@@ -154,7 +154,7 @@ export default function PortfolioPage() {
               <button
                 type="button"
                 onClick={() => setStorageDrawerOpen(true)}
-                className="hidden md:flex items-center gap-2 h-10 sm:h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white hover:bg-slate-50 hover:border-purple-200 transition-all shadow-xs group"
+                className="hidden md:flex items-center gap-2 h-11 px-3.5 rounded-2xl border border-slate-200/80 bg-white hover:bg-slate-50 hover:border-purple-200 transition-all shadow-xs group"
                 title="Storage Usage"
               >
                 <HardDrive className="size-4 text-[#7c3aed] shrink-0 group-hover:rotate-12 transition-transform" />
@@ -178,12 +178,12 @@ export default function PortfolioPage() {
               </button>
             )}
 
-            <div className="flex bg-slate-100/50 rounded-2xl p-1 h-10 sm:h-11 items-center border border-slate-100/80 shadow-inner">
+            <div className="flex bg-slate-100/50 rounded-2xl p-1 h-11 items-center border border-slate-100/80 shadow-inner shrink-0">
               <Button
                 type="button"
                 variant={viewMode === "grid" ? "default" : "ghost"}
                 className={cn(
-                  "h-8 sm:h-9 rounded-xl px-3 flex items-center gap-1.5 transition-all",
+                  "h-9 rounded-xl px-2.5 sm:px-3 flex items-center justify-center gap-1.5 transition-all",
                   viewMode === "grid"
                     ? "bg-white text-slate-800 shadow-sm"
                     : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
@@ -197,7 +197,7 @@ export default function PortfolioPage() {
                 type="button"
                 variant={viewMode === "list" ? "default" : "ghost"}
                 className={cn(
-                  "h-8 sm:h-9 rounded-xl px-3 flex items-center gap-1.5 transition-all",
+                  "h-9 rounded-xl px-2.5 sm:px-3 flex items-center justify-center gap-1.5 transition-all",
                   viewMode === "list"
                     ? "bg-white text-slate-800 shadow-sm"
                     : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
@@ -210,72 +210,16 @@ export default function PortfolioPage() {
             </div>
 
             <Button
-              className="h-10 sm:h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-semibold shadow-md shadow-purple-600/20 px-4"
+              aria-label="New folder"
+              className="h-11 w-11 md:w-auto rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-semibold shadow-md shadow-purple-600/20 px-0 md:px-4 shrink-0 flex items-center justify-center"
               onClick={() => setCreateOpen(true)}
             >
-              <FolderPlus className="mr-1.5 size-4" />
-              <span className="hidden sm:inline">New Folder</span>
-              <span className="sm:hidden">Folder</span>
+              <FolderPlus className="size-5 md:size-4" />
+              <span className="hidden md:inline ml-1.5 font-semibold">New Folder</span>
             </Button>
           </div>
         }
       />
-
-      {/* Mobile Control Row: Search, Grid/List Switch & New Folder Button */}
-      <div className="flex items-center gap-2.5 w-full md:hidden mb-4">
-        {/* Search Input */}
-        <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search folders..."
-            className="h-11 rounded-2xl border-slate-200/80 bg-white pl-10 shadow-xs text-sm"
-          />
-        </div>
-
-        {/* View Switcher */}
-        <div className="flex bg-slate-100/70 rounded-2xl p-1 h-11 items-center border border-slate-200/60 shrink-0">
-          <Button
-            type="button"
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            className={cn(
-              "h-9 rounded-xl px-2.5 flex items-center justify-center transition-all",
-              viewMode === "grid"
-                ? "bg-white text-slate-800 shadow-xs"
-                : "text-slate-500 hover:text-slate-800"
-            )}
-            onClick={() => setViewMode("grid")}
-            title="Grid View"
-          >
-            <LayoutGrid className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant={viewMode === "list" ? "default" : "ghost"}
-            className={cn(
-              "h-9 rounded-xl px-2.5 flex items-center justify-center transition-all",
-              viewMode === "list"
-                ? "bg-white text-slate-800 shadow-xs"
-                : "text-slate-500 hover:text-slate-800"
-            )}
-            onClick={() => setViewMode("list")}
-            title="List View"
-          >
-            <List className="size-4" />
-          </Button>
-        </div>
-
-        {/* New Folder Button */}
-        <Button
-          type="button"
-          className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-600/20 px-3 shrink-0"
-          onClick={() => setCreateOpen(true)}
-          title="Create Folder"
-        >
-          <FolderPlus className="size-4" />
-        </Button>
-      </div>
 
       <div className="space-y-6 pb-12">
         {loading ? (

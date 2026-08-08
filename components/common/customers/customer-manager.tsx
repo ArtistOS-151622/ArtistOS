@@ -313,16 +313,16 @@ export function CustomerManager() {
 
   return (
     <div className="space-y-5">
-      {/* Desktop Header Portal */}
+      {/* Header Portal */}
       <HeaderPortal
         search={
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#858aa5]" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search customer..."
-              className="h-11 rounded-2xl border-slate-100/80 bg-white pl-10 shadow-md shadow-purple-950/5 w-full"
+              className="h-11 rounded-2xl border-slate-100/80 bg-white pl-10 shadow-md shadow-purple-950/5 w-full text-sm"
             />
           </div>
         }
@@ -331,12 +331,13 @@ export function CustomerManager() {
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
-                  "inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-100/80 bg-white px-3 text-xs font-semibold shadow-md shadow-purple-950/5 outline-none transition hover:bg-slate-50",
+                  "inline-flex h-11 w-11 md:w-auto items-center justify-center gap-2 rounded-2xl border border-slate-100/80 bg-white px-0 md:px-3 text-xs font-semibold shadow-md shadow-purple-950/5 outline-none transition hover:bg-slate-50 shrink-0",
                   sortBy !== "recent" && "bg-purple-50 text-[#7c3aed] border-purple-200"
                 )}
+                aria-label="Sort / Filter"
               >
                 <Filter className="size-4 text-[#7c3aed]" />
-                <span className="capitalize">{sortBy === "recent" ? "Sort / Filter" : sortBy}</span>
+                <span className="hidden md:inline capitalize">{sortBy === "recent" ? "Sort / Filter" : sortBy}</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
                 <DropdownMenuLabel className="text-xs font-semibold text-slate-500 px-2 py-1">
@@ -355,66 +356,16 @@ export function CustomerManager() {
             </DropdownMenu>
 
             <Button
-              className="h-11 rounded-2xl bg-[#7c3aed] text-white shadow-md shadow-purple-950/10 hover:bg-[#6d28d9]"
+              aria-label="Add customer"
+              className="h-11 w-11 md:w-auto rounded-2xl bg-[#7c3aed] text-white shadow-md shadow-purple-950/10 hover:bg-[#6d28d9] px-0 md:px-4 shrink-0 flex items-center justify-center"
               onClick={startCreate}
             >
-              <Plus className="size-4" />
-              Add customer
+              <Plus className="size-5 md:size-4" />
+              <span className="hidden md:inline ml-1.5 font-semibold">Add customer</span>
             </Button>
           </div>
         }
       />
-
-      {/* Mobile Control Row: 80% Search | 10% Plus Customer Button | 10% Funnel Filter Button */}
-      <div className="flex items-center gap-2 w-full md:hidden">
-        {/* 80% Width Search */}
-        <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#858aa5]" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search customer..."
-            className="h-11 rounded-2xl border-slate-100/80 bg-white pl-10 shadow-md shadow-purple-950/5 w-full text-sm"
-          />
-        </div>
-
-        {/* 10% Width Add Customer Button (Plus Icon Only) */}
-        <Button
-          type="button"
-          aria-label="Add customer"
-          className="h-11 w-11 shrink-0 rounded-2xl bg-[#7c3aed] text-white p-0 shadow-md shadow-purple-950/10 hover:bg-[#6d28d9] flex items-center justify-center"
-          onClick={startCreate}
-        >
-          <Plus className="size-5" />
-        </Button>
-
-        {/* 10% Width Filter Button (Funnel Icon Only) */}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label="Filter customers"
-            className={cn(
-              "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-100/80 bg-white p-0 shadow-md shadow-purple-950/5 outline-none transition hover:bg-slate-50",
-              sortBy !== "recent" && "bg-purple-50 text-[#7c3aed] border-purple-200"
-            )}
-          >
-            <Filter className="size-5 text-[#7c3aed]" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
-            <DropdownMenuLabel className="text-xs font-semibold text-slate-500 px-2 py-1">
-              Sort Customers
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
-              <DropdownMenuRadioItem value="recent" className="rounded-xl cursor-pointer">
-                Recently Added
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="name" className="rounded-xl cursor-pointer">
-                Name (A-Z)
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
 
       {error ? (
         <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
