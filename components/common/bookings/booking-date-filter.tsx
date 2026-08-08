@@ -13,6 +13,7 @@ import {
   format,
   getDaysInMonth,
   isSameDay,
+  isSameMonth,
   startOfMonth,
   startOfToday,
   subMonths,
@@ -138,48 +139,58 @@ export function BookingDateFilter({ selectedDate, onChange }: BookingDateFilterP
   }
 
   function changeCurrentMonth(month: Date) {
-    setCurrentMonth(month)
-    setPickerYear(month.getFullYear())
+    const nextMonth = startOfMonth(month)
+    setCurrentMonth(nextMonth)
+    setPickerYear(nextMonth.getFullYear())
+
+    const targetDate = isSameMonth(nextMonth, today) ? today : nextMonth
+    onChange(format(targetDate, "yyyy-MM-dd"))
   }
 
   const selectedCount = counts[selectedDate] ?? 0
 
   return (
     <div className="w-full max-w-full min-w-0 rounded-[1.5rem] border border-white/80 bg-white/80 p-3 shadow-lg shadow-purple-950/5 backdrop-blur sm:p-4">
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 max-w-full flex-1 items-center gap-2.5 overflow-hidden">
-          <div className="hidden size-10 shrink-0 items-center justify-center rounded-2xl bg-[#f5f3ff] text-[#7c3aed] sm:flex">
-            <CalendarDays className="size-5" />
+      <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-3">
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden sm:gap-2.5">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#f5f3ff] text-[#7c3aed] sm:size-10 sm:rounded-2xl">
+            <CalendarDays className="size-4 sm:size-5" />
           </div>
           <div className="min-w-0 flex-1 overflow-hidden">
-            <p className="truncate text-sm font-extrabold text-slate-900">
-              {selectedDate ? format(parseSelectedDate(selectedDate), "EEEE, dd MMMM") : "Select date"}
+            <p className="truncate text-xs font-extrabold text-slate-900 sm:text-sm">
+              <span className="sm:hidden">
+                {selectedDate ? format(parseSelectedDate(selectedDate), "EEE, dd MMM") : "Select date"}
+              </span>
+              <span className="hidden sm:inline">
+                {selectedDate ? format(parseSelectedDate(selectedDate), "EEEE, dd MMMM") : "Select date"}
+              </span>
             </p>
-            <p className="text-xs font-semibold text-slate-500">
+            <p className="truncate text-[11px] font-semibold text-slate-500 sm:text-xs">
               {bookingsCountLabel(selectedCount)}
             </p>
           </div>
         </div>
 
-        <div className="flex w-full min-w-0 items-center rounded-2xl border border-slate-100 bg-white p-1.5 shadow-sm shadow-purple-950/5 sm:w-auto sm:shrink-0">
+        <div className="flex shrink-0 items-center rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shadow-purple-950/5 sm:p-1.5">
           <button
             type="button"
             aria-label="Previous month"
             onClick={() => changeCurrentMonth(subMonths(currentMonth, 1))}
-            className="flex size-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+            className="flex size-7.5 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:size-9"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-3.5 sm:size-4" />
           </button>
 
           <div className="min-w-0 flex-1">
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex w-full min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 outline-none transition-colors hover:bg-slate-50 sm:w-[156px]">
-                <span className="truncate text-sm font-bold text-slate-800">
-                  {format(currentMonth, "MMMM yyyy")}
+              <DropdownMenuTrigger className="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 outline-none transition-colors hover:bg-slate-50 sm:gap-1.5 sm:px-2 sm:py-2 sm:w-[156px]">
+                <span className="truncate text-xs font-bold text-slate-800 sm:text-sm">
+                  <span className="sm:hidden">{format(currentMonth, "MMM yyyy")}</span>
+                  <span className="hidden sm:inline">{format(currentMonth, "MMMM yyyy")}</span>
                 </span>
-                <ChevronDown className="size-3.5 shrink-0 text-slate-400" />
+                <ChevronDown className="size-3 shrink-0 text-slate-400 sm:size-3.5" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="w-64 rounded-2xl border-slate-100 bg-white p-3 shadow-xl shadow-purple-950/10">
+              <DropdownMenuContent align="end" className="w-64 rounded-2xl border-slate-100 bg-white p-3 shadow-xl shadow-purple-950/10">
                 <div className="mb-3 flex items-center justify-between px-1">
                   <button
                     type="button"
@@ -229,7 +240,7 @@ export function BookingDateFilter({ selectedDate, onChange }: BookingDateFilterP
             type="button"
             aria-label="Next month"
             onClick={() => changeCurrentMonth(addMonths(currentMonth, 1))}
-            className="flex size-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+            className="flex size-7.5 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:size-9"
           >
             <ChevronRight className="size-4" />
           </button>
@@ -258,7 +269,7 @@ export function BookingDateFilter({ selectedDate, onChange }: BookingDateFilterP
               "flex w-full min-w-0 snap-x items-stretch gap-2 overflow-x-scroll overscroll-x-contain scroll-smooth px-0.5 pb-2 pt-1 touch-pan-x",
               isDragging ? "cursor-grabbing" : "cursor-grab",
             )}
-            style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "thin" }}
+            style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
           >
             {dates.map((date) => {
               const dateStr = format(date, "yyyy-MM-dd")
@@ -273,7 +284,7 @@ export function BookingDateFilter({ selectedDate, onChange }: BookingDateFilterP
                   data-selected={isSelected}
                   onClick={() => onChange(dateStr)}
                   className={cn(
-                    "relative flex h-[76px] min-w-[58px] shrink-0 snap-center select-none flex-col items-center justify-center rounded-2xl border px-2 transition-all sm:h-20 sm:min-w-[64px]",
+                    "relative flex h-[60px] min-w-[52px] shrink-0 snap-center select-none flex-col items-center justify-center rounded-md border px-2 transition-all sm:h-16 sm:min-w-[50px]",
                     isSelected
                       ? "border-[#7c3aed] bg-[#7c3aed] text-white shadow-lg shadow-purple-950/20"
                       : "border-slate-100 bg-white text-slate-500 shadow-sm shadow-purple-950/5 hover:border-purple-100 hover:bg-purple-50",
@@ -282,7 +293,7 @@ export function BookingDateFilter({ selectedDate, onChange }: BookingDateFilterP
                   {count > 0 && (
                     <span
                       className={cn(
-                        "absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full text-[10px] font-bold shadow-sm ring-2 ring-white",
+                        "absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-md text-[10px] font-bold shadow-sm ring-2 ring-white",
                         isSelected ? "bg-white text-[#7c3aed]" : "bg-[#7c3aed] text-white",
                       )}
                     >
@@ -305,7 +316,7 @@ export function BookingDateFilter({ selectedDate, onChange }: BookingDateFilterP
                   >
                     {format(date, "d")}
                   </span>
-                  <span
+                  {/* <span
                     className={cn(
                       "mt-2 h-1 w-5 rounded-full",
                       isToday
@@ -314,7 +325,7 @@ export function BookingDateFilter({ selectedDate, onChange }: BookingDateFilterP
                           : "bg-[#7c3aed]"
                         : "bg-transparent",
                     )}
-                  />
+                  /> */}
                 </button>
               )
             })}
