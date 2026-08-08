@@ -264,7 +264,7 @@ export function ServiceManager() {
       ) : services.length ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {services.map((service) => (
-            <div key={service.id} data-service-id={service.id}>
+            <div key={service.id} data-service-id={service.id} className="min-w-0 w-full">
               <ServiceCard
                 service={service}
                 onEdit={startEdit}
