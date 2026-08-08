@@ -19,9 +19,14 @@ export const metadata: Metadata = {
   description:
     "All-in-one booking, CRM, portfolio, marketing, payment, and dashboard platform for nail, mehendi, bridal, and beauty professionals.",
   icons: {
-    icon: "/icon.png",
+    icon: "/icons/icon-192x192.png",
     shortcut: "/favicon.ico",
-    apple: "/apple-icon.png",
+    apple: "/icons/icon-180x180.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "ArtistOS",
+    statusBarStyle: "default",
   },
 };
 

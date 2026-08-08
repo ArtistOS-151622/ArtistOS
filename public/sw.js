@@ -1,8 +1,20 @@
-const CACHE_NAME = "artistos-pwa-v1"
-const APP_SHELL = ["/", "/login", "/signup", "/dashboard", "/icon.png", "/apple-icon.png"]
+const CACHE_NAME = "artistos-pwa-v2"
+const APP_SHELL = ["/", "/login", "/signup", "/icons/icon-192x192.png", "/icons/icon-180x180.png"]
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)))
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await Promise.all(
+        APP_SHELL.map((url) =>
+          fetch(url)
+            .then((res) => {
+              if (res.ok) return cache.put(url, res)
+            })
+            .catch(() => {})
+        )
+      )
+    })
+  )
   self.skipWaiting()
 })
 

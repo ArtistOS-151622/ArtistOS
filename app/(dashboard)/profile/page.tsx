@@ -6,6 +6,7 @@ import { Loader2, Phone, Save, User, Building2, MapPin, Mail, LogOut, ImageIcon,
 import { useRouter } from "next/navigation"
 
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
+import { PwaInstallGuideModal } from "@/components/common/pwa/pwa-install-guide-modal"
 import { PushNotificationToggle } from "@/components/common/pwa/push-notification-toggle"
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog"
 import { FloatingInput } from "@/components/common/shared/floating-input"
@@ -55,6 +56,7 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState("")
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [plansOpen, setPlansOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
   const [canInstall, setCanInstall] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
   const [logoUploading, setLogoUploading] = useState(false)
@@ -126,13 +128,14 @@ export default function ProfilePage() {
   }, [])
 
   async function handleInstallApp() {
+    if (isIos()) {
+      setGuideOpen(true)
+      return
+    }
+
     const promptEvent = (window as any).deferredPwaPrompt
     if (!promptEvent) {
-      if (isIos()) {
-        alert("To install on iOS: tap the Share button, then 'Add to Home Screen'.")
-      } else {
-        alert("Browser install is not ready yet. Try refreshing the page.")
-      }
+      setGuideOpen(true)
       return
     }
 
@@ -146,6 +149,7 @@ export default function ProfilePage() {
       }
     } catch (e) {
       console.error("Failed to prompt install", e)
+      setGuideOpen(true)
     }
   }
 
@@ -556,6 +560,12 @@ export default function ProfilePage() {
         confirmText="Logout"
         onCancel={() => setLogoutOpen(false)}
         onConfirm={handleLogout}
+      />
+
+      <PwaInstallGuideModal
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        isIosDevice={isIos()}
       />
     </>
   )
