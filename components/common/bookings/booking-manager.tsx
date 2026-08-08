@@ -439,14 +439,14 @@ export function BookingManager() {
       {viewMode === "calendar" ? (
         <ArtistCalendar />
       ) : initialLoading ? (
-        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 min-[900px]:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 min-[900px]:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
       ) : bookings.length ? (
         <>
-          <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 min-[900px]:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 min-[900px]:grid-cols-3 2xl:grid-cols-4">
             {bookings.map((booking) => (
               <div key={booking.id} className="min-w-0" data-booking-id={booking.id}>
                 <BookingCard
