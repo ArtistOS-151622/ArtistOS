@@ -17,7 +17,7 @@ import { BrandMark } from "@/components/common/brand/brand-logo";
 import { cn } from "@/lib/utils";
 
 type SidebarItem = {
-  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "portfolio" | "profile" | "support"
+  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "portfolio" | "profile" | "support" | "billing"
   icon: LucideIcon
   href: string
   label: string

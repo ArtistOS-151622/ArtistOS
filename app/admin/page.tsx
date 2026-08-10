@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useHeaderContext } from "@/components/common/dashboard/dashboard-header-context"
-import { UsersRound, CreditCard, HardDrive, Loader2, ArrowRight } from "lucide-react"
+import { UsersRound, CreditCard, HardDrive, Loader2, ArrowRight, Crown } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import Link from "next/link"
 
@@ -10,6 +10,7 @@ type Stats = {
   users: number
   payments: number
   storagePurchases: number
+  paidUsers: number
 }
 
 export default function AdminOverview() {
@@ -54,6 +55,15 @@ export default function AdminOverview() {
       bg: "bg-blue-50",
       border: "border-blue-100",
       href: "/admin/users"
+    },
+    {
+      title: "Paid Subscribers",
+      value: stats?.paidUsers || 0,
+      icon: Crown,
+      color: "text-[#7c3aed]",
+      bg: "bg-purple-50",
+      border: "border-purple-100",
+      href: "/admin/payments"
     },
     {
       title: "Storage Subscriptions",

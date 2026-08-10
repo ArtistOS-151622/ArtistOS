@@ -15,11 +15,14 @@ export async function GET() {
         booking_expenses (amount),
         services (id),
         portfolio_storage_quotas (free_storage_bytes, purchase_storage_bytes, used_storage_bytes),
-        portfolio_storage_purchases (status, amount, created_at)
+        portfolio_storage_purchases (status, amount, created_at),
+        user_subscriptions (id, status, current_period_start, current_period_end, platform_subscriptions (name, amount_inr, billing_period, duration_in_days))
       `)
       .order("created_at", { ascending: false })
 
     if (error) throw error
+
+    const now = new Date()
 
     const formattedUsers = users.map((user: any) => {
       // Customers
@@ -57,6 +60,17 @@ export async function GET() {
       const active_plans = purchases.filter((p: any) => p.status === 'active').length
       const total_storage_spent = purchases.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0)
 
+      // Platform subscription
+      const allSubs: any[] = user.user_subscriptions || []
+      const activeSub = allSubs.find((s: any) =>
+        s.status === 'active' &&
+        (!s.current_period_end || new Date(s.current_period_end) > now)
+      ) ?? null
+      const plan = activeSub?.platform_subscriptions ?? null
+      const daysLeft = activeSub?.current_period_end
+        ? Math.max(0, Math.ceil((new Date(activeSub.current_period_end).getTime() - now.getTime()) / 86400000))
+        : null
+
       return {
         id: user.id,
         profile: {
@@ -91,7 +105,16 @@ export async function GET() {
           used: Number(finalQuota.used_storage_bytes || 0),
           active_plans,
           total_spent: total_storage_spent
-        }
+        },
+        subscription: activeSub ? {
+          status: activeSub.status,
+          plan_name: plan?.name ?? 'Unknown',
+          amount_inr: Number(plan?.amount_inr ?? 0),
+          billing_period: plan?.billing_period ?? '',
+          current_period_start: activeSub.current_period_start,
+          current_period_end: activeSub.current_period_end,
+          days_left: daysLeft,
+        } : null
       }
     })
 

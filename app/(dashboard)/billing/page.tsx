@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { format } from "date-fns"
-import useSWR from "swr"
+import useSWR, { mutate } from "swr"
 import { toast } from "sonner"
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
@@ -122,6 +122,7 @@ export default function BillingPage() {
       if (json.data.free_plan) {
         toast.success("Free plan activated successfully!")
         mutateBilling()
+        mutate("/api/subscription-status")
         setLoadingPlanId(null)
         return
       }
@@ -157,6 +158,7 @@ export default function BillingPage() {
 
             toast.success("Subscription updated successfully!")
             mutateBilling()
+            mutate("/api/subscription-status")
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "Verification failed")
           } finally {
@@ -245,7 +247,7 @@ export default function BillingPage() {
 
               <div className="flex flex-col gap-2 shrink-0">
                 <div className="space-y-2">
-                  {currentPlan.features.slice(0, 4).map(f => (
+                  {currentPlan.features.map((f: string) => (
                     <div key={f} className="flex items-center gap-2 text-sm text-white/85">
                       <CheckCircle2 className="size-4 text-white/60 shrink-0" />
                       {f}
@@ -320,7 +322,7 @@ export default function BillingPage() {
                   </div>
                   <p className={`text-xs leading-5 mb-4 ${isFeatured ? "text-white/70" : "text-slate-500"}`}>{plan.description}</p>
                   <div className="flex-1 space-y-2 mb-5">
-                    {plan.features.slice(0, 4).map(f => (
+                    {plan.features.map((f: string) => (
                       <div key={f} className={`flex items-start gap-2 text-xs ${isFeatured ? "text-white/85" : "text-slate-600"}`}>
                         <CheckCircle2 className={`size-3.5 shrink-0 mt-0.5 ${isFeatured ? "text-white/70" : "text-[#7c3aed]"}`} />
                         {f}

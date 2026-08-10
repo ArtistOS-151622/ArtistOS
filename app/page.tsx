@@ -190,7 +190,15 @@ const pricingPlans = [
     price: "₹200",
     period: "/month",
     description: "Best for solo artists who want to organize bookings and payments.",
-    features: ["Booking calendar", "Client CRM", "Payment tracking", "Portfolio gallery"],
+    features: [
+      "Booking Calendar & Scheduling",
+      "Client CRM (Customer Management)",
+      "Payment & Invoice Tracking",
+      "Portfolio Gallery with Cloud Storage",
+      "WhatsApp Broadcast Campaigns",
+      "Business Reports & Analytics",
+      "Service & Pricing Management"
+    ],
     cta: "Start monthly",
   },
   {
@@ -198,7 +206,12 @@ const pricingPlans = [
     price: "₹2000",
     period: "/year",
     description: "Save more with a full year of business management tools.",
-    features: ["Everything in Monthly", "Festival campaign planning", "Business reports", "Priority support"],
+    features: [
+      "All Monthly Features",
+      "Priority Customer Support",
+      "Early Access to New Features",
+      "Personal Onboarding Session"
+    ],
     cta: "Choose yearly",
     featured: true,
   },

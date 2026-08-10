@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useHeaderContext } from "@/components/common/dashboard/dashboard-header-context"
-import { Loader2, X, User, Phone, MapPin, Mail, Calendar, HardDrive, IndianRupee, Briefcase, FileDigit, CalendarCheck } from "lucide-react"
+import { Loader2, X, User, Phone, MapPin, Mail, Calendar, HardDrive, IndianRupee, Briefcase, FileDigit, CalendarCheck, Crown, BadgeCheck, Clock } from "lucide-react"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -42,6 +42,15 @@ type UserData = {
     active_plans: number
     total_spent: number
   }
+  subscription: {
+    status: string
+    plan_name: string
+    amount_inr: number
+    billing_period: string
+    current_period_start: string
+    current_period_end: string | null
+    days_left: number | null
+  } | null
 }
 
 const formatBytes = (bytes: number) => {
@@ -99,6 +108,7 @@ export default function AdminUsersPage() {
               <tr>
                 <th className="px-6 py-4 font-medium">Artist / Studio</th>
                 <th className="px-6 py-4 font-medium">Contact</th>
+                <th className="px-6 py-4 font-medium">Plan</th>
                 <th className="px-6 py-4 font-medium">Customers</th>
                 <th className="px-6 py-4 font-medium">Net Profit</th>
                 <th className="px-6 py-4 font-medium">Joined Date</th>
@@ -108,7 +118,7 @@ export default function AdminUsersPage() {
             <tbody className="divide-y divide-slate-100">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                     No registered users found.
                   </td>
                 </tr>
@@ -122,6 +132,23 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4">
                       <div className="text-slate-900">{user.profile.phone}</div>
                       <div className="text-slate-500">{user.profile.email || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {user.subscription ? (
+                        <div className="space-y-1">
+                          <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 border border-purple-200 px-2.5 py-0.5 text-xs font-semibold text-purple-700">
+                            <Crown className="size-3" />
+                            {user.subscription.plan_name}
+                          </div>
+                          {user.subscription.days_left !== null && (
+                            <div className="text-xs text-slate-400">{user.subscription.days_left}d left</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+                          Free Trial
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-600">
@@ -273,6 +300,58 @@ export default function AdminUsersPage() {
                     <div className="font-semibold text-red-500">{formatCurrency(selectedUser.financials.total_expenses)}</div>
                   </div>
                 </div>
+              </section>
+
+              {/* Platform Subscription Section */}
+              <section className="space-y-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-[#7c3aed] flex items-center gap-2">
+                  <Crown className="size-4" /> Platform Subscription
+                </h3>
+                {selectedUser.subscription ? (
+                  <div className="rounded-2xl border border-purple-100 bg-purple-50/30 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-slate-900 text-base">{selectedUser.subscription.plan_name}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          ₹{selectedUser.subscription.amount_inr.toLocaleString('en-IN')}{selectedUser.subscription.billing_period}
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                        <BadgeCheck className="size-3" /> Active
+                      </span>
+                    </div>
+                    <div className="border-t border-purple-100 pt-3 space-y-2 text-sm">
+                      {selectedUser.subscription.days_left !== null && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500 flex items-center gap-1.5"><Clock className="size-3.5" /> Days Remaining</span>
+                          <span className="font-semibold text-[#7c3aed]">{selectedUser.subscription.days_left} days</span>
+                        </div>
+                      )}
+                      {selectedUser.subscription.current_period_start && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500">Started</span>
+                          <span className="font-medium text-slate-900">{format(new Date(selectedUser.subscription.current_period_start), 'MMM d, yyyy')}</span>
+                        </div>
+                      )}
+                      {selectedUser.subscription.current_period_end && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500">Expires</span>
+                          <span className="font-medium text-slate-900">{format(new Date(selectedUser.subscription.current_period_end), 'MMM d, yyyy')}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 flex items-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100">
+                      <Crown className="size-5 text-slate-400" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-slate-700 text-sm">Free Trial</div>
+                      <div className="text-xs text-slate-400">No active paid subscription</div>
+                    </div>
+                  </div>
+                )}
               </section>
 
               {/* Storage & Media Section */}
