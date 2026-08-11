@@ -18,7 +18,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     pathname.includes('/calendar') ? 'calendar' :
     pathname.includes('/profile') ? 'profile' :
     pathname.includes('/support') ? 'support' :
-    pathname.includes('/billing') ? 'billing' : 'dashboard'
+    pathname.includes('/billing') ? 'billing' :
+    pathname.includes('/notifications') ? 'notifications' : 'dashboard'
 
   return (
     <HeaderProvider>

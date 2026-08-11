@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import useSWR from "swr";
 import {
   Bell,
   CalendarDays,
@@ -17,7 +20,7 @@ import { BrandMark } from "@/components/common/brand/brand-logo";
 import { cn } from "@/lib/utils";
 
 type SidebarItem = {
-  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "portfolio" | "profile" | "support" | "billing"
+  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "portfolio" | "profile" | "support" | "billing" | "notifications"
   icon: LucideIcon
   href: string
   label: string
@@ -37,7 +40,15 @@ type DashboardSidebarProps = {
   active: SidebarItem["id"];
 };
 
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
 export function DashboardSidebar({ active }: DashboardSidebarProps) {
+  const { data: notifications } = useSWR<any[]>("/api/notifications", fetcher, {
+    refreshInterval: 60000,
+  })
+  const validNotifications = Array.isArray(notifications) ? notifications : []
+  const unreadCount = validNotifications.filter((n) => !n.read_at).length
+
   return (
     <>
       {/* Desktop Sidebar */}
@@ -69,14 +80,22 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
         {/* Bottom Actions Capsule */}
         <div className="flex w-full flex-col items-center gap-2 rounded-full bg-white/90 p-1.5 shadow-xl shadow-purple-950/5 border border-white/80 backdrop-blur-md">
           {/* Bell / Notifications */}
-          <button
-            type="button"
+          {/* Bell / Notifications */}
+          <Link
+            href="/notifications"
             aria-label="Notifications"
-            className="relative flex h-[50px] w-[50px] items-center justify-center rounded-full text-[#7c3aed]/80 transition hover:bg-purple-50/80 hover:text-[#7c3aed]"
+            className={cn(
+              "relative flex h-[50px] w-[50px] items-center justify-center rounded-full transition-all duration-200",
+              active === "notifications"
+                ? "bg-[#7c3aed] text-white shadow-md shadow-purple-500/25 scale-105"
+                : "text-[#7c3aed]/80 hover:bg-purple-50/80 hover:text-[#7c3aed]"
+            )}
           >
             <Bell className="size-5" />
-            <span className="absolute top-3 right-3 size-2 rounded-full bg-rose-500 ring-2 ring-white" />
-          </button>
+            {unreadCount > 0 && (
+              <span className="absolute top-3 right-3 size-2 rounded-full bg-rose-500 ring-2 ring-white" />
+            )}
+          </Link>
 
 
         </div>

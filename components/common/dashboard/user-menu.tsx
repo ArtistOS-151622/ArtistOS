@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Bell, ChevronDown, LogOut, Settings, LifeBuoy, CreditCard } from "lucide-react"
 
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog"
+import { NotificationsDropdown } from "./notifications-dropdown"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -34,6 +35,9 @@ export function UserMenu({
   const [displayName, setDisplayName] = useState(propName || "Artist Studio")
   const [displayInitials, setDisplayInitials] = useState(propInitials || "AS")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
+
+  const pathname = usePathname() || ""
+  const isProfileActive = pathname.includes("/profile") || pathname.includes("/billing") || pathname.includes("/support")
 
   useEffect(() => {
     if (propName) {
@@ -88,31 +92,27 @@ export function UserMenu({
     <>
       <div className={cn("inline-flex items-center gap-2", className)}>
         {showActions && (
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="relative flex size-10 items-center justify-center rounded-full border border-white/80 bg-white/95 text-[#7c3aed] shadow-md shadow-purple-950/5 transition hover:bg-white active:scale-95"
-          >
-            <Bell className="size-4 stroke-[2.2]" />
-            <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
-              31
-            </span>
-          </button>
+          <NotificationsDropdown />
         )}
 
         {/* User Capsule Menu Trigger */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/80 bg-white/95 p-1 pl-1 pr-2.5 text-xs font-semibold shadow-md shadow-purple-950/5 outline-none transition hover:bg-white focus-visible:ring-2 focus-visible:ring-[#7c3aed]/35 cursor-pointer">
+          <DropdownMenuTrigger className={cn(
+            "inline-flex h-10 items-center gap-1.5 rounded-full border p-1 pl-1 pr-2.5 text-xs font-semibold shadow-md outline-none transition focus-visible:ring-2 focus-visible:ring-[#7c3aed]/35 cursor-pointer",
+            isProfileActive
+              ? "border-transparent bg-[#7c3aed] text-white shadow-purple-950/20"
+              : "border-white/80 bg-white/95 text-slate-800 shadow-purple-950/5 hover:bg-white"
+          )}>
             <Avatar className="size-8 border border-purple-100 bg-white shadow-sm overflow-hidden">
               {logoUrl && <AvatarImage src={logoUrl} alt={displayName} className="object-cover" />}
               <AvatarFallback className="bg-white text-[#7c3aed] font-bold text-xs">
                 {displayInitials}
               </AvatarFallback>
             </Avatar>
-            <span className="hidden sm:inline-block max-w-[120px] truncate text-slate-800 font-medium">
+            <span className={cn("hidden sm:inline-block max-w-[120px] truncate font-medium", isProfileActive ? "text-white" : "text-slate-800")}>
               {displayName}
             </span>
-            <ChevronDown className="size-3.5 text-slate-500 stroke-[2.5]" />
+            <ChevronDown className={cn("size-3.5 stroke-[2.5]", isProfileActive ? "text-purple-200" : "text-slate-500")} />
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
