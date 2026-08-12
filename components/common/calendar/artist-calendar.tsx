@@ -44,7 +44,7 @@ const statusClass: Record<Booking["status"], string> = {
   confirmed: "bg-primary text-white",
   pending: "bg-amber-100 text-amber-700",
   completed: "bg-emerald-100 text-emerald-700",
-  canceled: "bg-rose-100 text-rose-700",
+  cancelled: "bg-rose-100 text-rose-700",
 }
 
 export function ArtistCalendar() {
@@ -275,7 +275,7 @@ const eventStyle: EventPropGetter<CalendarEvent> = (event) => {
   const colors: Record<string, { bg: string; border: string; text: string }> = {
     confirmed: { bg: "#f5f3ff", border: "#7c3aed", text: "#6d28d9" },
     completed: { bg: "#f0fdf4", border: "#10b981", text: "#047857" },
-    canceled: { bg: "#fff1f2", border: "#f43f5e", text: "#be123c" },
+    cancelled: { bg: "#fff1f2", border: "#f43f5e", text: "#be123c" },
     pending: { bg: "#fff7ed", border: "#f97316", text: "#c2410c" },
   }
   

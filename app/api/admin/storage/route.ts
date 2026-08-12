@@ -27,7 +27,7 @@ export async function GET() {
       
       const allPurchases = user.portfolio_storage_purchases || []
       
-      // Filter out abandoned checkouts (keep active, completed, canceled, failed, etc but mostly successful ones for history)
+      // Filter out abandoned checkouts (keep active, completed, cancelled, failed, etc but mostly successful ones for history)
       // The user requested to see "history detail with date and amount and plan".
       // Let's include completed/active ones in history.
       const history = allPurchases

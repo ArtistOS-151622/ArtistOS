@@ -45,7 +45,7 @@ const appointmentChartConfig = {
   completed: { label: "Completed", color: "#7c3aed" },
   confirmed: { label: "Confirmed", color: "#0ea5e9" },
   pending: { label: "Pending", color: "#f59e0b" },
-  canceled: { label: "Canceled", color: "#ef4444" },
+  cancelled: { label: "Cancelled", color: "#ef4444" },
 } satisfies ChartConfig;
 
 const miniChartConfig = {
@@ -335,8 +335,8 @@ export default function DashboardPage() {
   const completed = bookings.filter(
     (b: any) => b.status === "completed",
   ).length;
-  const canceled = bookings.filter((b: any) => b.status === "canceled").length;
-  const totalEnded = completed + canceled;
+  const cancelled = bookings.filter((b: any) => b.status === "cancelled").length;
+  const totalEnded = completed + cancelled;
   const satisfactionRate =
     totalEnded > 0 ? Math.round((completed / totalEnded) * 100) : 100;
 
@@ -374,7 +374,7 @@ export default function DashboardPage() {
     {
       title: "Client satisfaction",
       value: `${satisfactionRate}%`,
-      change: `${completed} completed vs ${canceled} canceled`,
+      change: `${completed} completed vs ${cancelled} cancelled`,
       icon: HeartHandshake,
       iconBg: "bg-white/60 text-[#e11d48]",
       cardBg: "bg-gradient-to-br from-white to-rose-50/70",
@@ -413,10 +413,10 @@ export default function DashboardPage() {
     const pending = monthBookings.filter(
       (b: any) => b.status === "pending",
     ).length;
-    const canceled = monthBookings.filter(
-      (b: any) => b.status === "canceled",
+    const cancelled = monthBookings.filter(
+      (b: any) => b.status === "cancelled",
     ).length;
-    return { month, total, completed, confirmed, pending, canceled };
+    return { month, total, completed, confirmed, pending, cancelled };
   });
 
   // Service distribution revenue data
@@ -466,7 +466,7 @@ export default function DashboardPage() {
     .filter(
       (b: any) =>
         b.booking_date >= todayStr &&
-        b.status !== "canceled" &&
+        b.status !== "cancelled" &&
         b.status !== "completed",
     )
     .sort((a: any, b: any) => {
@@ -610,12 +610,12 @@ export default function DashboardPage() {
                   <linearGradient id="fillCanceled" x1="0" y1="0" x2="0" y2="1">
                     <stop
                       offset="5%"
-                      stopColor="var(--color-canceled)"
+                      stopColor="var(--color-cancelled)"
                       stopOpacity={0.6}
                     />
                     <stop
                       offset="95%"
-                      stopColor="var(--color-canceled)"
+                      stopColor="var(--color-cancelled)"
                       stopOpacity={0.1}
                     />
                   </linearGradient>
@@ -643,9 +643,9 @@ export default function DashboardPage() {
 
                 <Area
                   type="monotone"
-                  dataKey="canceled"
+                  dataKey="cancelled"
                   stackId="a"
-                  stroke="var(--color-canceled)"
+                  stroke="var(--color-cancelled)"
                   strokeWidth={2}
                   fill="url(#fillCanceled)"
                   activeDot={{ r: 5 }}

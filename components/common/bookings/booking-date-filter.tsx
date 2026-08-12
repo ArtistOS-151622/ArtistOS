@@ -30,10 +30,11 @@ import { cn } from "@/lib/utils"
 
 type BookingDateFilterProps = {
   selectedDate: string
+  status?: string
   onChange: (date: string) => void
 }
 
-export function BookingDateFilter({ selectedDate, onChange }: BookingDateFilterProps) {
+export function BookingDateFilter({ selectedDate, status = "all", onChange }: BookingDateFilterProps) {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -65,7 +66,7 @@ export function BookingDateFilter({ selectedDate, onChange }: BookingDateFilterP
       try {
         const start = format(dates[0], "yyyy-MM-dd")
         const end = format(dates[dates.length - 1], "yyyy-MM-dd")
-        const res = await fetch(`/api/bookings/counts?start_date=${start}&end_date=${end}`)
+        const res = await fetch(`/api/bookings/counts?start_date=${start}&end_date=${end}&status=${encodeURIComponent(status)}`)
 
         if (res.ok) {
           const data = await res.json()
@@ -87,7 +88,7 @@ export function BookingDateFilter({ selectedDate, onChange }: BookingDateFilterP
     return () => {
       ignore = true
     }
-  }, [dates])
+  }, [dates, status])
 
   useEffect(() => {
     if (!scrollRef.current) return

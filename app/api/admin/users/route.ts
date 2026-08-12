@@ -30,13 +30,13 @@ export async function GET() {
 
       // Bookings
       const bookings = user.bookings || []
-      let pending = 0, confirmed = 0, completed = 0, canceled = 0
+      let pending = 0, confirmed = 0, completed = 0, cancelled = 0
       let last_booking_date: string | null = null
       bookings.forEach((b: any) => {
         if (b.status === 'pending') pending++
         if (b.status === 'confirmed') confirmed++
         if (b.status === 'completed') completed++
-        if (b.status === 'canceled') canceled++
+        if (b.status === 'cancelled') cancelled++
         if (!last_booking_date || new Date(b.created_at) > new Date(last_booking_date)) {
           last_booking_date = b.created_at
         }
@@ -90,7 +90,7 @@ export async function GET() {
           pending,
           confirmed,
           completed,
-          canceled,
+          cancelled,
           last_booking_date
         },
         financials: {

@@ -123,11 +123,19 @@ export function BookingForm({
       );
       if (match) {
         setSelectedCustomer(match);
+      } else if (values.initial_customer && String(values.initial_customer.id) === values.customer_id) {
+        setSelectedCustomer(values.initial_customer as Customer);
+        setAllCustomers(prev => {
+          if (!prev.find(c => c.id === values.initial_customer!.id)) {
+            return [values.initial_customer as Customer, ...prev];
+          }
+          return prev;
+        });
       }
     } else {
       setSelectedCustomer(null);
     }
-  }, [values.customer_id, allCustomers]);
+  }, [values.customer_id, allCustomers, values.initial_customer]);
 
   // Click outside to close customer dropdown list
   useEffect(() => {
@@ -341,6 +349,8 @@ export function BookingForm({
               }}
               placeholder={isFocused ? "Search or select customer by name/phone..." : ""}
               className="peer flex h-[46px] w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-[#15172e] shadow-sm shadow-slate-200/40 outline-none transition-all focus:border-[#7c3aed] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.10)] disabled:opacity-50 placeholder:text-slate-400 pr-10"
+              autoComplete="off"
+              spellCheck={false}
               required
             />
             <label
@@ -603,11 +613,11 @@ export function BookingForm({
                   Completed
                 </DropdownMenuRadioItem>
                 <DropdownMenuRadioItem
-                  value="canceled"
+                  value="cancelled"
                   closeOnClick={true}
                   className="h-10 rounded-xl px-3 text-sm cursor-pointer"
                 >
-                  Canceled
+                  Cancelled
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </FloatingDropdown>

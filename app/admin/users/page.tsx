@@ -26,7 +26,7 @@ type UserData = {
     pending: number
     confirmed: number
     completed: number
-    canceled: number
+    cancelled: number
     last_booking_date: string | null
   }
   financials: {
@@ -261,8 +261,8 @@ export default function AdminUsersPage() {
                       <span className="font-semibold text-blue-600">{selectedUser.bookings.completed}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Pending / Canceled</span>
-                      <span className="font-medium text-slate-900">{selectedUser.bookings.pending} / {selectedUser.bookings.canceled}</span>
+                      <span className="text-slate-500">Pending / Cancelled</span>
+                      <span className="font-medium text-slate-900">{selectedUser.bookings.pending} / {selectedUser.bookings.cancelled}</span>
                     </div>
                     {selectedUser.bookings.last_booking_date && (
                       <div className="pt-2 mt-2 border-t border-slate-100 flex justify-between items-center text-xs">

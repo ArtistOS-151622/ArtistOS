@@ -6,7 +6,7 @@ export type Booking = {
   booking_date: string
   start_time: string
   end_time: string
-  status: "pending" | "confirmed" | "completed" | "canceled"
+  status: "pending" | "confirmed" | "completed" | "cancelled"
   additional_request: string | null
   created_at: string
   updated_at: string
@@ -37,8 +37,15 @@ export type BookingFormValues = {
   start_time: string
   end_time: string
   services: string[]
-  status: "pending" | "confirmed" | "completed" | "canceled"
+  status: "pending" | "confirmed" | "completed" | "cancelled"
   additional_request: string
+  initial_customer?: {
+    id: number
+    customer_name: string
+    phone: string
+    email: string
+    address: string
+  } | null
 }
 
 export const emptyBookingForm: BookingFormValues = {
@@ -50,4 +57,5 @@ export const emptyBookingForm: BookingFormValues = {
   services: [],
   status: "pending",
   additional_request: "",
+  initial_customer: null,
 }

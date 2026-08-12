@@ -6,7 +6,7 @@ create table if not exists public.bookings (
   booking_date date not null,
   start_time time not null,
   end_time time not null,
-  status varchar(20) not null check (status in ('pending', 'confirmed', 'completed', 'canceled')),
+  status varchar(20) not null check (status in ('pending', 'confirmed', 'completed', 'cancelled')),
   additional_request text,
   discount numeric(12,2) not null default 0,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,

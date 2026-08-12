@@ -13,6 +13,7 @@ import {
   PlayCircle,
   Eye,
   MoreVertical,
+  FolderOpen,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -119,8 +120,14 @@ export function PortfolioFileGrid({
 
   if (!files.length) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
-        No files yet
+      <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-purple-100 bg-purple-50/30 py-16 px-6 text-center transition-colors hover:bg-purple-50/50">
+        <div className="mb-5 flex size-20 items-center justify-center rounded-full bg-purple-100/60 shadow-inner">
+          <FolderOpen className="size-10 text-[#7c3aed]" strokeWidth={1.5} />
+        </div>
+        <h3 className="mb-2 text-lg font-bold text-slate-900">No deliverables yet</h3>
+        <p className="max-w-sm text-sm font-medium text-slate-500 leading-relaxed">
+          Upload images, videos, or documents to share with your client. They will appear here once uploaded.
+        </p>
       </div>
     )
   }

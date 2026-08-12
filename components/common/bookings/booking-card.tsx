@@ -52,8 +52,8 @@ const statusConfig: Record<
     borderAccent: "border-l-emerald-600",
     textColor: "text-emerald-600 dark:text-emerald-400",
   },
-  canceled: {
-    label: "Canceled",
+  cancelled: {
+    label: "Cancelled",
     dotColor: "bg-rose-500",
     dotPulse: "bg-rose-400",
     badgeStyle: "bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50",

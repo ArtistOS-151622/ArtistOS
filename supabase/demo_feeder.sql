@@ -11,7 +11,7 @@ DECLARE
     b_date DATE;
     start_time TIME;
     end_time TIME;
-    status_arr VARCHAR[] := ARRAY['pending', 'confirmed', 'completed', 'canceled'];
+    status_arr VARCHAR[] := ARRAY['pending', 'confirmed', 'completed', 'cancelled'];
     random_status VARCHAR;
     random_customer BIGINT;
     random_service BIGINT;
@@ -70,7 +70,7 @@ BEGIN
         
         -- Assign logical statuses based on dates
         IF b_date < CURRENT_DATE THEN
-            random_status := CASE WHEN random() > 0.1 THEN 'completed' ELSE 'canceled' END;
+            random_status := CASE WHEN random() > 0.1 THEN 'completed' ELSE 'cancelled' END;
         ELSIF b_date = CURRENT_DATE THEN
             random_status := CASE WHEN random() > 0.5 THEN 'confirmed' ELSE 'pending' END;
         ELSE

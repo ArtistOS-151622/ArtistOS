@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const startDate = searchParams.get("start_date")
   const endDate = searchParams.get("end_date")
+  const status = searchParams.get("status")
 
   if (!startDate || !endDate) {
     return NextResponse.json({ error: "start_date and end_date are required" }, { status: 400 })
@@ -16,12 +17,18 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("bookings")
     .select("booking_date")
     .eq("user_id", session.id)
     .gte("booking_date", startDate)
     .lte("booking_date", endDate)
+
+  if (status && status !== "all") {
+    query = query.eq("status", status)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 })

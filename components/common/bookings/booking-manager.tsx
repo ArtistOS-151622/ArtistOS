@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { Calendar, Filter, Plus, Search, LayoutGrid } from "lucide-react";
 
 import { SkeletonCard } from "@/components/common/shared/skeleton-card";
@@ -56,7 +57,6 @@ export function BookingManager() {
   const [deleting, setDeleting] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [error, setError] = useState("");
 
   // View state
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
@@ -128,7 +128,6 @@ export function BookingManager() {
     } else {
       setLoadingMore(true);
     }
-    setError("");
 
     try {
       const res = await fetch(
@@ -137,7 +136,7 @@ export function BookingManager() {
       const data = (await res.json()) as BookingsResponse;
 
       if (!res.ok) {
-        setError(data.error ?? "Unable to load bookings.");
+        toast.error(data.error ?? "Unable to load bookings.");
       } else {
         const fetched = data.bookings ?? [];
         setBookings((prev) => (append ? [...prev, ...fetched] : fetched));
@@ -146,7 +145,7 @@ export function BookingManager() {
         if (syncUrl) replaceListUrl(pageNum, searchVal, statusVal);
       }
     } catch {
-      setError("Unable to load bookings.");
+      toast.error("Unable to load bookings.");
     } finally {
       setInitialLoading(false);
       setLoading(false);
@@ -160,7 +159,6 @@ export function BookingManager() {
     statusVal: string,
   ) {
     setLoading(true);
-    setError("");
 
     try {
       const responses = await Promise.all(
@@ -176,7 +174,7 @@ export function BookingManager() {
       const failedIndex = responses.findIndex((res) => !res.ok);
 
       if (failedIndex !== -1) {
-        setError(payloads[failedIndex]?.error ?? "Unable to load bookings.");
+        toast.error(payloads[failedIndex]?.error ?? "Unable to load bookings.");
         return;
       }
 
@@ -185,7 +183,7 @@ export function BookingManager() {
       setPage(pageNum);
       replaceListUrl(pageNum, searchVal, statusVal);
     } catch {
-      setError("Unable to load bookings.");
+      toast.error("Unable to load bookings.");
     } finally {
       setInitialLoading(false);
       setLoading(false);
@@ -213,7 +211,6 @@ export function BookingManager() {
 
   async function saveBooking() {
     setLoading(true);
-    setError("");
 
     const payload = {
       customer_id: values.customer_id,
@@ -238,8 +235,9 @@ export function BookingManager() {
       const data = (await res.json()) as BookingsResponse;
 
       if (!res.ok || !data.booking) {
-        setError(data.error ?? "Unable to save booking.");
+        toast.error(data.error ?? "Unable to save booking.");
       } else {
+        toast.success(editing ? "Booking updated successfully" : "Booking created successfully");
         if (editing) pendingScrollId.current = editing.id;
         cancelEdit();
         if (editing) {
@@ -253,7 +251,7 @@ export function BookingManager() {
         }
       }
     } catch {
-      setError("Unable to save booking.");
+      toast.error("Unable to save booking.");
     } finally {
       setLoading(false);
     }
@@ -262,7 +260,6 @@ export function BookingManager() {
   async function deleteBooking() {
     if (!deleting) return;
     setLoading(true);
-    setError("");
 
     try {
       const res = await fetch(`/api/bookings/${deleting.id}`, {
@@ -270,13 +267,14 @@ export function BookingManager() {
       });
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error ?? "Unable to delete booking.");
+        toast.error(data.error ?? "Unable to delete booking.");
       } else {
+        toast.success("Booking deleted successfully");
         setDeleting(null);
         void fetchBookingsThrough(page, search, statusFilter);
       }
     } catch {
-      setError("Unable to delete booking.");
+      toast.error("Unable to delete booking.");
     } finally {
       setLoading(false);
     }
@@ -294,6 +292,15 @@ export function BookingManager() {
       services: booking.services?.map((s) => String(s.id)) ?? [],
       status: booking.status,
       additional_request: booking.additional_request ?? "",
+      initial_customer: booking.customer
+        ? {
+            id: booking.customer_id,
+            customer_name: booking.customer.customer_name,
+            phone: booking.customer.phone,
+            email: booking.customer.email,
+            address: booking.booking_address, // Use booking's address as a fallback if the customer address isn't returned
+          }
+        : null,
     });
   }
 
@@ -398,8 +405,8 @@ export function BookingManager() {
                   <DropdownMenuRadioItem value="completed" className="rounded-xl cursor-pointer">
                     Completed
                   </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="canceled" className="rounded-xl cursor-pointer">
-                    Canceled
+                  <DropdownMenuRadioItem value="cancelled" className="rounded-xl cursor-pointer">
+                    Cancelled
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
@@ -417,15 +424,10 @@ export function BookingManager() {
         }
       />
 
-      {error ? (
-        <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
-          {error}
-        </p>
-      ) : null}
-
       {viewMode === "list" && (
         <BookingDateFilter
           selectedDate={date}
+          status={statusFilter}
           onChange={(newDate) => {
             setDate(newDate);
             const nextParams = new URLSearchParams(searchParams.toString());
@@ -518,8 +520,16 @@ export function BookingManager() {
             <Button
               form="booking-form"
               type="submit"
-              className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10"
-              disabled={loading}
+              className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10 disabled:opacity-50"
+              disabled={
+                loading ||
+                !values.customer_id ||
+                !values.booking_address.trim() ||
+                !values.booking_date ||
+                !values.start_time ||
+                !values.end_time ||
+                !values.status
+              }
             >
               {editing ? "Update booking" : "Create booking"}
             </Button>

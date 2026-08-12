@@ -83,7 +83,7 @@ type BookingService = {
 type BookingDetail = {
   id: number;
   user_booking_index?: number;
-  status: "pending" | "confirmed" | "completed" | "canceled";
+  status: "pending" | "confirmed" | "completed" | "cancelled";
   booking_date: string;
   start_time: string;
   end_time: string;
@@ -439,7 +439,7 @@ export default function BookingDetailsPage() {
 
           const b = detailRes.booking as BookingDetail;
           // Gate: redirect non-actionable statuses
-          if (b.status === "pending" || b.status === "canceled") {
+          if (b.status === "pending" || b.status === "cancelled") {
             router.replace("/bookings");
             return;
           }
@@ -660,7 +660,7 @@ export default function BookingDetailsPage() {
     pending: "bg-amber-50 text-amber-700 border-amber-200",
     confirmed: "bg-blue-50 text-blue-700 border-blue-200",
     completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    canceled: "bg-rose-50 text-rose-700 border-rose-200",
+    cancelled: "bg-rose-50 text-rose-700 border-rose-200",
   };
 
   return (
@@ -1957,21 +1957,13 @@ export default function BookingDetailsPage() {
         description="Choose what you want to send to Priyanka Sharma."
         footer={
           !updateSent ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            <div className="w-full">
               <Button
-                variant="outline"
-                className="w-full h-11 rounded-2xl gap-2 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
+                className="w-full h-11 rounded-2xl bg-[#25D366] hover:bg-[#128C7E] text-white gap-2 shadow-md shadow-[#25D366]/20"
                 onClick={() => handleSendUpdate("whatsapp")}
               >
                 <MessageCircle className="size-4" />
                 Send via WhatsApp
-              </Button>
-              <Button
-                className="w-full h-11 rounded-2xl bg-[#7c3aed] text-white hover:bg-[#6d28d9] gap-2"
-                onClick={() => handleSendUpdate("email")}
-              >
-                <Send className="size-4" />
-                Send via Email
               </Button>
             </div>
           ) : (
@@ -2184,11 +2176,9 @@ export default function BookingDetailsPage() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Date
-                </Label>
+              <div>
                 <DatePicker
+                  label="Date"
                   value={paymentDate}
                   onChange={setPaymentDate}
                   className="bg-white"
@@ -2292,7 +2282,7 @@ export default function BookingDetailsPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <FloatingDropdown label="Expense Category" value={expenseName}>
+                <FloatingDropdown label="Expense Category" value={expenseName} hasValue={true}>
                   <DropdownMenuRadioGroup
                     value={expenseName}
                     onValueChange={setExpenseName}
@@ -2331,6 +2321,7 @@ export default function BookingDetailsPage() {
             </div>
 
             <DatePicker
+              label="Date"
               value={expenseDate}
               onChange={setExpenseDate}
               className="bg-white"
@@ -2484,11 +2475,9 @@ export default function BookingDetailsPage() {
               value={editPaymentAmount}
               onChange={(e) => setEditPaymentAmount(e.target.value)}
             />
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Payment Date
-              </Label>
+            <div>
               <DatePicker
+                label="Payment Date"
                 value={editPaymentDate}
                 onChange={setEditPaymentDate}
               />
@@ -2589,11 +2578,9 @@ export default function BookingDetailsPage() {
               value={editExpenseAmount}
               onChange={(e) => setEditExpenseAmount(e.target.value)}
             />
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Date
-              </Label>
+            <div>
               <DatePicker
+                label="Date"
                 value={editExpenseDate}
                 onChange={setEditExpenseDate}
               />

@@ -27,11 +27,11 @@ export async function POST(req: NextRequest) {
       .eq("status", "pending")
 
     if (error) {
-      console.error("Error deleting canceled purchase:", error)
+      console.error("Error deleting cancelled purchase:", error)
       return NextResponse.json({ status: false, message: "Failed to cancel purchase" }, { status: 500 })
     }
 
-    return NextResponse.json({ status: true, message: "Purchase canceled successfully" })
+    return NextResponse.json({ status: true, message: "Purchase cancelled successfully" })
   } catch (error) {
     console.error("Purchase cancel error:", error)
     return NextResponse.json(
