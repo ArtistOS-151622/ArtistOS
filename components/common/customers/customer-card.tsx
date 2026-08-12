@@ -49,9 +49,16 @@ export function CustomerCard({
             <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-purple-100 text-[#7c3aed] border-[#7c3aed] font-bold text-sm sm:text-lg tracking-wider shadow-sm border">
               {initials}
             </div>
-            <h3 className="truncate text-base sm:text-lg font-bold text-slate-900">
-              {customer.customer_name}
-            </h3>
+            <div className="flex flex-col min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="truncate text-base sm:text-lg font-bold text-slate-900">
+                  {customer.customer_name}
+                </h3>
+                <span className="inline-flex shrink-0 items-center rounded-md border border-purple-200/50 bg-purple-50 px-2 py-0.5 text-xs font-bold text-[#7c3aed] whitespace-nowrap">
+                  {customer.booking_count === 1 ? "1 Booking" : `${customer.booking_count || 0} Bookings`}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Action Buttons */}

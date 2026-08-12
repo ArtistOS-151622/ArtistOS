@@ -7,6 +7,7 @@ export type Customer = {
   address: string
   reference_by?: string | null
   created_at?: string
+  booking_count?: number
 }
 
 export type CustomerFormValues = {

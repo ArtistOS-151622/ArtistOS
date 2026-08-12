@@ -36,7 +36,7 @@ function validateCustomer(input: CustomerInput) {
 }
 
 const SELECT_FIELDS =
-  "id, customer_name, phone, alt_phone, email, address, reference_by, created_at"
+  "id, customer_name, phone, alt_phone, email, address, reference_by, created_at, booking_count"
 
 export async function GET(request: NextRequest) {
   const session = getArtistSession(request)
@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const search = searchParams.get("search")?.trim() || ""
   const sort = searchParams.get("sort")?.trim() || "recent"
+  const bookingsFilter = searchParams.get("bookings_filter")?.trim() || "all"
   const page = Math.max(1, Number(searchParams.get("page")) || 1)
   const limit = Math.min(1000, Number(searchParams.get("limit")) || 20)
   const from = (page - 1) * limit
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient()
   let query = supabase
-    .from("customers")
+    .from("customer_stats")
     .select(SELECT_FIELDS, { count: "exact" })
     .eq("user_id", session.id)
 
@@ -60,8 +61,16 @@ export async function GET(request: NextRequest) {
     query = query.or(`customer_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`)
   }
 
+  if (bookingsFilter === "has_bookings") {
+    query = query.gt("booking_count", 0)
+  } else if (bookingsFilter === "no_bookings") {
+    query = query.eq("booking_count", 0)
+  }
+
   if (sort === "name") {
     query = query.order("customer_name", { ascending: true })
+  } else if (sort === "most_bookings") {
+    query = query.order("booking_count", { ascending: false })
   } else {
     query = query.order("id", { ascending: false })
   }
