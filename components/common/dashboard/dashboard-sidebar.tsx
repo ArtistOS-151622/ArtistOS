@@ -13,6 +13,7 @@ import {
   Settings,
   LifeBuoy,
   MessageSquare,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,7 +21,7 @@ import { BrandMark } from "@/components/common/brand/brand-logo";
 import { cn } from "@/lib/utils";
 
 type SidebarItem = {
-  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "portfolio" | "profile" | "support" | "billing" | "notifications"
+  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "portfolio" | "profile" | "support" | "billing" | "notifications" | "reports"
   icon: LucideIcon
   href: string
   label: string
@@ -31,6 +32,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "customers", icon: UsersRound, href: "/customers", label: "Customers" },
   { id: "bookings", icon: CalendarCheck, href: "/bookings", label: "Bookings" },
   { id: "services", icon: Flower2, href: "/services", label: "Services" },
+  { id: "reports", icon: BarChart3, href: "/reports", label: "Reports" },
 
   { id: "portfolio", icon: ImageIcon, href: "/portfolio", label: "Portfolio" },
 ]

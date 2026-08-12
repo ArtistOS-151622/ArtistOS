@@ -14,6 +14,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     pathname.includes('/portfolio') ? 'portfolio' :
     pathname.includes('/customers') ? 'customers' :
     pathname.includes('/services') ? 'services' :
+    pathname.includes('/reports') ? 'reports' :
     pathname.includes('/calendar') ? 'calendar' :
     pathname.includes('/profile') ? 'profile' :
     pathname.includes('/support') ? 'support' :
