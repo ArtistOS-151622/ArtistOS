@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const search = searchParams.get("search")?.trim() || ""
   const sort = searchParams.get("sort")?.trim() || "recent"
-  const bookingsFilter = searchParams.get("bookings_filter")?.trim() || "all"
   const page = Math.max(1, Number(searchParams.get("page")) || 1)
   const limit = Math.min(1000, Number(searchParams.get("limit")) || 20)
   const from = (page - 1) * limit
@@ -59,12 +58,6 @@ export async function GET(request: NextRequest) {
 
   if (search) {
     query = query.or(`customer_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`)
-  }
-
-  if (bookingsFilter === "has_bookings") {
-    query = query.gt("booking_count", 0)
-  } else if (bookingsFilter === "no_bookings") {
-    query = query.eq("booking_count", 0)
   }
 
   if (sort === "name") {

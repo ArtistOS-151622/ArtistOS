@@ -26,6 +26,7 @@ import type {
   ArtistService,
   ServiceFormValues,
 } from "@/components/common/services/service-types";
+import { formatDuration } from "@/components/common/services/service-types";
 import { ServiceForm } from "@/components/common/services/service-form";
 import { DatePicker } from "@/components/common/shared/date-picker";
 import { TimePicker } from "@/components/common/shared/time-picker";
@@ -199,9 +200,14 @@ export function BookingForm({
       customer_id: String(customer.id),
       booking_address: customer.address,
     });
+    setDropdownSearch(customer.customer_name);
     setIsFocused(false);
-    setDropdownSearch("");
   };
+
+  const totalEstimatedMinutes = values.services.reduce((total, id) => {
+    const svc = allServices.find((s) => String(s.id) === id);
+    return total + (svc?.duration_minutes || 0);
+  }, 0);
 
   // Toggle selected service
   const handleToggleService = (serviceId: string) => {
@@ -548,6 +554,15 @@ export function BookingForm({
               <Plus className="size-5" />
             </Button>
           </div>
+
+        {/* Estimated Time Indicator */}
+        {totalEstimatedMinutes > 0 && (
+          <div className="flex items-center gap-2 mt-1">
+            <span className="inline-flex shrink-0 items-center rounded-md border border-purple-200/50 bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700">
+              Estimated Total Duration: {formatDuration(totalEstimatedMinutes)}
+            </span>
+          </div>
+        )}
 
         {/* Date and Time Fields */}
         <div className="grid gap-4 md:grid-cols-3">

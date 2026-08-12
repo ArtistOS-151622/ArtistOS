@@ -44,7 +44,6 @@ export function CustomerManager() {
   const initialPage = Math.max(1, Number(searchParams.get("page")) || 1);
   const initialSearch = searchParams.get("search") ?? "";
   const initialSort = searchParams.get("sort") ?? "recent";
-  const initialBookingsFilter = searchParams.get("bookings_filter") ?? "all";
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [values, setValues] = useState<CustomerFormValues>(emptyCustomerForm);
   const [formOpen, setFormOpen] = useState(false);
@@ -58,7 +57,6 @@ export function CustomerManager() {
   // Search, filter and pagination states
   const [search, setSearch] = useState(initialSearch);
   const [sortBy, setSortBy] = useState(initialSort);
-  const [bookingsFilter, setBookingsFilter] = useState(initialBookingsFilter);
   const [page, setPage] = useState(initialPage);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -77,7 +75,7 @@ export function CustomerManager() {
     target.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [customers, loading, loadingMore]);
 
-  function replaceListUrl(pageNum: number, searchVal: string, sortVal: string, filterVal: string) {
+  function replaceListUrl(pageNum: number, searchVal: string, sortVal: string) {
     const nextParams = new URLSearchParams(searchParams.toString());
 
     if (pageNum > 1) {
@@ -98,12 +96,6 @@ export function CustomerManager() {
       nextParams.delete("sort");
     }
 
-    if (filterVal !== "all") {
-      nextParams.set("bookings_filter", filterVal);
-    } else {
-      nextParams.delete("bookings_filter");
-    }
-
     nextParams.delete("add");
 
     const query = nextParams.toString();
@@ -117,7 +109,6 @@ export function CustomerManager() {
     pageNum: number,
     searchVal: string,
     sortVal: string,
-    filterVal: string,
     append = false,
     syncUrl = true,
   ) {
@@ -129,7 +120,7 @@ export function CustomerManager() {
     setError("");
     try {
       const res = await fetch(
-        `/api/customers?page=${pageNum}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}&bookings_filter=${encodeURIComponent(filterVal)}`,
+        `/api/customers?page=${pageNum}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
       );
       const data = (await res.json()) as CustomersResponse;
       if (!res.ok) {
@@ -139,7 +130,7 @@ export function CustomerManager() {
         setCustomers((prev) => (append ? [...prev, ...fetched] : fetched));
         setHasMore(data.hasMore ?? false);
         setPage(pageNum);
-        if (syncUrl) replaceListUrl(pageNum, searchVal, sortVal, filterVal);
+        if (syncUrl) replaceListUrl(pageNum, searchVal, sortVal);
       }
     } catch {
       setError("Unable to load customers.");
@@ -154,7 +145,6 @@ export function CustomerManager() {
     pageNum: number,
     searchVal: string,
     sortVal: string,
-    filterVal: string,
   ) {
     setLoading(true);
     setError("");
@@ -163,7 +153,7 @@ export function CustomerManager() {
       const responses = await Promise.all(
         Array.from({ length: pageNum }, (_, index) =>
           fetch(
-            `/api/customers?page=${index + 1}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}&bookings_filter=${encodeURIComponent(filterVal)}`,
+            `/api/customers?page=${index + 1}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
           ),
         ),
       );
@@ -180,7 +170,7 @@ export function CustomerManager() {
       setCustomers(payloads.flatMap((payload) => payload.customers ?? []));
       setHasMore(payloads[payloads.length - 1]?.hasMore ?? false);
       setPage(pageNum);
-      replaceListUrl(pageNum, searchVal, sortVal, filterVal);
+      replaceListUrl(pageNum, searchVal, sortVal);
     } catch {
       setError("Unable to load customers.");
     } finally {
@@ -195,18 +185,18 @@ export function CustomerManager() {
     const delayDebounceFn = setTimeout(() => {
       if (!didInitialFetch.current) {
         didInitialFetch.current = true;
-        void fetchCustomersThrough(initialPage, search, sortBy, bookingsFilter);
+        void fetchCustomersThrough(initialPage, search, sortBy);
         return;
       }
 
-      void fetchCustomers(1, search, sortBy, bookingsFilter, false);
+      void fetchCustomers(1, search, sortBy, false);
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
     // The fetch helpers read the latest state; search/sort are the only values
     // that should restart this debounce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, sortBy, bookingsFilter]);
+  }, [search, sortBy]);
 
   // Check URL query parameters for ?add=true to automatically open form
   useEffect(() => {
@@ -256,12 +246,12 @@ export function CustomerManager() {
         if (editing) pendingScrollId.current = editing.id;
         cancelEdit();
         if (editing) {
-          void fetchCustomersThrough(page, search, sortBy, bookingsFilter);
+          void fetchCustomersThrough(page, search, sortBy);
         } else {
           if (search !== "") {
             setSearch("");
           } else {
-            void fetchCustomers(1, "", sortBy, bookingsFilter, false);
+            void fetchCustomers(1, "", sortBy, false);
           }
         }
       }
@@ -287,7 +277,7 @@ export function CustomerManager() {
         setError(data.error ?? "Unable to delete customer.");
       } else {
         setDeleting(null);
-        void fetchCustomersThrough(page, search, sortBy, bookingsFilter);
+        void fetchCustomersThrough(page, search, sortBy);
       }
     } catch {
       setError("Unable to delete customer.");
@@ -365,22 +355,6 @@ export function CustomerManager() {
                     Most Bookings
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
-
-                <DropdownMenuLabel className="text-xs font-semibold text-slate-500 px-2 pt-3 pb-1 mt-1 border-t border-slate-100">
-                  Filter by Bookings
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup value={bookingsFilter} onValueChange={setBookingsFilter}>
-                  <DropdownMenuRadioItem value="all" className="rounded-xl cursor-pointer">
-                    All Customers
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="has_bookings" className="rounded-xl cursor-pointer">
-                    Has Bookings
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="no_bookings" className="rounded-xl cursor-pointer">
-                    No Bookings
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -427,7 +401,7 @@ export function CustomerManager() {
               <Button
                 variant="outline"
                 className="h-11 rounded-2xl px-6 bg-white hover:bg-slate-50 border border-slate-100 shadow-sm"
-                onClick={() => void fetchCustomers(page + 1, search, sortBy, bookingsFilter, true)}
+                onClick={() => void fetchCustomers(page + 1, search, sortBy, true)}
                 disabled={loadingMore}
               >
                 {loadingMore ? "Loading..." : "Load more"}
