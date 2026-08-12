@@ -362,12 +362,44 @@
 .artistos-calendar .rbc-show-more {
   width: 100%;
   text-align: right;
-  color: #1d4ed8;
-  font-weight: 700;
+  color: #7c3aed;
+  font-weight: 800;
   font-size: 0.85rem;
   padding-right: 6px;
-  background-color: transparent;
+  background-color: #f3e8ff;
   display: block;
+  border-radius: 4px;
+  margin-top: 2px;
+  transition: all 0.2s;
+}
+
+.artistos-calendar .rbc-show-more:hover {
+  background-color: #e9d5ff;
+}
+
+/* Fix popup overlay for +X more */
+.rbc-overlay {
+  background-color: #ffffff !important;
+  border: 1px solid #eef0f7 !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  padding: 12px !important;
+  z-index: 9999 !important;
+  max-height: 260px !important;
+  overflow-y: auto !important;
+}
+
+.rbc-overlay > * + * {
+  margin-top: 4px;
+}
+
+.rbc-overlay-header {
+  font-weight: 800;
+  border-bottom: 1px solid #eef0f7;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  color: #15172e;
 }
 
 .artistos-calendar .rbc-day-slot .rbc-events-container {

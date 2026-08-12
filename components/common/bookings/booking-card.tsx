@@ -125,7 +125,7 @@ export function BookingCard({ booking, onEdit, onDelete }: BookingCardProps) {
       data-booking-id={booking.id}
       onClick={() => isClickable && router.push(`/bookings/${booking.id}`)}
       className={cn(
-        "group relative flex h-full max-w-full min-w-0 flex-col overflow-hidden rounded-xl border border-white/80 bg-white/90 shadow-lg shadow-slate-950/5 transition-all backdrop-blur",
+        "group relative flex max-w-full min-w-0 flex-col overflow-hidden rounded-xl border border-white/80 bg-white/90 shadow-lg shadow-slate-950/5 transition-all backdrop-blur",
         isClickable ? "hover:shadow-xl hover:shadow-slate-950/10 cursor-pointer hover:-translate-y-0.5" : ""
       )}
     >

@@ -191,12 +191,12 @@ export function ArtistCalendar() {
         </CardContent>
       </Card>
 
-      <Card className="p-4 rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5">
-        <CardHeader className="border-b mb-3 gap-1">
+      <Card className="flex flex-col p-4 rounded-[1.75rem] border-slate-100 bg-white/90 shadow-md shadow-purple-950/5 h-[450px] md:h-[720px]">
+        <CardHeader className="shrink-0 border-b pb-3 mb-3 gap-1">
           <CardTitle className="text-lg font-semibold">Selected day schedule</CardTitle>
-          <p className="text-sm text-muted-foreground mb-3">{format(date, "MMMM d, yyyy")}</p>
+          <p className="text-sm text-muted-foreground">{format(date, "MMMM d, yyyy")}</p>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="flex-1 space-y-3 overflow-y-auto custom-scrollbar pb-4 pr-1">
           {visibleEvents.length ? visibleEvents.map((event) => {
             const booking = event.original
 
