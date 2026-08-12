@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,7 +11,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function DashboardTopbar() {
-  const { searchSlot, actionsSlot, title, description } = useHeaderContext();
+  const { searchSlot, actionsSlot, title, description, backLink } = useHeaderContext();
   const pathname = usePathname() || "";
 
   // Infer active state from URL
@@ -41,6 +41,15 @@ export function DashboardTopbar() {
           >
             <BrandMark className="size-8 bg-transparent shadow-none p-0" />
           </Link>
+          {backLink && (
+            <Link
+              href={backLink}
+              className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors mr-1"
+              title="Go back"
+            >
+              <ArrowLeft className="size-5" />
+            </Link>
+          )}
           <h1 className="text-xl font-bold tracking-tight text-slate-900 truncate">
             {title}
           </h1>
@@ -52,7 +61,16 @@ export function DashboardTopbar() {
 
       {/* Desktop Topbar Row */}
       <div className="hidden md:flex md:items-center md:justify-between w-full gap-4">
-        <div>
+        <div className="flex items-center gap-3">
+          {backLink && (
+            <Link
+              href={backLink}
+              className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+              title="Go back"
+            >
+              <ArrowLeft className="size-5" />
+            </Link>
+          )}
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
             {title}
           </h1>

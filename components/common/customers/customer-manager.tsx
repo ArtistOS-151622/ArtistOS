@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Filter, Plus, Search, User } from "lucide-react";
+import { Filter, Plus, Search, User, MessageSquare } from "lucide-react";
 
 import { SkeletonCard } from "@/components/common/shared/skeleton-card";
 import { AppModal } from "@/components/common/shared/app-modal";
@@ -365,6 +365,16 @@ export function CustomerManager() {
             >
               <Plus className="size-5 md:size-4" />
               <span className="hidden md:inline ml-1.5 font-semibold">Add customer</span>
+            </Button>
+
+            <Button
+              aria-label="Broadcasts"
+              variant="outline"
+              className="h-11 w-11 md:w-auto rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm px-0 md:px-4 shrink-0 flex items-center justify-center"
+              onClick={() => router.push("/customers/broadcasts")}
+            >
+              <MessageSquare className="size-5 md:size-4 text-[#7c3aed]" />
+              <span className="hidden md:inline ml-1.5 font-semibold">Broadcasts</span>
             </Button>
           </div>
         }

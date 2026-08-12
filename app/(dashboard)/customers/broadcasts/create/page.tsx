@@ -137,7 +137,7 @@ export default function CreateBroadcastPage() {
 
   return (
     <>
-      <PageHeader title="New Broadcast" />
+      <PageHeader title="New Broadcast" backLink="/customers/broadcasts" />
       <div className="mx-auto w-full max-w-5xl px-4 md:px-8 space-y-5 pb-12">
 
         {/* Premium Stepper */}
@@ -439,7 +439,7 @@ export default function CreateBroadcastPage() {
 
           {/* Footer nav */}
           <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-4 sm:px-6 py-4">
-            <Button variant="outline" onClick={() => step > 1 ? setStep(step - 1) : router.push("/broadcasts")} className="w-full sm:w-auto rounded-xl h-10 px-5 text-sm">
+            <Button variant="outline" onClick={() => step > 1 ? setStep(step - 1) : router.push("/customers/broadcasts")} className="w-full sm:w-auto rounded-xl h-10 px-5 text-sm">
               {step > 1 ? <><ChevronLeft className="mr-1.5 size-4" />Back</> : "Cancel"}
             </Button>
 
@@ -456,7 +456,7 @@ export default function CreateBroadcastPage() {
               </Button>
             )}
             {step === 3 && (
-              <Button onClick={() => router.push("/broadcasts")} disabled={sentCount < totalSelected}
+              <Button onClick={() => router.push("/customers/broadcasts")} disabled={sentCount < totalSelected}
                 className="w-full sm:w-auto rounded-xl h-10 px-6 bg-emerald-600 text-white hover:bg-emerald-700 shadow-md text-sm disabled:opacity-50">
                 <CheckCircle2 className="mr-1.5 size-4" /> Done — All Sent
               </Button>

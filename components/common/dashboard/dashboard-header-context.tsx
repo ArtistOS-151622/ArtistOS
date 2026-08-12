@@ -13,6 +13,8 @@ type HeaderContextType = {
   setEyebrow: (eyebrow: string) => void
   description: string | undefined
   setDescription: (desc: string | undefined) => void
+  backLink: string | undefined
+  setBackLink: (link: string | undefined) => void
 }
 
 const HeaderContext = createContext<HeaderContextType | undefined>(undefined)
@@ -23,6 +25,7 @@ export function HeaderProvider({ children }: { children: ReactNode }) {
   const [title, setTitle] = useState("ArtistOS")
   const [eyebrow, setEyebrow] = useState("ArtistOS")
   const [description, setDescription] = useState<string | undefined>(undefined)
+  const [backLink, setBackLink] = useState<string | undefined>(undefined)
 
   return (
     <HeaderContext.Provider value={{ 
@@ -30,7 +33,8 @@ export function HeaderProvider({ children }: { children: ReactNode }) {
       actionsSlot, setActionsSlot,
       title, setTitle,
       eyebrow, setEyebrow,
-      description, setDescription
+      description, setDescription,
+      backLink, setBackLink
     }}>
       {children}
     </HeaderContext.Provider>
@@ -64,18 +68,21 @@ export function PageHeader({
   title,
   eyebrow = "ArtistOS",
   description,
+  backLink,
 }: {
   title: string
   eyebrow?: string
   description?: string
+  backLink?: string
 }) {
-  const { setTitle, setEyebrow, setDescription } = useHeaderContext()
+  const { setTitle, setEyebrow, setDescription, setBackLink } = useHeaderContext()
 
   React.useEffect(() => {
     setTitle(title)
     setEyebrow(eyebrow)
     setDescription(description)
-  }, [title, eyebrow, description, setTitle, setEyebrow, setDescription])
+    setBackLink(backLink)
+  }, [title, eyebrow, description, backLink, setTitle, setEyebrow, setDescription, setBackLink])
 
   return null
 }

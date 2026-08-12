@@ -29,7 +29,6 @@ type SidebarItem = {
 const sidebarItems: SidebarItem[] = [
   { id: "dashboard", icon: Grid2X2, href: "/dashboard", label: "Dashboard" },
   { id: "customers", icon: UsersRound, href: "/customers", label: "Customers" },
-  { id: "broadcasts", icon: MessageSquare, href: "/broadcasts", label: "Broadcasts" },
   { id: "bookings", icon: CalendarCheck, href: "/bookings", label: "Bookings" },
   { id: "services", icon: Flower2, href: "/services", label: "Services" },
 

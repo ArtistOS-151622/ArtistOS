@@ -104,7 +104,7 @@ export default function BroadcastDetailsPage() {
     return (
       <div className="text-center py-20">
         <h2 className="text-2xl font-bold text-slate-900">Campaign not found</h2>
-        <Button onClick={() => router.push('/broadcasts')} className="mt-4 rounded-xl">Back to Broadcasts</Button>
+        <Button onClick={() => router.push('/customers/broadcasts')} className="mt-4 rounded-xl">Back to Broadcasts</Button>
       </div>
     )
   }
@@ -119,7 +119,7 @@ export default function BroadcastDetailsPage() {
       <PageHeader title={campaign.name} />
       <div className="mx-auto max-w-5xl space-y-6 pb-12">
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/broadcasts')} className="rounded-full">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/customers/broadcasts')} className="rounded-full">
             <ArrowLeft className="size-5" />
           </Button>
           <div>

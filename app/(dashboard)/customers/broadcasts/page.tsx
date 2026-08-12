@@ -74,7 +74,7 @@ export default function BroadcastsDashboardPage() {
 
   return (
     <>
-      <PageHeader title="Broadcasts" />
+      <PageHeader title="Broadcasts" backLink="/customers" />
 
       {/* Inject header actions */}
       <HeaderPortal
@@ -117,7 +117,7 @@ export default function BroadcastsDashboardPage() {
 
             {/* Start Broadcast */}
             <Button
-              onClick={() => router.push("/broadcasts/create")}
+              onClick={() => router.push("/customers/broadcasts/create")}
               className="h-9 rounded-xl bg-[#7c3aed] text-white hover:bg-[#6d28d9] px-4 shadow-md shadow-purple-900/20"
             >
               <Send className="mr-1.5 size-3.5" />
@@ -181,7 +181,7 @@ export default function BroadcastsDashboardPage() {
                   : "Create your first message template to start sending broadcasts to your customers."}
               </p>
               <Button
-                onClick={() => router.push("/broadcasts/create")}
+                onClick={() => router.push("/customers/broadcasts/create")}
                 className="rounded-xl bg-[#7c3aed] text-white hover:bg-[#6d28d9]"
               >
                 <Plus className="mr-2 size-4" />
@@ -265,7 +265,7 @@ export default function BroadcastsDashboardPage() {
                   <div className="px-4 py-3">
                     <Button
                       className="w-full rounded-xl h-9 text-sm font-semibold text-white bg-[#7c3aed] hover:bg-[#6d28d9] shadow-sm shadow-purple-900/15 transition-all"
-                      onClick={() => router.push(`/broadcasts/create?template=${template.id}`)}
+                      onClick={() => router.push(`/customers/broadcasts/create?template=${template.id}`)}
                     >
                       <Send className="mr-1.5 size-3.5" />
                       Use Template
