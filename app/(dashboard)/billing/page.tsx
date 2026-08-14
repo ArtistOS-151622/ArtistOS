@@ -137,7 +137,9 @@ export default function BillingPage() {
         description: checkout.description,
         amount: checkout.amount,
         currency: "INR",
-        order_id: checkout.order_id,
+        ...(checkout.type === "subscription" 
+          ? { subscription_id: checkout.subscription_id } 
+          : { order_id: checkout.order_id }),
         handler: async (response: any) => {
           setLoadingPlanId(plan.id)
           try {
@@ -147,6 +149,7 @@ export default function BillingPage() {
               body: JSON.stringify({
                 payment_id: checkout.payment_id,
                 razorpay_order_id: response.razorpay_order_id,
+                razorpay_subscription_id: response.razorpay_subscription_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
               }),

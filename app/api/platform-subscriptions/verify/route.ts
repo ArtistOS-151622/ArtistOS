@@ -12,9 +12,10 @@ export async function POST(request: NextRequest) {
   const paymentId = Number(body.payment_id)
   const razorpayPaymentId = String(body.razorpay_payment_id ?? "")
   const razorpaySignature = String(body.razorpay_signature ?? "")
-  const razorpayOrderId = String(body.razorpay_order_id ?? "")
+  const razorpayOrderId = body.razorpay_order_id ? String(body.razorpay_order_id) : undefined
+  const razorpaySubscriptionId = body.razorpay_subscription_id ? String(body.razorpay_subscription_id) : undefined
 
-  if (!paymentId || !razorpayPaymentId || !razorpaySignature || !razorpayOrderId) {
+  if (!paymentId || !razorpayPaymentId || !razorpaySignature || (!razorpayOrderId && !razorpaySubscriptionId)) {
     return portfolioError("Missing payment verification fields", 400)
   }
 
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
     const completed = await verifyAndCompletePlatformPayment(supabase, session.id, {
       paymentId,
       razorpayOrderId,
+      razorpaySubscriptionId,
       razorpayPaymentId,
       razorpaySignature,
     })

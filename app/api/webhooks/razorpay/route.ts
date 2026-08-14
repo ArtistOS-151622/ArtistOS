@@ -74,25 +74,50 @@ export async function POST(request: NextRequest) {
       const notes = subscription?.notes ?? {}
       const userId = Number(notes.user_id)
       const planId = Number(notes.plan_id)
+      const type = notes.type as string | undefined
 
-      if (userId && planId) {
-        const { data: plan } = await supabase
-          .from("storage_plans")
-          .select("*")
-          .eq("id", planId)
-          .single()
+      if (type === "platform_subscription") {
+        if (userId && planId) {
+          const { data: plan } = await supabase
+            .from("platform_subscriptions")
+            .select("*")
+            .eq("id", planId)
+            .single()
 
-        if (plan) {
-          await extendSubscriptionPeriod(supabase, userId, plan.expires_in_days)
+          if (plan) {
+            const { extendPlatformSubscription } = await import("@/lib/platform-billing")
+            await extendPlatformSubscription(supabase, userId, plan.duration_in_days || 30)
+          }
         }
-      }
 
-      const purchaseId = Number(notes.purchase_id)
-      if (purchaseId) {
-        await completePurchase(supabase, purchaseId, {
-          rp_subscription_id: subscription?.id,
-          rp_event_id: `${eventId}-renewal`,
-        })
+        const paymentId = Number(notes.payment_id)
+        if (paymentId) {
+          const { completePlatformPayment } = await import("@/lib/platform-billing")
+          await completePlatformPayment(supabase, paymentId, {
+            rp_subscription_id: subscription?.id,
+            rp_event_id: `${eventId}-renewal`,
+          })
+        }
+      } else {
+        if (userId && planId) {
+          const { data: plan } = await supabase
+            .from("storage_plans")
+            .select("*")
+            .eq("id", planId)
+            .single()
+
+          if (plan) {
+            await extendSubscriptionPeriod(supabase, userId, plan.expires_in_days)
+          }
+        }
+
+        const purchaseId = Number(notes.purchase_id)
+        if (purchaseId) {
+          await completePurchase(supabase, purchaseId, {
+            rp_subscription_id: subscription?.id,
+            rp_event_id: `${eventId}-renewal`,
+          })
+        }
       }
     }
 

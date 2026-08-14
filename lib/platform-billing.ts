@@ -68,9 +68,41 @@ export async function createPlatformPurchase(
     return { payment, free_plan: true }
   }
 
-  // 4. Create Razorpay order
+  // 4. Create Razorpay order/subscription
   const razorpay = getRazorpayClient()
   const amountPaise = Math.round(amount * 100)
+
+  if (plan.razorpay_plan_id) {
+    const subscription = await razorpay.subscriptions.create({
+      plan_id: plan.razorpay_plan_id,
+      total_count: 120, // allow 10 years of monthly renewals
+      customer_notify: 1,
+      notes: {
+        user_id: String(userId),
+        payment_id: String(payment.id),
+        plan_id: String(plan.id),
+        type: "platform_subscription",
+      },
+    })
+
+    await supabase
+      .from("platform_payments")
+      .update({ rp_subscription_id: subscription.id })
+      .eq("id", payment.id)
+
+    return {
+      payment,
+      checkout: {
+        type: "subscription" as const,
+        payment_id: payment.id,
+        subscription_id: subscription.id,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: amountPaise,
+        name: "ArtistOS Platform",
+        description: `Subscription: ${plan.name}`,
+      },
+    }
+  }
 
   const order = await razorpay.orders.create({
     amount: amountPaise,
@@ -92,6 +124,7 @@ export async function createPlatformPurchase(
   return {
     payment,
     checkout: {
+      type: "order" as const,
       payment_id: payment.id,
       order_id: order.id,
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
@@ -107,7 +140,8 @@ export async function verifyAndCompletePlatformPayment(
   userId: number,
   params: {
     paymentId: number
-    razorpayOrderId: string
+    razorpayOrderId?: string
+    razorpaySubscriptionId?: string
     razorpayPaymentId: string
     razorpaySignature: string
   }
@@ -124,19 +158,32 @@ export async function verifyAndCompletePlatformPayment(
   if (!payment) throw new Error("Payment not found")
   if (payment.status === "completed") return false // already processed
 
-  if (payment.rp_order_id !== params.razorpayOrderId) {
-    throw new Error("Payment order does not match")
-  }
+  if (params.razorpayOrderId) {
+    if (payment.rp_order_id !== params.razorpayOrderId) {
+      throw new Error("Payment order does not match")
+    }
 
-  // 2. Verify signature
-  const payload = `${params.razorpayOrderId}|${params.razorpayPaymentId}`
-  if (!verifyRazorpaySignature(payload, params.razorpaySignature)) {
-    throw new Error("Invalid payment signature")
+    const payload = `${params.razorpayOrderId}|${params.razorpayPaymentId}`
+    if (!verifyRazorpaySignature(payload, params.razorpaySignature)) {
+      throw new Error("Invalid payment signature")
+    }
+  } else if (params.razorpaySubscriptionId) {
+    if (payment.rp_subscription_id !== params.razorpaySubscriptionId) {
+      throw new Error("Payment subscription does not match")
+    }
+
+    const payload = `${params.razorpayPaymentId}|${params.razorpaySubscriptionId}`
+    if (!verifyRazorpaySignature(payload, params.razorpaySignature)) {
+      throw new Error("Invalid payment signature")
+    }
+  } else {
+    throw new Error("Missing Razorpay order or subscription ID")
   }
 
   // 3. Complete the purchase
   return completePlatformPayment(supabase, params.paymentId, {
     rp_payment_id: params.razorpayPaymentId,
+    rp_subscription_id: params.razorpaySubscriptionId,
   })
 }
 
@@ -145,6 +192,7 @@ export async function completePlatformPayment(
   paymentId: number,
   paymentMeta?: {
     rp_payment_id?: string
+    rp_subscription_id?: string
     rp_event_id?: string
     payment_method?: string
   }
@@ -186,6 +234,7 @@ export async function completePlatformPayment(
     .update({
       status: "completed",
       rp_payment_id: paymentMeta?.rp_payment_id ?? payment.rp_payment_id,
+      rp_subscription_id: paymentMeta?.rp_subscription_id ?? payment.rp_subscription_id,
       rp_event_id: paymentMeta?.rp_event_id ?? payment.rp_event_id,
       payment_method: paymentMeta?.payment_method ?? null,
       invoice_number: invoiceNumber,
@@ -226,6 +275,7 @@ export async function completePlatformPayment(
       .update({
         plan_id: plan.id,
         current_period_end: newEnd.toISOString(),
+        rp_subscription_id: paymentMeta?.rp_subscription_id ?? activeSub.rp_subscription_id,
       })
       .eq("id", activeSub.id)
   } else {
@@ -238,8 +288,43 @@ export async function completePlatformPayment(
         status: "active",
         current_period_start: new Date().toISOString(),
         current_period_end: newEnd.toISOString(),
+        rp_subscription_id: paymentMeta?.rp_subscription_id ?? null,
       })
   }
 
   return true
+}
+
+export async function extendPlatformSubscription(
+  supabase: SupabaseClient,
+  userId: number,
+  durationDays: number
+) {
+  const { data: activeSub } = await supabase
+    .from("user_subscriptions")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("current_period_end", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  let newEnd = new Date()
+  if (activeSub && activeSub.current_period_end) {
+    const currentEnd = new Date(activeSub.current_period_end)
+    if (currentEnd > newEnd) {
+      newEnd = currentEnd
+    }
+  }
+
+  newEnd.setDate(newEnd.getDate() + durationDays)
+
+  if (activeSub) {
+    await supabase
+      .from("user_subscriptions")
+      .update({
+        current_period_end: newEnd.toISOString(),
+      })
+      .eq("id", activeSub.id)
+  }
 }
