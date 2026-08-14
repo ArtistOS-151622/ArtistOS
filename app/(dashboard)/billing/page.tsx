@@ -285,12 +285,17 @@ export default function BillingPage() {
 
       {/* Available Plans (shown when on free plan or always to allow upgrades) */}
       {!isLoading && plans && plans.length > 0 && (
-        <section id="plans">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-400 mb-4 px-1">
-            {currentPlan ? "Available Plans" : "Choose a Plan"}
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {plans.map(plan => {
+        (() => {
+          const filteredPlans = plans.filter(plan => !(currentPlan && plan.amount_inr === 0))
+          if (filteredPlans.length === 0) return null
+          
+          return (
+            <section id="plans" className={filteredPlans.length === 2 ? "max-w-2xl mx-auto mt-12" : "mt-12"}>
+              <h2 className={`text-sm font-semibold uppercase tracking-widest text-slate-400 mb-4 px-1 ${filteredPlans.length === 2 ? "text-center" : ""}`}>
+                {currentPlan ? "Available Plans" : "Choose a Plan"}
+              </h2>
+              <div className={`grid gap-4 sm:grid-cols-2 ${filteredPlans.length >= 3 ? 'lg:grid-cols-3' : ''}`}>
+                {filteredPlans.map(plan => {
               const isCurrent = currentPlan?.id === plan.id
               const isFeatured = plan.is_featured
               return (
@@ -353,9 +358,11 @@ export default function BillingPage() {
                   </button>
                 </div>
               )
-            })}
-          </div>
-        </section>
+                })}
+              </div>
+            </section>
+          )
+        })()
       )}
 
       {/* Payment History */}

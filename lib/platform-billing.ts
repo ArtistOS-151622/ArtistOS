@@ -270,7 +270,7 @@ export async function completePlatformPayment(
 
   if (activeSub) {
     // Update existing subscription
-    await supabase
+    const { error: updateError } = await supabase
       .from("user_subscriptions")
       .update({
         plan_id: plan.id,
@@ -278,9 +278,14 @@ export async function completePlatformPayment(
         rp_subscription_id: paymentMeta?.rp_subscription_id ?? activeSub.rp_subscription_id,
       })
       .eq("id", activeSub.id)
+      
+    if (updateError) {
+      console.error("Failed to update user_subscription:", updateError)
+      throw new Error(`Failed to update subscription: ${updateError.message}`)
+    }
   } else {
     // Create new subscription
-    await supabase
+    const { error: insertError } = await supabase
       .from("user_subscriptions")
       .insert({
         user_id: payment.user_id,
@@ -290,6 +295,11 @@ export async function completePlatformPayment(
         current_period_end: newEnd.toISOString(),
         rp_subscription_id: paymentMeta?.rp_subscription_id ?? null,
       })
+
+    if (insertError) {
+      console.error("Failed to insert user_subscription:", insertError)
+      throw new Error(`Failed to create subscription: ${insertError.message}`)
+    }
   }
 
   return true

@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server"
 import { getArtistSession } from "@/lib/auth/session"
 import { verifyAndCompletePlatformPayment } from "@/lib/platform-billing"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(request: NextRequest) {
   const session = getArtistSession(request)
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     return portfolioError("Missing payment verification fields", 400)
   }
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   try {
     const completed = await verifyAndCompletePlatformPayment(supabase, session.id, {

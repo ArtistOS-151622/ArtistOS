@@ -4,7 +4,7 @@ import { type NextRequest } from "next/server"
 import { completePurchase } from "@/lib/portfolio/billing"
 import { extendSubscriptionPeriod } from "@/lib/portfolio/quota"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 function verifyWebhookSignature(body: string, signature: string): boolean {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   const eventType = payload.event as string
   const eventId = payload.event_id ?? payload.id
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   try {
     if (eventType === "payment.captured" || eventType === "subscription.activated") {
