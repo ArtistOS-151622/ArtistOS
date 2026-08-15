@@ -29,6 +29,22 @@ function getJwtExpiry(token: string): number | null {
   }
 }
 
+function getJwtUserId(token: string): number | null {
+  const payload = token.split(".")[1]
+  if (!payload) return null
+
+  try {
+    const padded = payload.padEnd(payload.length + ((4 - (payload.length % 4)) % 4), "=")
+    const decoded = JSON.parse(atob(padded.replace(/-/g, "+").replace(/_/g, "/"))) as {
+      id?: unknown
+    }
+    const id = Number(decoded.id)
+    return Number.isFinite(id) ? id : null
+  } catch {
+    return null
+  }
+}
+
 function isExpiredSession(token: string): boolean {
   const exp = getJwtExpiry(token)
   return !exp || exp < Math.floor(Date.now() / 1000)
@@ -102,6 +118,42 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Mutating API Check for Read-Only Mode
+  if (pathname.startsWith("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) {
+    const exemptApiRoutes = [
+      "/api/auth/",
+      "/api/webhooks/",
+      "/api/platform-subscriptions/",
+      "/api/portfolio/purchase-storage/",
+      "/api/admin/",
+      "/api/notifications/"
+    ]
+    
+    const isExempt = exemptApiRoutes.some(r => pathname.startsWith(r))
+    
+    if (!isExempt && session?.value && !isExpiredSession(session.value)) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      const userId = getJwtUserId(session.value)
+
+      if (supabaseUrl && supabaseAnonKey && userId) {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } })
+        try {
+          const { checkIsReadOnly } = await import("@/lib/auth/subscription")
+          const isReadOnly = await checkIsReadOnly(supabase, userId)
+          if (isReadOnly) {
+            return NextResponse.json(
+              { error: "Your subscription has expired. You are in read-only mode." },
+              { status: 403 }
+            )
+          }
+        } catch (e) {
+          console.error("Proxy Subscription Check Error:", e)
+        }
+      }
+    }
+  }
+
   return NextResponse.next()
 }
 
@@ -115,6 +167,6 @@ export const config = {
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
      * - manifest.webmanifest, icon.png, apple-icon.png (PWA files)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.png|apple-icon.png).*)"
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.png|apple-icon.png).*)"
   ],
 }

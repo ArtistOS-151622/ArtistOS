@@ -5,6 +5,7 @@ import { useHeaderContext } from "@/components/common/dashboard/dashboard-header
 import { Loader2, X, User, Phone, MapPin, Mail, Calendar, HardDrive, IndianRupee, Briefcase, FileDigit, CalendarCheck, Crown, BadgeCheck, Clock } from "lucide-react"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
 type UserData = {
@@ -17,6 +18,7 @@ type UserData = {
     address: string
     created_at: string
     updated_at: string
+    is_test_user: boolean
   }
   customers: {
     total: number
@@ -70,6 +72,27 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
+  const [toggling, setToggling] = useState(false)
+
+  const toggleTestUser = async (user: UserData) => {
+    try {
+      setToggling(true)
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: user.id, is_test_user: !user.profile.is_test_user })
+      })
+      if (res.ok) {
+        const { user: updated } = await res.json()
+        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, profile: { ...u.profile, is_test_user: updated.is_test_user } } : u))
+        setSelectedUser(prev => prev && prev.id === user.id ? { ...prev, profile: { ...prev.profile, is_test_user: updated.is_test_user } } : prev)
+      }
+    } catch (e) {
+      console.error("Failed to toggle test user", e)
+    } finally {
+      setToggling(false)
+    }
+  }
 
   useEffect(() => {
     setTitle("Registered Artists")
@@ -112,13 +135,14 @@ export default function AdminUsersPage() {
                 <th className="px-6 py-4 font-medium">Customers</th>
                 <th className="px-6 py-4 font-medium">Net Profit</th>
                 <th className="px-6 py-4 font-medium">Joined Date</th>
+                <th className="px-6 py-4 font-medium">Test User</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
                     No registered users found.
                   </td>
                 </tr>
@@ -126,7 +150,12 @@ export default function AdminUsersPage() {
                 users.map((user) => (
                   <tr key={user.id} className="transition-colors hover:bg-slate-50/50">
                     <td className="px-6 py-4">
-                      <div className="font-medium text-slate-900">{user.profile.artist_name}</div>
+                      <div className="font-medium text-slate-900 flex items-center gap-2">
+                        {user.profile.artist_name}
+                        {user.profile.is_test_user && (
+                          <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-amber-800 uppercase">Test Account</span>
+                        )}
+                      </div>
                       <div className="text-slate-500">{user.profile.studio_name}</div>
                     </td>
                     <td className="px-6 py-4">
@@ -162,6 +191,16 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4 text-slate-500">
                       {format(new Date(user.profile.created_at), "MMM d, yyyy")}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={user.profile.is_test_user}
+                          onCheckedChange={() => toggleTestUser(user)}
+                          disabled={toggling}
+                        />
+                        {toggling && <Loader2 className="size-3 animate-spin text-slate-400" />}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Button 
@@ -200,7 +239,12 @@ export default function AdminUsersPage() {
           <>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">{selectedUser.profile.artist_name}</h2>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  {selectedUser.profile.artist_name}
+                  {selectedUser.profile.is_test_user && (
+                    <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-amber-800 uppercase">Test Account</span>
+                  )}
+                </h2>
                 <p className="text-sm text-slate-500">{selectedUser.profile.studio_name}</p>
               </div>
               <Button size="icon" variant="ghost" onClick={() => setSelectedUser(null)} className="rounded-full hover:bg-slate-200">
@@ -212,9 +256,11 @@ export default function AdminUsersPage() {
               
               {/* Profile Section */}
               <section className="space-y-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                  <User className="size-4" /> Basic Profile
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <User className="size-4" /> Basic Profile
+                  </h3>
+                </div>
                 <div className="grid gap-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-4 text-sm">
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-slate-500 flex items-center gap-2"><Phone className="size-3.5"/> Phone</span>

@@ -10,10 +10,10 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient()
 
-  // 1. Get the user's created_at to calculate trial age
+  // 1. Get the user's created_at and test status to calculate trial age
   const { data: user, error: userError } = await supabase
     .from("users")
-    .select("created_at")
+    .select("created_at, is_test_user")
     .eq("id", session.id)
     .single()
 
@@ -23,6 +23,19 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
   const msPerDay = 1000 * 60 * 60 * 24
+
+  if (user.is_test_user) {
+    return NextResponse.json(
+      {
+        trialDaysLeft: 9999,
+        isTrialExpired: false,
+        hasActiveSub: true,
+        isReadOnly: false,
+        daysSinceSignup: Math.floor((now.getTime() - new Date(user.created_at).getTime()) / msPerDay),
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    )
+  }
 
   // 2. Check for any active subscription
   const { data: activeSub } = await supabase

@@ -8,7 +8,7 @@ export async function GET() {
     const { data: users, error } = await supabase
       .from("users")
       .select(`
-        id, phone, artist_name, studio_name, address, email, created_at, updated_at,
+        id, phone, artist_name, studio_name, address, email, created_at, updated_at, is_test_user,
         customers (count),
         bookings (id, status, created_at),
         booking_payments (amount),
@@ -81,6 +81,7 @@ export async function GET() {
           address: user.address,
           created_at: user.created_at,
           updated_at: user.updated_at,
+          is_test_user: user.is_test_user || false,
         },
         customers: {
           total: customer_count
@@ -121,6 +122,32 @@ export async function GET() {
     return NextResponse.json(formattedUsers)
   } catch (error) {
     console.error("Error fetching admin users:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient()
+
+  try {
+    const { id, is_test_user } = await request.json()
+
+    if (!id || typeof is_test_user !== 'boolean') {
+      return NextResponse.json({ error: "Invalid request payload" }, { status: 400 })
+    }
+
+    const { data, error } = await supabase
+      .from("users")
+      .update({ is_test_user })
+      .eq("id", id)
+      .select("id, is_test_user")
+      .single()
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true, user: data })
+  } catch (error) {
+    console.error("Error updating user test status:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
