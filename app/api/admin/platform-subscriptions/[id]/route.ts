@@ -21,7 +21,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       features,
       is_active,
       is_featured,
-      duration_in_days,
       display_order,
     } = body
 
@@ -38,7 +37,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         features: features || [],
         is_active,
         is_featured,
-        duration_in_days,
         display_order
       })
       .eq("id", id)

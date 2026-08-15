@@ -33,7 +33,7 @@ export async function createPlatformPurchase(
 
   if (planError || !plan) throw new Error("Invalid platform plan")
   if (!plan.is_active) throw new Error("Plan is no longer active")
-  
+
   if (!isRazorpayConfigured()) {
     throw new Error("Razorpay is not connected! Please add your API keys in the .env file to accept payments.")
   }
@@ -243,13 +243,6 @@ export async function completePlatformPayment(
     })
     .eq("id", paymentId)
 
-  // Determine subscription end date based on duration_in_days
-  // Default to 30 if not specified
-  const durationDays = plan.duration_in_days || 30
-  
-  // Calculate new end date
-  // We should check if they already have an active subscription and extend it,
-  // or start from now if they don't.
   const { data: activeSub } = await supabase
     .from("user_subscriptions")
     .select("*")
@@ -259,16 +252,35 @@ export async function completePlatformPayment(
     .limit(1)
     .maybeSingle()
 
-  let newEnd = new Date()
-  if (activeSub && activeSub.current_period_end) {
-    const currentEnd = new Date(activeSub.current_period_end)
-    if (currentEnd > newEnd) {
-      newEnd = currentEnd
+  let newEnd: Date | null = null
+
+  if (paymentMeta?.rp_subscription_id) {
+    try {
+      const razorpay = getRazorpayClient()
+      const rpSub = await razorpay.subscriptions.fetch(paymentMeta.rp_subscription_id)
+      // console.log("This is rpSub", rpSub)
+      if (rpSub && rpSub.current_end) {
+        // console.log("This is rpSub.current_end", rpSub.current_end)
+        newEnd = new Date(rpSub.current_end * 1000)
+        // console.log("This is newEnd", newEnd)
+      }
+    } catch (err) {
+      console.error("Failed to fetch Razorpay subscription for end date:", err)
     }
   }
 
-  // Add the duration
-  newEnd.setDate(newEnd.getDate() + durationDays)
+  if (!newEnd) {
+    const durationDays = 30
+    newEnd = new Date()
+    // console.log("this is fallback")
+    if (activeSub && activeSub.current_period_end) {
+      const currentEnd = new Date(activeSub.current_period_end)
+      if (currentEnd > newEnd) {
+        newEnd = currentEnd
+      }
+    }
+    newEnd.setDate(newEnd.getDate() + durationDays)
+  }
 
   if (activeSub) {
     // Update existing subscription
@@ -280,7 +292,7 @@ export async function completePlatformPayment(
         rp_subscription_id: paymentMeta?.rp_subscription_id ?? activeSub.rp_subscription_id,
       })
       .eq("id", activeSub.id)
-      
+
     if (updateError) {
       console.error("Failed to update user_subscription:", updateError)
       throw new Error(`Failed to update subscription: ${updateError.message}`)
@@ -307,10 +319,10 @@ export async function completePlatformPayment(
   return true
 }
 
-export async function extendPlatformSubscription(
+export async function extendPlatformSubscriptionToDate(
   supabase: SupabaseClient,
   userId: number,
-  durationDays: number
+  currentEndUnix: number
 ) {
   const { data: activeSub } = await supabase
     .from("user_subscriptions")
@@ -321,24 +333,20 @@ export async function extendPlatformSubscription(
     .limit(1)
     .maybeSingle()
 
-  let newEnd = new Date()
-  if (activeSub && activeSub.current_period_end) {
-    const currentEnd = new Date(activeSub.current_period_end)
-    if (currentEnd > newEnd) {
-      newEnd = currentEnd
-    }
-  }
+  if (!activeSub) return
 
-  newEnd.setDate(newEnd.getDate() + durationDays)
+  const exactEndDate = new Date(currentEndUnix * 1000)
 
-  if (activeSub) {
-    await supabase
-      .from("user_subscriptions")
-      .update({
-        current_period_end: newEnd.toISOString(),
-      })
-      .eq("id", activeSub.id)
-  }
+  // Only update if new date is in the future compared to current expiry (handles out of order webhooks)
+  const currentExpiry = activeSub.current_period_end ? new Date(activeSub.current_period_end) : new Date(0)
+  if (exactEndDate <= currentExpiry) return
+
+  await supabase
+    .from("user_subscriptions")
+    .update({
+      current_period_end: exactEndDate.toISOString(),
+    })
+    .eq("id", activeSub.id)
 }
 
 export async function processPlatformRenewal(
@@ -348,6 +356,7 @@ export async function processPlatformRenewal(
     rp_payment_id?: string
     rp_subscription_id?: string
     rp_event_id: string
+    current_end?: number
   }
 ): Promise<boolean> {
   // 1. Prevent duplicate webhook processing
@@ -384,7 +393,7 @@ export async function processPlatformRenewal(
 
   // 3. Create a NEW payment record for this renewal invoice
   const invoiceNumber = `INV-PLT-RNW-${Math.floor(Date.now() / 1000)}-${Math.floor(1000 + Math.random() * 9000)}`
-  
+
   const { data: newPayment, error: insertError } = await supabase
     .from("platform_payments")
     .insert({
@@ -410,8 +419,36 @@ export async function processPlatformRenewal(
   }
 
   // 4. Extend the subscription period
-  const durationDays = plan.duration_in_days || 30
-  await extendPlatformSubscription(supabase, originalPayment.user_id, durationDays)
+  if (paymentMeta.current_end) {
+    await extendPlatformSubscriptionToDate(supabase, originalPayment.user_id, paymentMeta.current_end)
+  } else {
+    // Fallback if current_end isn't provided
+    const durationDays = 30
+
+    // We recreate a simplified duration adder here for the fallback since we removed the original
+    const { data: activeSub } = await supabase
+      .from("user_subscriptions")
+      .select("*")
+      .eq("user_id", originalPayment.user_id)
+      .eq("status", "active")
+      .order("current_period_end", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    let newEnd = new Date()
+    if (activeSub && activeSub.current_period_end) {
+      const currentEnd = new Date(activeSub.current_period_end)
+      if (currentEnd > newEnd) newEnd = currentEnd
+    }
+    newEnd.setDate(newEnd.getDate() + durationDays)
+
+    if (activeSub) {
+      await supabase
+        .from("user_subscriptions")
+        .update({ current_period_end: newEnd.toISOString() })
+        .eq("id", activeSub.id)
+    }
+  }
 
   return true
 }

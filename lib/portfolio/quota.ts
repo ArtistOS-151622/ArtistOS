@@ -184,8 +184,8 @@ export async function applyPurchaseToQuota(
   supabase: SupabaseClient,
   userId: number,
   storageBytes: number,
-  expiresInDays: number,
-  isAddon: boolean
+  isAddon: boolean,
+  currentEndUnix?: number
 ): Promise<void> {
   const quota = await getOrCreateQuota(supabase, userId)
   const now = new Date()
@@ -195,8 +195,10 @@ export async function applyPurchaseToQuota(
   if (isAddon && quota.expires_at && new Date(quota.expires_at) > now) {
     expiresAt = quota.expires_at
   } else {
-    const expiry = new Date(now)
-    expiry.setDate(expiry.getDate() + expiresInDays)
+    const expiry = currentEndUnix ? new Date(currentEndUnix * 1000) : new Date(now)
+    if (!currentEndUnix) {
+      expiry.setDate(expiry.getDate() + 30) // Fallback default
+    }
     expiresAt = expiry.toISOString()
   }
 
@@ -211,21 +213,24 @@ export async function applyPurchaseToQuota(
   if (error) throw new Error(error.message)
 }
 
-export async function extendSubscriptionPeriod(
+export async function extendSubscriptionPeriodToDate(
   supabase: SupabaseClient,
   userId: number,
-  expiresInDays: number
+  currentEndUnix: number
 ): Promise<void> {
   const quota = await getOrCreateQuota(supabase, userId)
-  const base = quota.expires_at && new Date(quota.expires_at) > new Date()
-    ? new Date(quota.expires_at)
-    : new Date()
+  
+  const exactEndDate = new Date(currentEndUnix * 1000)
 
-  base.setDate(base.getDate() + expiresInDays)
+  // Only update if the new date is actually in the future compared to current expiry (handles out of order webhooks)
+  const currentExpiry = quota.expires_at ? new Date(quota.expires_at) : new Date(0)
+  if (exactEndDate <= currentExpiry) {
+    return
+  }
 
   const { error } = await supabase
     .from("portfolio_storage_quotas")
-    .update({ expires_at: base.toISOString() })
+    .update({ expires_at: exactEndDate.toISOString() })
     .eq("user_id", userId)
 
   if (error) throw new Error(error.message)

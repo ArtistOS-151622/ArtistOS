@@ -16,7 +16,7 @@ export async function GET() {
         services (id),
         portfolio_storage_quotas (free_storage_bytes, purchase_storage_bytes, used_storage_bytes),
         portfolio_storage_purchases (status, amount, created_at),
-        user_subscriptions (id, status, current_period_start, current_period_end, platform_subscriptions (name, amount_inr, billing_period, duration_in_days))
+        user_subscriptions (id, status, current_period_start, current_period_end, platform_subscriptions (name, amount_inr, billing_period))
       `)
       .order("created_at", { ascending: false })
 

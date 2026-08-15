@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto"
 import { type NextRequest } from "next/server"
 
 import { completePurchase } from "@/lib/portfolio/billing"
-import { extendSubscriptionPeriod } from "@/lib/portfolio/quota"
+import { extendSubscriptionPeriodToDate } from "@/lib/portfolio/quota"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
             rp_payment_id: payload.payload?.payment?.entity?.id,
             rp_subscription_id: subscription?.id,
             rp_event_id: `${eventId}-renewal`,
+            current_end: subscription?.current_end,
           })
         }
       } else {
@@ -94,8 +95,8 @@ export async function POST(request: NextRequest) {
             .eq("id", planId)
             .single()
 
-          if (plan) {
-            await extendSubscriptionPeriod(supabase, userId, plan.expires_in_days)
+          if (plan && subscription?.current_end) {
+            await extendSubscriptionPeriodToDate(supabase, userId, subscription.current_end)
           }
         }
 
@@ -105,6 +106,23 @@ export async function POST(request: NextRequest) {
             rp_subscription_id: subscription?.id,
             rp_event_id: `${eventId}-renewal`,
           })
+        }
+      }
+    }
+
+    if (eventType === "subscription.cancelled" || eventType === "subscription.halted") {
+      const subscription = payload.payload?.subscription?.entity
+      const notes = subscription?.notes ?? {}
+      const type = notes.type as string | undefined
+      
+      if (type === "platform_subscription") {
+        const userId = Number(notes.user_id)
+        if (userId && subscription?.id) {
+          await supabase
+            .from("user_subscriptions")
+            .update({ status: eventType === "subscription.cancelled" ? "cancelled" : "halted" })
+            .eq("user_id", userId)
+            .eq("rp_subscription_id", subscription.id)
         }
       }
     }

@@ -36,7 +36,6 @@ export async function POST(req: Request) {
       features,
       is_active,
       is_featured,
-      duration_in_days,
       display_order,
     } = body
 
@@ -54,7 +53,6 @@ export async function POST(req: Request) {
           features: features || [],
           is_active: is_active ?? true,
           is_featured: is_featured ?? false,
-          duration_in_days: duration_in_days ?? 30,
           display_order: display_order ?? 0
         }
       ])

@@ -49,7 +49,6 @@ export type StoragePlanRow = {
   name: string
   storage_bytes: number
   price_inr: number
-  expires_in_days: number
   razorpay_plan_id: string | null
   is_active: boolean
   sort_order: number

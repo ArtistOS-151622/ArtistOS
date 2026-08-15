@@ -302,12 +302,26 @@ export async function completePurchase(
   const isAddon = quota.isActive() || quota.isInGracePeriod()
 
   const { applyPurchaseToQuota } = await import("@/lib/portfolio/quota")
+  
+  let currentEndUnix: number | undefined
+  if (paymentMeta?.rp_subscription_id) {
+    try {
+      const razorpay = getRazorpayClient()
+      const rpSub = await razorpay.subscriptions.fetch(paymentMeta.rp_subscription_id)
+      if (rpSub && rpSub.current_end) {
+        currentEndUnix = rpSub.current_end
+      }
+    } catch (err) {
+      console.error("Failed to fetch Razorpay subscription for end date:", err)
+    }
+  }
+
   await applyPurchaseToQuota(
     supabase,
     purchase.user_id,
     Number(purchase.storage_bytes),
-    plan.expires_in_days,
-    isAddon
+    isAddon,
+    currentEndUnix
   )
 
   return true
