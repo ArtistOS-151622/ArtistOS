@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { renameFile } from "@/lib/portfolio/files"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
@@ -19,6 +20,10 @@ export async function PUT(
   if (!original_name?.trim()) return portfolioError("original_name is required", 400)
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade to rename files.", 403)
+  }
 
   try {
     const file = await renameFile(supabase, session.id, id, original_name.trim())

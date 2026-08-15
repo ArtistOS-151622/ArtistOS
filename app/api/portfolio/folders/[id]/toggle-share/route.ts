@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { toggleShare, buildShareUrl } from "@/lib/portfolio/folders"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
@@ -23,6 +24,10 @@ export async function POST(
   }
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade to update sharing.", 403)
+  }
 
   try {
     const folder = await toggleShare(

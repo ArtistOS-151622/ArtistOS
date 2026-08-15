@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server"
 import sharp from "sharp"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import {
   overwriteFileInR2,
@@ -21,6 +22,11 @@ export async function POST(
   const quality = Math.min(100, Math.max(1, Number(body.quality ?? 80)))
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade to edit files.", 403)
+  }
+
   const { data: file, error } = await supabase
     .from("portfolio_files")
     .select("*")

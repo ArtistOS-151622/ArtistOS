@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { confirmFileUpload } from "@/lib/portfolio/files"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
@@ -26,6 +27,10 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade to upload files.", 403)
+  }
 
   try {
     const file = await confirmFileUpload(supabase, {

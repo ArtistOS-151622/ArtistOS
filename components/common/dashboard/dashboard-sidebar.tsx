@@ -4,15 +4,12 @@ import Link from "next/link";
 import useSWR from "swr";
 import {
   Bell,
-  CalendarDays,
   CalendarCheck,
+  ClipboardList,
   Grid2X2,
   Flower2,
   UsersRound,
   ImageIcon,
-  Settings,
-  LifeBuoy,
-  MessageSquare,
   BarChart3,
   type LucideIcon,
 } from "lucide-react";
@@ -21,7 +18,7 @@ import { BrandMark } from "@/components/common/brand/brand-logo";
 import { cn } from "@/lib/utils";
 
 type SidebarItem = {
-  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "portfolio" | "profile" | "support" | "billing" | "notifications" | "reports"
+  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "inquiries" | "portfolio" | "profile" | "support" | "billing" | "notifications" | "reports"
   icon: LucideIcon
   href: string
   label: string
@@ -31,6 +28,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "dashboard", icon: Grid2X2, href: "/dashboard", label: "Dashboard" },
   { id: "customers", icon: UsersRound, href: "/customers", label: "Customers" },
   { id: "bookings", icon: CalendarCheck, href: "/bookings", label: "Bookings" },
+  { id: "inquiries", icon: ClipboardList, href: "/inquiries", label: "Inquiries" },
   { id: "services", icon: Flower2, href: "/services", label: "Services" },
   { id: "reports", icon: BarChart3, href: "/reports", label: "Reports" },
 
@@ -41,14 +39,27 @@ type DashboardSidebarProps = {
   active: SidebarItem["id"];
 };
 
+type NotificationPreview = {
+  read_at?: string | null
+}
+
+type InquiryCounts = {
+  pending?: number
+}
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export function DashboardSidebar({ active }: DashboardSidebarProps) {
-  const { data: notifications } = useSWR<any[]>("/api/notifications", fetcher, {
+  const { data: notifications } = useSWR<NotificationPreview[]>("/api/notifications", fetcher, {
     refreshInterval: 60000,
+  })
+  const { data: inquiryCounts } = useSWR<InquiryCounts>("/api/inquiries/counts", fetcher, {
+    refreshInterval: 30000,
   })
   const validNotifications = Array.isArray(notifications) ? notifications : []
   const unreadCount = validNotifications.filter((n) => !n.read_at).length
+  const pendingInquiryCount = inquiryCounts?.pending ?? 0
+  const mobileItems = sidebarItems.filter((item) => item.id !== "inquiries")
 
   return (
     <>
@@ -104,7 +115,7 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
 
       {/* Mobile Navigation Bar */}
       <nav className="fixed inset-x-4 bottom-4 z-50 flex items-center justify-around rounded-full bg-white/95 p-1.5 shadow-2xl shadow-purple-950/15 border border-white/80 backdrop-blur-xl lg:hidden">
-        {sidebarItems.map((item) => (
+        {mobileItems.map((item) => (
           <DashboardNavLink
             key={item.id}
             item={item}
@@ -114,6 +125,22 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
         ))}
 
       </nav>
+
+      {active !== "inquiries" && active !== "portfolio" ? (
+        <Link
+          href="/inquiries"
+          aria-label="Inquiries"
+          title="Inquiries"
+          className="fixed right-0 top-1/2 z-50 flex h-14 w-13 -translate-y-1/2 items-center justify-center rounded-l-2xl bg-[#a100f2] text-white shadow-xl shadow-purple-950/20 transition-all hover:bg-[#8b00d4] lg:hidden"
+        >
+          <ClipboardList className="size-5" />
+          {pendingInquiryCount > 0 ? (
+            <span className="absolute -left-2 -top-2 flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+              {pendingInquiryCount > 99 ? "99+" : pendingInquiryCount}
+            </span>
+          ) : null}
+        </Link>
+      ) : null}
     </>
   );
 }

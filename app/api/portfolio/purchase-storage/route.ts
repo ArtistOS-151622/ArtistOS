@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { createStoragePurchase } from "@/lib/portfolio/billing"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
@@ -16,6 +17,10 @@ export async function POST(request: NextRequest) {
   if (Number.isNaN(planId)) return portfolioError("plan_id is required", 400)
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade your platform subscription before buying storage.", 403)
+  }
 
   try {
     const result = await createStoragePurchase(supabase, session.id, planId, quantity)

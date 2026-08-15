@@ -1,7 +1,8 @@
 import { type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
-import { deleteFilesBulk, listFilesInFolder } from "@/lib/portfolio/files"
+import { listFilesInFolder } from "@/lib/portfolio/files"
 import { deleteFromR2 } from "@/lib/portfolio/files"
 import { decrementUsage } from "@/lib/portfolio/quota"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
@@ -21,6 +22,10 @@ export async function PUT(
   const { name, description } = body
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade to update portfolio folders.", 403)
+  }
 
   if (name) {
     const { data: duplicate } = await supabase
@@ -61,6 +66,10 @@ export async function DELETE(
   if (Number.isNaN(id)) return portfolioError("Invalid folder ID", 400)
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade to delete portfolio folders.", 403)
+  }
 
   try {
     const files = await listFilesInFolder(supabase, session.id, id)

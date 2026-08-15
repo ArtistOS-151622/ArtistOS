@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import {
   findOrCreateBookingFolder,
@@ -34,6 +35,10 @@ export async function POST(request: NextRequest) {
   if (validationError) return portfolioError(validationError, 400)
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade to upload files.", 403)
+  }
 
   try {
     const quotaRow = await fetchQuota(supabase, session.id)

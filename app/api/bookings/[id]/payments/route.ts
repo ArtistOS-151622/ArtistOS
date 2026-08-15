@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -32,6 +33,10 @@ export async function GET(
   if (Number.isNaN(bookingId)) return NextResponse.json({ error: "Invalid booking ID." }, { status: 400 })
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to update booking payments." }, { status: 403 })
+  }
 
   const owns = await verifyBookingOwnership(supabase, bookingId, session.id)
   if (!owns) return NextResponse.json({ error: "Booking not found." }, { status: 404 })
@@ -128,6 +133,10 @@ export async function PATCH(
 
   const supabase = await createClient()
 
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to update booking payments." }, { status: 403 })
+  }
+
   const { data, error } = await supabase
     .from("booking_payments")
     .update({
@@ -164,6 +173,10 @@ export async function DELETE(
   if (Number.isNaN(paymentId)) return NextResponse.json({ error: "Invalid payment ID." }, { status: 400 })
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to update booking payments." }, { status: 403 })
+  }
 
   const { error } = await supabase
     .from("booking_payments")

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -40,6 +41,10 @@ export async function POST(
     return NextResponse.json({ error: "Rate cannot be negative." }, { status: 400 })
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to update booking charges." }, { status: 403 })
+  }
 
   const owns = await verifyBookingOwnership(supabase, bookingId, session.id)
   if (!owns) return NextResponse.json({ error: "Booking not found." }, { status: 404 })
@@ -84,6 +89,10 @@ export async function PATCH(
 
   const supabase = await createClient()
 
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to update booking charges." }, { status: 403 })
+  }
+
   const { data, error } = await supabase
     .from("booking_additional_charges")
     .update({
@@ -118,6 +127,10 @@ export async function DELETE(
   if (Number.isNaN(chargeId)) return NextResponse.json({ error: "Invalid charge ID." }, { status: 400 })
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to update booking charges." }, { status: 403 })
+  }
 
   const { error } = await supabase
     .from("booking_additional_charges")

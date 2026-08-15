@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -16,6 +17,10 @@ export async function DELETE(
 
     const supabase = await createClient()
 
+    if (await checkIsReadOnly(supabase, session.id)) {
+      return NextResponse.json({ error: "Your subscription has expired. Please upgrade to delete templates." }, { status: 403 })
+    }
+
     // Can only delete templates that belong to the user
     const { error } = await supabase
       .from("whatsapp_templates")
@@ -26,7 +31,7 @@ export async function DELETE(
     if (error) throw error
 
     return NextResponse.json({ success: true })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Delete template error:", error)
     return NextResponse.json({ error: "Failed to delete template" }, { status: 500 })
   }

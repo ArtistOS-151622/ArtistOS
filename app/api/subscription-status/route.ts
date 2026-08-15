@@ -54,7 +54,20 @@ export async function GET(request: NextRequest) {
       new Date(activeSub.current_period_end) > now)
 
   // 3. If user has an active subscription, return days left in that subscription period
-  if (hasActiveSub && activeSub?.current_period_end) {
+  if (hasActiveSub) {
+    if (!activeSub?.current_period_end) {
+      return NextResponse.json(
+        {
+          trialDaysLeft: 9999,
+          isTrialExpired: false,
+          hasActiveSub: true,
+          isReadOnly: false,
+          daysSinceSignup: Math.floor((now.getTime() - new Date(user.created_at).getTime()) / msPerDay),
+        },
+        { headers: { "Cache-Control": "no-store" } }
+      )
+    }
+
     const periodEnd = new Date(activeSub.current_period_end)
     const subDaysLeft = Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / msPerDay))
 

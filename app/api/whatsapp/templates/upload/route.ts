@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
+import { createClient } from "@/lib/supabase/server"
 import { getR2Client, getR2BucketName } from "@/lib/r2/client"
 import { PutObjectCommand } from "@aws-sdk/client-s3"
 
@@ -8,6 +10,11 @@ export async function POST(req: NextRequest) {
     const session = getArtistSession(req)
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const supabase = await createClient()
+    if (await checkIsReadOnly(supabase, session.id)) {
+      return NextResponse.json({ error: "Your subscription has expired. Please upgrade to upload template images." }, { status: 403 })
     }
 
     const formData = await req.formData()
@@ -50,8 +57,8 @@ export async function POST(req: NextRequest) {
 
     const url = `${publicDomain}/${key}`
     return NextResponse.json({ url })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Broadcast image upload error:", err)
-    return NextResponse.json({ error: err.message || "Upload failed" }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Upload failed" }, { status: 500 })
   }
 }

@@ -1,5 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server"
+import { type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { listFolders } from "@/lib/portfolio/folders"
 import { listFilesInFolder } from "@/lib/portfolio/files"
@@ -46,6 +47,10 @@ export async function POST(request: NextRequest) {
   if (!name?.trim()) return portfolioError("Folder name is required", 400)
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade to create portfolio folders.", 403)
+  }
 
   const { data: existing } = await supabase
     .from("portfolio_folders")

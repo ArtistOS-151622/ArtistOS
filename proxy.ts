@@ -8,6 +8,7 @@ const protectedPrefixes = [
   "/services",
   "/customers",
   "/bookings",
+  "/inquiries",
   "/calendar",
   "/portfolio",
   "/profile",

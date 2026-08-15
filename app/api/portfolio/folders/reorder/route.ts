@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { updateFolderSortOrder } from "@/lib/portfolio/folders"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
@@ -17,6 +18,10 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade to reorder folders.", 403)
+  }
 
   try {
     await updateFolderSortOrder(

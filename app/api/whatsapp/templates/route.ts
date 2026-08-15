@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     if (error) throw error
 
     return NextResponse.json({ templates })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Fetch templates error:", error)
     return NextResponse.json({ error: "Failed to fetch templates" }, { status: 500 })
   }
@@ -39,6 +40,10 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient()
 
+    if (await checkIsReadOnly(supabase, session.id)) {
+      return NextResponse.json({ error: "Your subscription has expired. Please upgrade to create templates." }, { status: 403 })
+    }
+
     const { data, error } = await supabase
       .from("whatsapp_templates")
       .insert({
@@ -54,7 +59,7 @@ export async function POST(req: NextRequest) {
     if (error) throw error
 
     return NextResponse.json({ template: data })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Create template error:", error)
     return NextResponse.json({ error: "Failed to create template" }, { status: 500 })
   }

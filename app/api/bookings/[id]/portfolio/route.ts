@@ -1,7 +1,8 @@
 import { type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
-import { findOrCreateBookingFolder } from "@/lib/portfolio/folders"
+import { findFolderByBooking, findOrCreateBookingFolder } from "@/lib/portfolio/folders"
 import { listFilesInFolder } from "@/lib/portfolio/files"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
 import { createClient } from "@/lib/supabase/server"
@@ -28,7 +29,20 @@ export async function GET(
   if (bookingError || !booking) return portfolioError("Booking not found", 404)
 
   try {
-    const folder = await findOrCreateBookingFolder(supabase, session.id, bookingId)
+    const isReadOnly = await checkIsReadOnly(supabase, session.id)
+    const folder = isReadOnly
+      ? await findFolderByBooking(supabase, session.id, bookingId)
+      : await findOrCreateBookingFolder(supabase, session.id, bookingId)
+
+    if (!folder) {
+      return portfolioSuccess("Booking portfolio loaded", {
+        folder: null,
+        reference_files: [],
+        delivery_files: [],
+        files: [],
+      })
+    }
+
     const allFiles = await listFilesInFolder(supabase, session.id, folder.id)
 
     return portfolioSuccess("Booking portfolio loaded", {
@@ -51,6 +65,10 @@ export async function POST(
 
   const bookingId = Number((await params).id)
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return portfolioError("Your subscription has expired. Please upgrade to create booking folders.", 403)
+  }
 
   const { data: booking } = await supabase
     .from("bookings")
