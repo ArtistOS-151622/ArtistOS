@@ -338,3 +338,78 @@ export async function extendPlatformSubscription(
       .eq("id", activeSub.id)
   }
 }
+
+export async function processPlatformRenewal(
+  supabase: SupabaseClient,
+  originalPaymentId: number,
+  paymentMeta: {
+    rp_payment_id?: string
+    rp_subscription_id?: string
+    rp_event_id: string
+  }
+): Promise<boolean> {
+  // 1. Prevent duplicate webhook processing
+  const { data: existingEvent } = await supabase
+    .from("razorpay_webhook_events")
+    .select("id")
+    .eq("event_id", paymentMeta.rp_event_id)
+    .maybeSingle()
+
+  if (existingEvent) return false
+
+  await supabase.from("razorpay_webhook_events").insert({
+    event_id: paymentMeta.rp_event_id,
+    event_type: "platform_renewal",
+  })
+
+  // 2. Fetch the original payment to get plan and amount details
+  const { data: originalPayment, error: fetchError } = await supabase
+    .from("platform_payments")
+    .select("*, platform_subscriptions(*)")
+    .eq("id", originalPaymentId)
+    .single()
+
+  if (fetchError || !originalPayment) {
+    console.error("Renewal failed: Original payment not found")
+    return false
+  }
+
+  const plan = originalPayment.platform_subscriptions
+  if (!plan) {
+    console.error("Renewal failed: Plan details not found")
+    return false
+  }
+
+  // 3. Create a NEW payment record for this renewal invoice
+  const invoiceNumber = `INV-PLT-RNW-${Math.floor(Date.now() / 1000)}-${Math.floor(1000 + Math.random() * 9000)}`
+  
+  const { data: newPayment, error: insertError } = await supabase
+    .from("platform_payments")
+    .insert({
+      user_id: originalPayment.user_id,
+      plan_id: plan.id,
+      plan_name: originalPayment.plan_name,
+      base_amount: originalPayment.base_amount,
+      gst_amount: originalPayment.gst_amount,
+      amount: originalPayment.amount,
+      status: "completed",
+      rp_payment_id: paymentMeta.rp_payment_id,
+      rp_subscription_id: paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id,
+      rp_event_id: paymentMeta.rp_event_id,
+      rp_order_id: null,
+      invoice_number: invoiceNumber,
+    })
+    .select("id")
+    .single()
+
+  if (insertError || !newPayment) {
+    console.error("Renewal failed: Could not create new payment invoice", insertError)
+    return false
+  }
+
+  // 4. Extend the subscription period
+  const durationDays = plan.duration_in_days || 30
+  await extendPlatformSubscription(supabase, originalPayment.user_id, durationDays)
+
+  return true
+}

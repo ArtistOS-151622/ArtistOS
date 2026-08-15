@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
+
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -84,11 +86,15 @@ export async function POST(request: NextRequest) {
   const session = getArtistSession(request)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to create customers." }, { status: 403 })
+  }
+
   const body = (await request.json()) as CustomerInput
   const result = validateCustomer(body)
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 })
-
-  const supabase = await createClient()
 
   // Pre-check for duplicate phone number for the same artist
   const { data: existingCustomer, error: checkError } = await supabase

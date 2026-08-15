@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
+
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -45,6 +47,11 @@ export async function PATCH(
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 })
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to edit services." }, { status: 403 })
+  }
+
   const { data, error } = await supabase
     .from("services")
     .update(result.data)
@@ -68,6 +75,11 @@ export async function DELETE(
   if (!id) return NextResponse.json({ error: "Invalid service id." }, { status: 400 })
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to delete services." }, { status: 403 })
+  }
+
   const { error } = await supabase
     .from("services")
     .delete()

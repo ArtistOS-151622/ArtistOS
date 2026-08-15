@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
+
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -45,6 +47,12 @@ export async function PATCH(
   const id = Number((await params).id)
   if (Number.isNaN(id)) return NextResponse.json({ error: "Invalid booking ID." }, { status: 400 })
 
+  const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to edit bookings." }, { status: 403 })
+  }
+
   const body = (await request.json()) as BookingInput
 
   if (!body.customer_id) return NextResponse.json({ error: "Customer is required." }, { status: 400 })
@@ -53,8 +61,6 @@ export async function PATCH(
   if (!body.start_time) return NextResponse.json({ error: "Start time is required." }, { status: 400 })
   if (!body.end_time) return NextResponse.json({ error: "End time is required." }, { status: 400 })
   if (!body.status) return NextResponse.json({ error: "Status is required." }, { status: 400 })
-
-  const supabase = await createClient()
 
   // Verify ownership before updating
   const { data: checkOwn, error: ownError } = await supabase
@@ -103,14 +109,14 @@ export async function PATCH(
     const serviceIds = body.services.map(Number)
 
     const newServiceIds = serviceIds.filter(sid => !existingServiceMap.has(sid))
-    
+
     let servicePriceMap = new Map()
     if (newServiceIds.length > 0) {
       const { data: servicesData } = await supabase
         .from("services")
         .select("id, price")
         .in("id", newServiceIds)
-      
+
       servicePriceMap = new Map(servicesData?.map(s => [s.id, s.price]) || [])
     }
 
@@ -120,8 +126,8 @@ export async function PATCH(
         booking_id: id,
         service_id: sid,
         quantity: existing ? (existing.quantity || 1) : 1,
-        unit_price: existing && existing.unit_price !== undefined && existing.unit_price !== null 
-          ? existing.unit_price 
+        unit_price: existing && existing.unit_price !== undefined && existing.unit_price !== null
+          ? existing.unit_price
           : (servicePriceMap.get(sid) || 0),
       }
     })
@@ -173,6 +179,10 @@ export async function DELETE(
   if (Number.isNaN(id)) return NextResponse.json({ error: "Invalid booking ID." }, { status: 400 })
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to delete bookings." }, { status: 403 })
+  }
 
   const { error } = await supabase
     .from("bookings")

@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
+
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -68,6 +70,11 @@ export async function POST(request: NextRequest) {
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 })
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to create services." }, { status: 403 })
+  }
+
   const { data, error } = await supabase
     .from("services")
     .insert({ ...result.data, user_id: session.id })

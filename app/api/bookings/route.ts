@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
+
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get("status")?.trim() || "all"
   const startDate = searchParams.get("start_date")
   const endDate = searchParams.get("end_date")
-  
+
   const isDateRangeQuery = startDate && endDate
 
   const page = Math.max(1, Number(searchParams.get("page")) || 1)
@@ -99,7 +101,7 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD for IST (since user's timezone seems to be +05:30)
-  
+
   const futureBookings = [];
   const pastBookings = [];
 
@@ -156,6 +158,12 @@ export async function POST(request: NextRequest) {
   const session = getArtistSession(request)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to create bookings." }, { status: 403 })
+  }
+
   const body = (await request.json()) as BookingInput
 
   if (!body.customer_id) return NextResponse.json({ error: "Customer is required." }, { status: 400 })
@@ -164,8 +172,6 @@ export async function POST(request: NextRequest) {
   if (!body.start_time) return NextResponse.json({ error: "Start time is required." }, { status: 400 })
   if (!body.end_time) return NextResponse.json({ error: "End time is required." }, { status: 400 })
   if (!body.status) return NextResponse.json({ error: "Status is required." }, { status: 400 })
-
-  const supabase = await createClient()
 
   // Insert main booking record
   const { data: booking, error: insertError } = await supabase

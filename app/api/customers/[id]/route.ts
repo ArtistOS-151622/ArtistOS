@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { checkIsReadOnly } from "@/lib/auth/subscription"
+
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -59,6 +61,10 @@ export async function PATCH(
 
   const supabase = await createClient()
 
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to edit customers." }, { status: 403 })
+  }
+
   // Pre-check for duplicate phone number for another customer of the same artist
   const { data: existingCustomer, error: checkError } = await supabase
     .from("customers")
@@ -99,6 +105,11 @@ export async function DELETE(
   if (!id) return NextResponse.json({ error: "Invalid customer id." }, { status: 400 })
 
   const supabase = await createClient()
+
+  if (await checkIsReadOnly(supabase, session.id)) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to delete customers." }, { status: 403 })
+  }
+
   const { error } = await supabase
     .from("customers")
     .delete()

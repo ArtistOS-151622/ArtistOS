@@ -21,17 +21,14 @@ export function ReadOnlyOverlay({ isReadOnly }: Props) {
   if (isExempt) return null
 
   return (
-    <div
-      className="absolute inset-0 z-[9000] cursor-not-allowed"
-      style={{ pointerEvents: "all" }}
-      onClick={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        // Redirect to billing so user understands what to do
-        router.push("/billing")
-      }}
-      title="Your free trial has ended. Please upgrade to continue."
-    >
+    <div className="fixed top-0 left-0 right-0 bg-red-600 text-white z-[9000] px-4 py-2 text-center text-sm font-medium shadow-md flex items-center justify-center gap-2">
+      Your subscription has expired. You are in read-only mode.
+      <button
+        onClick={() => router.push("/billing")}
+        className="underline font-bold hover:text-red-100 transition-colors"
+      >
+        Upgrade now
+      </button>
     </div>
   )
 }

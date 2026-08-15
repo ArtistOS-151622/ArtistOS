@@ -77,23 +77,11 @@ export async function POST(request: NextRequest) {
       const type = notes.type as string | undefined
 
       if (type === "platform_subscription") {
-        if (userId && planId) {
-          const { data: plan } = await supabase
-            .from("platform_subscriptions")
-            .select("*")
-            .eq("id", planId)
-            .single()
-
-          if (plan) {
-            const { extendPlatformSubscription } = await import("@/lib/platform-billing")
-            await extendPlatformSubscription(supabase, userId, plan.duration_in_days || 30)
-          }
-        }
-
         const paymentId = Number(notes.payment_id)
         if (paymentId) {
-          const { completePlatformPayment } = await import("@/lib/platform-billing")
-          await completePlatformPayment(supabase, paymentId, {
+          const { processPlatformRenewal } = await import("@/lib/platform-billing")
+          await processPlatformRenewal(supabase, paymentId, {
+            rp_payment_id: payload.payload?.payment?.entity?.id,
             rp_subscription_id: subscription?.id,
             rp_event_id: `${eventId}-renewal`,
           })
