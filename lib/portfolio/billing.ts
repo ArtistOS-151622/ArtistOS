@@ -43,8 +43,13 @@ export async function getGlobalGstRate(supabase: SupabaseClient): Promise<number
   return data?.value ? parseFloat(data.value) : 0.18
 }
 
-export async function calculatePurchaseAmounts(supabase: SupabaseClient, priceInr: number, quantity: number) {
-  const gstRate = await getGlobalGstRate(supabase)
+export async function calculatePurchaseAmounts(
+  supabase: SupabaseClient,
+  priceInr: number,
+  quantity: number,
+  gstRateOverride?: number
+) {
+  const gstRate = gstRateOverride ?? await getGlobalGstRate(supabase)
   const baseAmount = Math.round(priceInr * quantity * 100) / 100
   const gstAmount = Math.round(baseAmount * gstRate * 100) / 100
   const amount = Math.round((baseAmount + gstAmount) * 100) / 100

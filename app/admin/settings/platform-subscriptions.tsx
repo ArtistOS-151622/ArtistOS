@@ -1,16 +1,22 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Loader2, Plus, Save, Trash2, ShieldCheck, Crown, Pencil, X, ExternalLink, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { FloatingInput } from "@/components/common/shared/floating-input"
 import { FloatingTextarea } from "@/components/common/shared/floating-input"
 import { Switch } from "@/components/ui/switch"
+import useSWR from "swr"
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export type PlatformSubscription = {
   id?: number
   name: string
   description: string
   amount_inr: number
+  compare_at_amount_inr?: number | null
+  discount_percentage?: number | null
+  gst_percentage?: number | null
   billing_period: string
   features: string[]
   is_active: boolean
@@ -19,9 +25,10 @@ export type PlatformSubscription = {
   display_order: number
 }
 
+const isFreeTierPlan = (plan: PlatformSubscription) => plan.amount_inr === 0 && plan.billing_period !== ""
+
 export function PlatformSubscriptionsTab() {
-  const [plans, setPlans] = useState<PlatformSubscription[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: plans = [], isLoading: loading, mutate: mutatePlans } = useSWR<PlatformSubscription[]>("/api/admin/platform-subscriptions", fetcher)
   const [savingId, setSavingId] = useState<number | 'new' | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
@@ -29,29 +36,15 @@ export function PlatformSubscriptionsTab() {
   const [editingPlan, setEditingPlan] = useState<PlatformSubscription | null>(null)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
 
-  useEffect(() => {
-    loadPlans()
-  }, [])
-
-  const loadPlans = async () => {
-    try {
-      const res = await fetch("/api/admin/platform-subscriptions")
-      if (res.ok) {
-        setPlans(await res.json())
-      }
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleAddPlan = () => {
     setEditingIndex(null)
     setEditingPlan({
       name: "New Plan",
       description: "",
       amount_inr: 0,
+      compare_at_amount_inr: null,
+      discount_percentage: null,
+      gst_percentage: 18,
       billing_period: "/month",
       features: ["One Month Free to Use", "Client CRM", "Portfolio gallery", "Booking calendar"],
       is_active: true,
@@ -72,7 +65,7 @@ export function PlatformSubscriptionsTab() {
     setEditingIndex(null)
   }
 
-  const updateDraft = (field: keyof PlatformSubscription, value: any) => {
+  const updateDraft = <K extends keyof PlatformSubscription>(field: K, value: PlatformSubscription[K]) => {
     if (!editingPlan) return
     setEditingPlan({ ...editingPlan, [field]: value })
   }
@@ -119,7 +112,7 @@ export function PlatformSubscriptionsTab() {
         } else if (editingIndex !== null) {
           updatedPlans[editingIndex] = result.data
         }
-        setPlans(updatedPlans)
+        mutatePlans(updatedPlans, false)
         handleCloseDrawer()
       } else {
         toast.error("Failed to save plan")
@@ -146,7 +139,7 @@ export function PlatformSubscriptionsTab() {
       const res = await fetch(`/api/admin/platform-subscriptions/${id}`, { method: "DELETE" })
       if (res.ok) {
         toast.success("Plan deleted successfully")
-        setPlans(plans.filter(p => p.id !== id))
+        mutatePlans(plans.filter(p => p.id !== id), false)
       } else {
         toast.error("Failed to delete plan")
       }
@@ -166,7 +159,7 @@ export function PlatformSubscriptionsTab() {
     // Optimistic update
     const updatedPlans = [...plans]
     updatedPlans[index] = updated
-    setPlans(updatedPlans)
+    mutatePlans(updatedPlans, false)
 
     try {
       await fetch(`/api/admin/platform-subscriptions/${plan.id}`, {
@@ -174,11 +167,11 @@ export function PlatformSubscriptionsTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updated)
       })
-    } catch (e) {
+    } catch {
       // Revert on failure
       const revertedPlans = [...plans]
       revertedPlans[index] = plan
-      setPlans(revertedPlans)
+      mutatePlans(revertedPlans, false)
       toast.error("Failed to update status")
     }
   }
@@ -222,6 +215,11 @@ export function PlatformSubscriptionsTab() {
           <div className="divide-y divide-slate-100">
             {plans.map((plan, index) => (
               <div key={plan.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                {(() => {
+                  const isFreeTier = isFreeTierPlan(plan)
+                  const periodText = isFreeTier ? "First Month" : plan.billing_period
+
+                  return (
                 <div className="flex items-center gap-6">
                   <div className="space-y-1">
                     <div className="flex items-center gap-3">
@@ -238,10 +236,19 @@ export function PlatformSubscriptionsTab() {
                       )}
                     </div>
                     <p className="text-sm font-medium text-slate-500">
-                      {plan.amount_inr === 0 ? "Custom Price" : `₹${plan.amount_inr}`} {plan.billing_period}
+                      {plan.compare_at_amount_inr ? (
+                        <span className="mr-2 text-slate-400 line-through">₹{plan.compare_at_amount_inr}</span>
+                      ) : null}
+                      {plan.amount_inr === 0 ? "Custom Price" : `₹${plan.amount_inr}`}
+                      {!isFreeTier && plan.gst_percentage ? ` + ${plan.gst_percentage}% GST` : ""} {periodText}
+                      {plan.discount_percentage ? (
+                        <span className="ml-2 text-emerald-600">{plan.discount_percentage}% off</span>
+                      ) : null}
                     </p>
                   </div>
                 </div>
+                  )
+                })()}
 
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-3 border-r border-slate-200 pr-6">
@@ -315,7 +322,7 @@ export function PlatformSubscriptionsTab() {
                 <div className="flex-1 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-purple-900">Featured</p>
-                    <p className="text-xs text-purple-600/70">Mark as "Best value"</p>
+                    <p className="text-xs text-purple-600/70">Mark as Best value</p>
                   </div>
                   <Switch 
                     checked={editingPlan.is_featured} 
@@ -336,10 +343,37 @@ export function PlatformSubscriptionsTab() {
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <FloatingInput 
-                    label="Amount (₹)" 
+                    label="Cross Price (₹)" 
+                    type="number"
+                    value={editingPlan.compare_at_amount_inr ?? ""}
+                    onChange={(e) => setEditingPlan({
+                      ...editingPlan,
+                      compare_at_amount_inr: e.target.value === "" ? null : Number(e.target.value),
+                    })}
+                  />
+                  <FloatingInput 
+                    label="Actual Price (₹)" 
                     type="number"
                     value={editingPlan.amount_inr}
                     onChange={(e) => setEditingPlan({ ...editingPlan, amount_inr: Number(e.target.value) })}
+                  />
+                  <FloatingInput 
+                    label="Discount (%)" 
+                    type="number"
+                    value={editingPlan.discount_percentage ?? ""}
+                    onChange={(e) => setEditingPlan({
+                      ...editingPlan,
+                      discount_percentage: e.target.value === "" ? null : Number(e.target.value),
+                    })}
+                  />
+                  <FloatingInput 
+                    label="GST (%)" 
+                    type="number"
+                    value={editingPlan.gst_percentage ?? 18}
+                    onChange={(e) => setEditingPlan({
+                      ...editingPlan,
+                      gst_percentage: e.target.value === "" ? null : Number(e.target.value),
+                    })}
                   />
                   <FloatingInput 
                     label="Duration (in days)" 

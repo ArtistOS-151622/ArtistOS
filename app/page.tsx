@@ -184,10 +184,32 @@ const testimonials = [
   },
 ]
 
-const pricingPlans = [
+type PricingPlan = {
+  id?: number
+  name: string
+  price?: string
+  period?: string
+  amount_inr?: number
+  compare_at_amount_inr?: number | null
+  discount_percentage?: number | null
+  gst_percentage?: number | null
+  billing_period?: string
+  description: string
+  features: string[]
+  cta?: string
+  featured?: boolean
+  is_featured?: boolean
+}
+
+const isFreeTierPricingPlan = (plan: PricingPlan) => plan.amount_inr === 0 && (plan.billing_period ?? plan.period ?? "") !== ""
+
+const pricingPlans: PricingPlan[] = [
   {
     name: "Monthly",
-    price: "₹200",
+    price: "₹249",
+    compare_at_amount_inr: 500,
+    discount_percentage: 50,
+    gst_percentage: 18,
     period: "/month",
     description: "Best for solo artists who want to organize bookings and payments.",
     features: [
@@ -203,7 +225,10 @@ const pricingPlans = [
   },
   {
     name: "Yearly",
-    price: "₹2000",
+    price: "₹2799",
+    compare_at_amount_inr: 5000,
+    discount_percentage: 44,
+    gst_percentage: 18,
     period: "/year",
     description: "Save more with a full year of business management tools.",
     features: [
@@ -734,7 +759,7 @@ function Testimonials() {
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 function PricingSection() {
-  const { data: plans, isLoading } = useSWR("/api/platform-subscriptions", fetcher)
+  const { data: plans, isLoading } = useSWR<PricingPlan[]>("/api/platform-subscriptions", fetcher)
   const sliderRef = useRef<HTMLDivElement>(null)
 
   // Use the fetched plans, fallback to hardcoded ONLY if the API returned an error/non-array
@@ -813,9 +838,8 @@ function PricingSection() {
               ref={sliderRef}
               className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
             >
-              {displayPlans.map((plan: any) => {
-                const isFeatured = plan.is_featured ?? plan.featured
-                const price = plan.amount_inr !== undefined ? `₹${plan.amount_inr}` : plan.price
+              {displayPlans.map((plan) => {
+                const isFeatured = plan.is_featured ?? plan.featured ?? false
                 return (
                   <article
                     key={plan.id || plan.name}
@@ -828,7 +852,7 @@ function PricingSection() {
                     {isFeatured && (
                       <span className="absolute right-6 top-6 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#7c3aed]">Best value</span>
                     )}
-                    <PricingCardInner plan={plan} isFeatured={isFeatured} price={price} />
+                    <PricingCardInner plan={plan} isFeatured={isFeatured} />
                   </article>
                 )
               })}
@@ -857,9 +881,8 @@ function PricingSection() {
 
           {/* Desktop: smart grid */}
           <div className={`hidden lg:grid gap-6 ${gridClass}`}>
-            {displayPlans.map((plan: any) => {
-              const isFeatured = plan.is_featured ?? plan.featured
-              const price = plan.amount_inr !== undefined ? `₹${plan.amount_inr}` : plan.price
+            {displayPlans.map((plan) => {
+              const isFeatured = plan.is_featured ?? plan.featured ?? false
               return (
                 <article
                   key={plan.id || plan.name}
@@ -872,7 +895,7 @@ function PricingSection() {
                   {isFeatured && (
                     <span className="absolute right-6 top-6 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#7c3aed]">Best value</span>
                   )}
-                  <PricingCardInner plan={plan} isFeatured={isFeatured} price={price} />
+                  <PricingCardInner plan={plan} isFeatured={isFeatured} />
                 </article>
               )
             })}
@@ -884,7 +907,13 @@ function PricingSection() {
 }
 
 
-function PricingCardInner({ plan, isFeatured, price }: { plan: any; isFeatured: boolean; price: string }) {
+function PricingCardInner({ plan, isFeatured }: { plan: PricingPlan; isFeatured: boolean }) {
+  const price = plan.amount_inr !== undefined ? `₹${plan.amount_inr}` : plan.price ?? ""
+  const compareAtPrice = plan.compare_at_amount_inr ? `₹${plan.compare_at_amount_inr}` : null
+  const isFreeTier = isFreeTierPricingPlan(plan)
+  const gstText = !isFreeTier && plan.gst_percentage ? `+ ${plan.gst_percentage}% GST` : ""
+  const periodText = isFreeTier ? "First Month" : plan.billing_period || plan.period
+
   return (
     <>
       {/* Decorative orb for featured */}
@@ -901,13 +930,34 @@ function PricingCardInner({ plan, isFeatured, price }: { plan: any; isFeatured: 
         </div>
 
         {/* Price */}
-        <div className="mt-1 flex items-end gap-1.5">
+        {(compareAtPrice || plan.discount_percentage) && (
+          <div className="mt-1 flex min-h-6 flex-wrap items-center gap-2">
+            {compareAtPrice && (
+              <span className={`text-base font-semibold line-through ${isFeatured ? "text-white/45" : "text-[#9aa0bd]"}`}>
+                {compareAtPrice}
+              </span>
+            )}
+            {plan.discount_percentage && (
+              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${
+                isFeatured ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700"
+              }`}>
+                {plan.discount_percentage}% off
+              </span>
+            )}
+          </div>
+        )}
+        <div className="mt-1 flex flex-wrap items-end gap-1.5">
           <span className={`text-[3.25rem] font-bold leading-none tracking-tight ${isFeatured ? "text-white" : "text-[#1a1d3a]"}`}>
             {price}
           </span>
-          {(plan.billing_period || plan.period) && (
+          {gstText && (
+            <span className={`mb-1.5 text-sm font-semibold ${isFeatured ? "text-white/70" : "text-[#606684]"}`}>
+              {gstText}
+            </span>
+          )}
+          {periodText && (
             <span className={`mb-1.5 text-sm font-medium ${isFeatured ? "text-white/60" : "text-[#9096b5]"}`}>
-              {plan.billing_period || plan.period}
+              {periodText}
             </span>
           )}
         </div>

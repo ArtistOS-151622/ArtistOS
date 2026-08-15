@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { useHeaderContext } from "@/components/common/dashboard/dashboard-header-context"
 import {
-  Crown, CheckCircle2, Download, Receipt, CreditCard,
-  Sparkles, ArrowRight, Loader2, FileText, Calendar,
+  Crown, CheckCircle2, Download, Receipt,
+  Sparkles, Loader2, FileText, Calendar,
   ShieldCheck, Zap, BadgeCheck
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,11 +15,63 @@ import { toast } from "sonner"
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
+type CheckoutData = {
+  key?: string
+  name: string
+  description: string
+  amount: number
+  type: "subscription" | "order"
+  subscription_id?: string
+  order_id?: string
+  payment_id: string
+}
+
+type RazorpaySuccessResponse = {
+  razorpay_order_id?: string
+  razorpay_subscription_id?: string
+  razorpay_payment_id?: string
+  razorpay_signature?: string
+}
+
+type RazorpayFailedResponse = {
+  error?: {
+    description?: string
+  }
+}
+
+type RazorpayOptions = {
+  key: string
+  name: string
+  description: string
+  amount: number
+  currency: "INR"
+  subscription_id?: string
+  order_id?: string
+  handler: (response: RazorpaySuccessResponse) => Promise<void>
+  modal: {
+    ondismiss: () => Promise<void>
+  }
+}
+
+type RazorpayInstance = {
+  on: (event: "payment.failed", handler: (response: RazorpayFailedResponse) => Promise<void>) => void
+  open: () => void
+}
+
+type RazorpayConstructor = new (options: RazorpayOptions) => RazorpayInstance
+
+type WindowWithRazorpay = Window & {
+  Razorpay?: RazorpayConstructor
+}
+
 type Plan = {
   id: number
   name: string
   description: string
   amount_inr: number
+  compare_at_amount_inr?: number | null
+  discount_percentage?: number | null
+  gst_percentage?: number | null
   billing_period: string
   features: string[]
   is_featured: boolean
@@ -45,6 +97,8 @@ type BillingData = {
   } | null
   payments: Payment[]
 }
+
+const isFreeTierPlan = (plan: Plan) => plan.amount_inr === 0 && plan.billing_period !== ""
 
 const statusColor: Record<string, string> = {
   paid: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -93,7 +147,7 @@ export default function BillingPage() {
   }
 
   async function loadRazorpayScript() {
-    if ((window as any).Razorpay) return
+    if ((window as WindowWithRazorpay).Razorpay) return
     await new Promise<void>((resolve, reject) => {
       const script = document.createElement("script")
       script.src = "https://checkout.razorpay.com/v1/checkout.js"
@@ -127,11 +181,12 @@ export default function BillingPage() {
         return
       }
 
-      const checkout = json.data.checkout
+      const checkout = json.data.checkout as CheckoutData
+      if (!checkout.key) throw new Error("Razorpay public key is missing")
 
       await loadRazorpayScript()
 
-      const options: Record<string, unknown> = {
+      const options: RazorpayOptions = {
         key: checkout.key,
         name: checkout.name,
         description: checkout.description,
@@ -140,7 +195,7 @@ export default function BillingPage() {
         ...(checkout.type === "subscription" 
           ? { subscription_id: checkout.subscription_id } 
           : { order_id: checkout.order_id }),
-        handler: async (response: any) => {
+        handler: async (response) => {
           setLoadingPlanId(plan.id)
           try {
             const verifyRes = await fetch("/api/platform-subscriptions/verify", {
@@ -184,8 +239,11 @@ export default function BillingPage() {
         },
       }
 
-      const rzp = new (window as any).Razorpay(options)
-      rzp.on('payment.failed', async function (response: any) {
+      const Razorpay = (window as WindowWithRazorpay).Razorpay
+      if (!Razorpay) throw new Error("Razorpay failed to load")
+
+      const rzp = new Razorpay(options)
+      rzp.on('payment.failed', async function (response) {
         try {
           await fetch("/api/platform-subscriptions/failed", {
             method: "POST",
@@ -233,12 +291,29 @@ export default function BillingPage() {
                 <h3 className="text-3xl font-bold">{currentPlan.name}</h3>
                 <p className="mt-1 text-white/70 text-sm">{currentPlan.description}</p>
                 <div className="mt-4 flex items-end gap-1">
-                  <span className="text-4xl font-bold">
-                    ₹{currentPlan.amount_inr}
-                  </span>
-                  {currentPlan.billing_period && (
+                  <div>
+                    {currentPlan.compare_at_amount_inr ? (
+                      <div className="mb-1 flex items-center gap-2">
+                        <span className="text-sm font-semibold text-white/50 line-through">
+                          ₹{currentPlan.compare_at_amount_inr}
+                        </span>
+                        {currentPlan.discount_percentage ? (
+                          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                            {currentPlan.discount_percentage}% off
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <span className="text-4xl font-bold">₹{currentPlan.amount_inr}</span>
+                  </div>
+                  {!isFreeTierPlan(currentPlan) && currentPlan.gst_percentage ? (
+                    <span className="text-white/70 text-sm mb-1">+ {currentPlan.gst_percentage}% GST</span>
+                  ) : null}
+                  {isFreeTierPlan(currentPlan) ? (
+                    <span className="text-white/60 text-sm mb-1">First Month</span>
+                  ) : currentPlan.billing_period ? (
                     <span className="text-white/60 text-sm mb-1">{currentPlan.billing_period}</span>
-                  )}
+                  ) : null}
                 </div>
                 {billing?.subscription?.current_period_end && (
                   <p className="mt-3 text-white/60 text-xs flex items-center gap-1.5">
@@ -271,7 +346,7 @@ export default function BillingPage() {
                   <h3 className="text-lg font-bold text-slate-900">Free Plan</h3>
                   <span className="text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Current</span>
                 </div>
-                <p className="text-sm text-slate-500 mt-0.5">You're on the free tier. Upgrade to unlock premium features.</p>
+                <p className="text-sm text-slate-500 mt-0.5">You are on the free tier. Upgrade to unlock premium features.</p>
               </div>
             </div>
             <a href="#plans">
@@ -298,6 +373,7 @@ export default function BillingPage() {
                 {filteredPlans.map(plan => {
               const isCurrent = currentPlan?.id === plan.id
               const isFeatured = plan.is_featured
+              const isFreeTier = isFreeTierPlan(plan)
               return (
                 <div
                   key={plan.id}
@@ -320,13 +396,36 @@ export default function BillingPage() {
                   <p className={`text-xs font-bold uppercase tracking-widest mb-2 ${isFeatured ? "text-white/70" : "text-[#7c3aed]"}`}>
                     {plan.name}
                   </p>
-                  <div className="flex items-end gap-1 mb-3">
-                    <span className={`text-3xl font-bold ${isFeatured ? "text-white" : "text-slate-900"}`}>
+                  {plan.compare_at_amount_inr || plan.discount_percentage ? (
+                    <div className="mb-1.5 flex min-h-5 items-center gap-2">
+                      {plan.compare_at_amount_inr ? (
+                        <span className={`text-sm font-semibold line-through ${isFeatured ? "text-white/45" : "text-slate-400"}`}>
+                          ₹{plan.compare_at_amount_inr}
+                        </span>
+                      ) : null}
+                      {plan.discount_percentage ? (
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                          isFeatured ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700"
+                        }`}>
+                          {plan.discount_percentage}% off
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <div className="mb-3 flex flex-wrap items-end gap-1">
+                    <span className={`text-3xl font-bold leading-none ${isFeatured ? "text-white" : "text-slate-900"}`}>
                       ₹{plan.amount_inr}
                     </span>
-                    {plan.billing_period && (
-                      <span className={`text-xs mb-1 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>{plan.billing_period}</span>
-                    )}
+                    {!isFreeTier && plan.gst_percentage ? (
+                      <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/70" : "text-slate-500"}`}>
+                        + {plan.gst_percentage}% GST
+                      </span>
+                    ) : null}
+                    {isFreeTier ? (
+                      <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>First Month</span>
+                    ) : plan.billing_period ? (
+                      <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>{plan.billing_period}</span>
+                    ) : null}
                   </div>
                   <p className={`text-xs leading-5 mb-4 ${isFeatured ? "text-white/70" : "text-slate-500"}`}>{plan.description}</p>
                   <div className="flex-1 space-y-2 mb-5">

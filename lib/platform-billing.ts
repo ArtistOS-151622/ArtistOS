@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { getRazorpayClient, isRazorpayConfigured } from "@/lib/razorpay/client"
-import { getGlobalGstRate, calculatePurchaseAmounts } from "@/lib/portfolio/billing"
+import { calculatePurchaseAmounts } from "@/lib/portfolio/billing"
 import { createHmac, timingSafeEqual } from "crypto"
 
 function getRazorpayKeySecret(): string {
@@ -39,10 +39,12 @@ export async function createPlatformPurchase(
   }
 
   // 2. Calculate amounts
+  const planGstRate = plan.gst_percentage == null ? undefined : Number(plan.gst_percentage) / 100
   const { baseAmount, gstAmount, amount } = await calculatePurchaseAmounts(
     supabase,
     Number(plan.amount_inr),
-    1 // quantity is always 1 for platform subscriptions
+    1, // quantity is always 1 for platform subscriptions
+    planGstRate
   )
 
   // 3. Create a pending or completed payment record

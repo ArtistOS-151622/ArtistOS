@@ -25,7 +25,20 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { name, description, amount_inr, billing_period, features, is_active, is_featured, duration_in_days, display_order } = body
+    const {
+      name,
+      description,
+      amount_inr,
+      compare_at_amount_inr,
+      discount_percentage,
+      gst_percentage,
+      billing_period,
+      features,
+      is_active,
+      is_featured,
+      duration_in_days,
+      display_order,
+    } = body
 
     const { data, error } = await supabase
       .from("platform_subscriptions")
@@ -34,6 +47,9 @@ export async function POST(req: Request) {
           name,
           description,
           amount_inr,
+          compare_at_amount_inr: compare_at_amount_inr || null,
+          discount_percentage: discount_percentage || null,
+          gst_percentage: gst_percentage ?? 18,
           billing_period,
           features: features || [],
           is_active: is_active ?? true,
