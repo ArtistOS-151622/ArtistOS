@@ -4,28 +4,12 @@ import { type NextRequest } from "next/server"
 import { completePurchase } from "@/lib/portfolio/billing"
 import { extendSubscriptionPeriodToDate } from "@/lib/portfolio/quota"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
+import {
+  getRazorpayWebhookNotes,
+  getRazorpayWebhookSubscriptionId,
+  type RazorpayWebhookPayload,
+} from "@/lib/razorpay-webhook-platform"
 import { createAdminClient } from "@/lib/supabase/admin"
-
-type RazorpayNotes = Record<string, unknown>
-type RazorpayEntity = {
-  id?: string
-  notes?: RazorpayNotes
-  method?: string
-  subscription_id?: string
-  current_start?: number
-  current_end?: number
-  charge_at?: number
-  end_at?: number
-}
-type RazorpayWebhookPayload = {
-  event?: string
-  event_id?: string
-  id?: string
-  payload?: {
-    payment?: { entity?: RazorpayEntity }
-    subscription?: { entity?: RazorpayEntity }
-  }
-}
 
 function verifyWebhookSignature(body: string, signature: string): boolean {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET
@@ -40,37 +24,62 @@ function verifyWebhookSignature(body: string, signature: string): boolean {
   )
 }
 
-function getNotes(payload: RazorpayWebhookPayload): RazorpayNotes {
-  return (
-    payload.payload?.payment?.entity?.notes ??
-    payload.payload?.subscription?.entity?.notes ??
-    {}
-  )
-}
-
 async function findPlatformPaymentId(
   supabase: ReturnType<typeof createAdminClient>,
   payload: RazorpayWebhookPayload
 ) {
-  const notes = getNotes(payload)
+  const payment = await findPlatformPayment(supabase, payload)
+  return payment?.id ?? null
+}
+
+async function findPlatformPayment(
+  supabase: ReturnType<typeof createAdminClient>,
+  payload: RazorpayWebhookPayload
+) {
+  const notes = getRazorpayWebhookNotes(payload)
   const notePaymentId = Number(notes.payment_id)
-  if (notePaymentId) return notePaymentId
+  if (notePaymentId) {
+    const { data } = await supabase
+      .from("platform_payments")
+      .select("id, status")
+      .eq("id", notePaymentId)
+      .maybeSingle()
 
-  const subscriptionId =
-    payload.payload?.subscription?.entity?.id ??
-    payload.payload?.payment?.entity?.subscription_id
+    return data ? { id: Number(data.id), status: String(data.status) } : null
+  }
 
+  const subscriptionId = getRazorpayWebhookSubscriptionId(payload)
   if (!subscriptionId) return null
 
   const { data } = await supabase
     .from("platform_payments")
-    .select("id")
+    .select("id, status")
     .eq("rp_subscription_id", subscriptionId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  return data?.id ? Number(data.id) : null
+  return data ? { id: Number(data.id), status: String(data.status) } : null
+}
+
+async function hasPlatformSubscription(
+  supabase: ReturnType<typeof createAdminClient>,
+  payload: RazorpayWebhookPayload
+) {
+  const notes = getRazorpayWebhookNotes(payload)
+  if (notes.type === "platform_subscription") return true
+
+  const subscriptionId = getRazorpayWebhookSubscriptionId(payload)
+  if (!subscriptionId) return false
+
+  const { data } = await supabase
+    .from("platform_payments")
+    .select("id")
+    .eq("rp_subscription_id", subscriptionId)
+    .limit(1)
+    .maybeSingle()
+
+  return Boolean(data)
 }
 
 export async function POST(request: NextRequest) {
@@ -87,27 +96,38 @@ export async function POST(request: NextRequest) {
 
   const payload = JSON.parse(body) as RazorpayWebhookPayload
   const eventType = payload.event as string
-  const eventId = payload.event_id ?? payload.id
+  const fallbackEventId = `${eventType}:${payload.payload?.payment?.entity?.id ?? payload.payload?.subscription?.entity?.id ?? Date.now()}`
+  const eventId = payload.event_id ?? payload.id ?? fallbackEventId
 
   const supabase = createAdminClient()
 
   try {
     if (eventType === "payment.captured" || eventType === "subscription.activated") {
-      const notes = getNotes(payload)
+      const notes = getRazorpayWebhookNotes(payload)
       const type = notes.type as string | undefined
       
-      if (type === "platform_subscription") {
+      if (type === "platform_subscription" || await hasPlatformSubscription(supabase, payload)) {
         const paymentId = await findPlatformPaymentId(supabase, payload)
         if (paymentId) {
           const subscription = payload.payload?.subscription?.entity
           const payment = payload.payload?.payment?.entity
           const { completePlatformPayment } = await import("@/lib/platform-billing")
-          await completePlatformPayment(supabase, paymentId, {
+          const completed = await completePlatformPayment(supabase, paymentId, {
             rp_payment_id: payment?.id,
             rp_subscription_id: subscription?.id ?? payment?.subscription_id,
             rp_event_id: eventId,
             payment_method: payment?.method,
           })
+
+          if (!completed && payment?.subscription_id) {
+            const { processPlatformRenewal } = await import("@/lib/platform-billing")
+            await processPlatformRenewal(supabase, paymentId, {
+              rp_payment_id: payment.id,
+              rp_subscription_id: payment.subscription_id,
+              rp_event_id: `${eventId}-captured-renewal`,
+              payment_method: payment.method,
+            })
+          }
         }
       } else {
         const purchaseId = Number(notes.purchase_id)
@@ -124,24 +144,36 @@ export async function POST(request: NextRequest) {
 
     if (eventType === "subscription.charged") {
       const subscription = payload.payload?.subscription?.entity
-      const notes = subscription?.notes ?? {}
+      const notes = getRazorpayWebhookNotes(payload)
       const userId = Number(notes.user_id)
       const planId = Number(notes.plan_id)
       const type = notes.type as string | undefined
 
-      if (type === "platform_subscription") {
-        const paymentId = Number(notes.payment_id)
-        if (paymentId) {
-          const { processPlatformRenewal } = await import("@/lib/platform-billing")
-          await processPlatformRenewal(supabase, paymentId, {
-            rp_payment_id: payload.payload?.payment?.entity?.id,
-            rp_subscription_id: subscription?.id,
-            rp_event_id: `${eventId}-renewal`,
-            current_start: subscription?.current_start,
-            current_end: subscription?.current_end,
-            charge_at: subscription?.charge_at,
-            end_at: subscription?.end_at,
-          })
+      if (type === "platform_subscription" || await hasPlatformSubscription(supabase, payload)) {
+        const platformPayment = await findPlatformPayment(supabase, payload)
+        if (platformPayment) {
+          const payment = payload.payload?.payment?.entity
+          const { completePlatformPayment, processPlatformRenewal } = await import("@/lib/platform-billing")
+
+          if (platformPayment.status !== "completed") {
+            await completePlatformPayment(supabase, platformPayment.id, {
+              rp_payment_id: payment?.id,
+              rp_subscription_id: subscription?.id ?? payment?.subscription_id,
+              rp_event_id: `${eventId}-initial`,
+              payment_method: payment?.method,
+            })
+          } else {
+            await processPlatformRenewal(supabase, platformPayment.id, {
+              rp_payment_id: payment?.id,
+              rp_subscription_id: subscription?.id ?? payment?.subscription_id,
+              rp_event_id: `${eventId}-renewal`,
+              payment_method: payment?.method,
+              current_start: subscription?.current_start,
+              current_end: subscription?.current_end,
+              charge_at: subscription?.charge_at,
+              end_at: subscription?.end_at,
+            })
+          }
         }
       } else {
         if (userId && planId) {
@@ -166,19 +198,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (eventType === "subscription.cancelled" || eventType === "subscription.halted") {
+    if (
+      eventType === "subscription.cancelled" ||
+      eventType === "subscription.halted" ||
+      eventType === "subscription.pending" ||
+      eventType === "subscription.paused" ||
+      eventType === "subscription.resumed"
+    ) {
       const subscription = payload.payload?.subscription?.entity
-      const notes = subscription?.notes ?? {}
+      const notes = getRazorpayWebhookNotes(payload)
       const type = notes.type as string | undefined
       
-      if (type === "platform_subscription") {
+      if (type === "platform_subscription" || await hasPlatformSubscription(supabase, payload)) {
         const userId = Number(notes.user_id)
-        if (userId && subscription?.id) {
+        const statusByEvent: Record<string, string> = {
+          "subscription.cancelled": "cancelled",
+          "subscription.halted": "halted",
+          "subscription.pending": "pending",
+          "subscription.paused": "paused",
+          "subscription.resumed": "active",
+        }
+
+        if (subscription?.id) {
+          let query = supabase
+            .from("user_subscriptions")
+            .update({ status: statusByEvent[eventType] ?? "active" })
+            .eq("rp_subscription_id", subscription.id)
+
+          if (userId) query = query.eq("user_id", userId)
+
+          await query
+        } else if (userId) {
           await supabase
             .from("user_subscriptions")
-            .update({ status: eventType === "subscription.cancelled" ? "cancelled" : "halted" })
+            .update({ status: statusByEvent[eventType] ?? "active" })
             .eq("user_id", userId)
-            .eq("rp_subscription_id", subscription.id)
         }
       }
     }

@@ -347,6 +347,7 @@ export async function processPlatformRenewal(
     rp_payment_id?: string
     rp_subscription_id?: string
     rp_event_id: string
+    payment_method?: string
     current_start?: number
     current_end?: number
     charge_at?: number
@@ -362,11 +363,6 @@ export async function processPlatformRenewal(
 
   if (existingEvent) return false
 
-  await supabase.from("razorpay_webhook_events").insert({
-    event_id: paymentMeta.rp_event_id,
-    event_type: "platform_renewal",
-  })
-
   // 2. Fetch the original payment to get plan and amount details
   const { data: originalPayment, error: fetchError } = await supabase
     .from("platform_payments")
@@ -378,6 +374,23 @@ export async function processPlatformRenewal(
     console.error("Renewal failed: Original payment not found")
     return false
   }
+
+  if (paymentMeta.rp_payment_id) {
+    if (originalPayment.rp_payment_id === paymentMeta.rp_payment_id) return false
+
+    const { data: existingPayment } = await supabase
+      .from("platform_payments")
+      .select("id")
+      .eq("rp_payment_id", paymentMeta.rp_payment_id)
+      .maybeSingle()
+
+    if (existingPayment) return false
+  }
+
+  await supabase.from("razorpay_webhook_events").insert({
+    event_id: paymentMeta.rp_event_id,
+    event_type: "platform_renewal",
+  })
 
   const plan = originalPayment.platform_subscriptions
   if (!plan) {
@@ -401,6 +414,7 @@ export async function processPlatformRenewal(
       rp_payment_id: paymentMeta.rp_payment_id,
       rp_subscription_id: paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id,
       rp_event_id: paymentMeta.rp_event_id,
+      payment_method: paymentMeta.payment_method,
       rp_order_id: null,
       invoice_number: invoiceNumber,
     })
