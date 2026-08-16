@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getArtistSession } from "@/lib/auth/session"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(request: NextRequest) {
   const session = getArtistSession(request)
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
   if (!paymentId) return NextResponse.json({ status: false, message: "payment_id required" }, { status: 400 })
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   try {
     await supabase
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       .eq("status", "pending")
 
     return NextResponse.json({ status: true, message: "Payment marked as failed" })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ status: false, message: "Failed to update status" }, { status: 500 })
   }
 }

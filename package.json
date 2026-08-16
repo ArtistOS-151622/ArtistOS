@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "test": "node --test tests/**/*.test.ts",
     "start": "next start",
     "lint": "eslint"
   },
