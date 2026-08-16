@@ -342,10 +342,6 @@ export async function extendPlatformSubscriptionToDate(
 
   const exactEndDate = new Date(currentEndUnix * 1000)
 
-  // Only update if new date is in the future compared to current expiry (handles out of order webhooks)
-  const currentExpiry = activeSub.current_period_end ? new Date(activeSub.current_period_end) : new Date(0)
-  if (exactEndDate <= currentExpiry) return
-
   await supabase
     .from("user_subscriptions")
     .update({
