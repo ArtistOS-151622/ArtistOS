@@ -219,11 +219,13 @@ export async function completePlatformPayment(
   const plan = payment.platform_subscriptions
   if (!plan) throw new Error("Plan details not found")
 
-  // Update payment status and generate an invoice number
-  // E.g. INV-PLT-<payment_id>-<random>
+  const rpSubId = paymentMeta?.rp_subscription_id ?? payment.rp_subscription_id
+
+  // Update payment status and generate an invoice number. The status condition
+  // makes browser verification and Razorpay webhooks safe if they arrive together.
   const invoiceNumber = `INV-PLT-${payment.id}-${Math.floor(1000 + Math.random() * 9000)}`
 
-  await supabase
+  const { data: completedPayment, error: completeError } = await supabase
     .from("platform_payments")
     .update({
       status: "completed",
@@ -234,17 +236,41 @@ export async function completePlatformPayment(
       invoice_number: invoiceNumber,
     })
     .eq("id", paymentId)
-
-  const { data: activeSub } = await supabase
-    .from("user_subscriptions")
-    .select("*")
-    .eq("user_id", payment.user_id)
-    .eq("status", "active")
-    .order("current_period_end", { ascending: false })
-    .limit(1)
+    .eq("status", "pending")
+    .select("id")
     .maybeSingle()
 
-  const rpSubId = paymentMeta?.rp_subscription_id ?? payment.rp_subscription_id
+  if (completeError) throw new Error(`Failed to complete payment: ${completeError.message}`)
+  if (!completedPayment) return false
+
+  let activeSub = null
+
+  if (rpSubId) {
+    const { data: matchingSub } = await supabase
+      .from("user_subscriptions")
+      .select("*")
+      .eq("user_id", payment.user_id)
+      .eq("rp_subscription_id", rpSubId)
+      .order("current_period_end", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    activeSub = matchingSub
+  }
+
+  if (!activeSub) {
+    const { data: latestActiveSub } = await supabase
+      .from("user_subscriptions")
+      .select("*")
+      .eq("user_id", payment.user_id)
+      .eq("status", "active")
+      .order("current_period_end", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    activeSub = latestActiveSub
+  }
+
   let razorpayDates = null
 
   if (rpSubId) {
@@ -316,16 +342,36 @@ export async function extendPlatformSubscriptionToDate(
   currentEndUnix: number,
   currentStartUnix?: number,
   chargeAtUnix?: number,
-  endAtUnix?: number
+  endAtUnix?: number,
+  rpSubscriptionId?: string
 ) {
-  const { data: activeSub } = await supabase
-    .from("user_subscriptions")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .order("current_period_end", { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  let activeSub = null
+
+  if (rpSubscriptionId) {
+    const { data: matchingSub } = await supabase
+      .from("user_subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("rp_subscription_id", rpSubscriptionId)
+      .order("current_period_end", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    activeSub = matchingSub
+  }
+
+  if (!activeSub) {
+    const { data: latestActiveSub } = await supabase
+      .from("user_subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .order("current_period_end", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    activeSub = latestActiveSub
+  }
 
   if (!activeSub) return
 
@@ -336,6 +382,7 @@ export async function extendPlatformSubscriptionToDate(
       current_period_end: unixSecondsToIso(currentEndUnix),
       next_billing_at: unixSecondsToIso(chargeAtUnix) ?? unixSecondsToIso(currentEndUnix),
       ...(endAtUnix ? { subscription_end_at: unixSecondsToIso(endAtUnix) } : {}),
+      ...(rpSubscriptionId ? { rp_subscription_id: rpSubscriptionId } : {}),
     })
     .eq("id", activeSub.id)
 }
@@ -464,7 +511,8 @@ export async function processPlatformRenewal(
       currentEndUnix,
       currentStartUnix,
       chargeAtUnix,
-      endAtUnix
+      endAtUnix,
+      paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id
     )
   } else {
     throw new Error("Could not determine subscription end date from Razorpay")
