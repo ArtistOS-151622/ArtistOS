@@ -40,22 +40,23 @@ export async function GET(request: NextRequest) {
   // 2. Check for any active subscription
   const { data: activeSub } = await supabase
     .from("user_subscriptions")
-    .select("id, current_period_end, status")
+    .select("id, current_period_end, next_billing_at, status")
     .eq("user_id", session.id)
     .eq("status", "active")
     .order("current_period_end", { ascending: false })
     .limit(1)
     .maybeSingle()
 
+  const endDateStr = activeSub?.next_billing_at
   // Active = has a row AND period hasn't expired
   const hasActiveSub =
     !!activeSub &&
-    (!activeSub.current_period_end ||
-      new Date(activeSub.current_period_end) > now)
+    (!endDateStr ||
+      new Date(endDateStr) > now)
 
   // 3. If user has an active subscription, return days left in that subscription period
   if (hasActiveSub) {
-    if (!activeSub?.current_period_end) {
+    if (!endDateStr) {
       return NextResponse.json(
         {
           trialDaysLeft: 9999,
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const periodEnd = new Date(activeSub.current_period_end)
+    const periodEnd = new Date(endDateStr)
     const subDaysLeft = Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / msPerDay))
 
     return NextResponse.json(

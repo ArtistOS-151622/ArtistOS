@@ -253,16 +253,24 @@ export async function completePlatformPayment(
     .maybeSingle()
 
   let newEnd: Date | null = null
+  let nextBillingAt: Date | null = null
+  let subscriptionEndAt: Date | null = null
 
   if (paymentMeta?.rp_subscription_id) {
     try {
       const razorpay = getRazorpayClient()
       const rpSub = await razorpay.subscriptions.fetch(paymentMeta.rp_subscription_id)
-      // console.log("This is rpSub", rpSub)
+      console.log("This is rpSub", rpSub)
       if (rpSub && rpSub.current_end) {
-        // console.log("This is rpSub.current_end", rpSub.current_end)
+        console.log("This is rpSub.current_end", rpSub.current_end)
         newEnd = new Date(rpSub.current_end * 1000)
-        // console.log("This is newEnd", newEnd)
+        console.log("This is newEnd", newEnd)
+      }
+      if (rpSub && rpSub.charge_at) {
+        nextBillingAt = new Date(rpSub.charge_at * 1000)
+      }
+      if (rpSub && rpSub.end_at) {
+        subscriptionEndAt = new Date(rpSub.end_at * 1000)
       }
     } catch (err) {
       console.error("Failed to fetch Razorpay subscription for end date:", err)
@@ -270,16 +278,7 @@ export async function completePlatformPayment(
   }
 
   if (!newEnd) {
-    const durationDays = 30
-    newEnd = new Date()
-    // console.log("this is fallback")
-    if (activeSub && activeSub.current_period_end) {
-      const currentEnd = new Date(activeSub.current_period_end)
-      if (currentEnd > newEnd) {
-        newEnd = currentEnd
-      }
-    }
-    newEnd.setDate(newEnd.getDate() + durationDays)
+    throw new Error("Could not determine subscription end date from Razorpay")
   }
 
   if (activeSub) {
@@ -290,6 +289,8 @@ export async function completePlatformPayment(
         plan_id: plan.id,
         current_period_end: newEnd.toISOString(),
         rp_subscription_id: paymentMeta?.rp_subscription_id ?? activeSub.rp_subscription_id,
+        ...(nextBillingAt ? { next_billing_at: nextBillingAt.toISOString() } : {}),
+        ...(subscriptionEndAt ? { subscription_end_at: subscriptionEndAt.toISOString() } : {}),
       })
       .eq("id", activeSub.id)
 
@@ -308,6 +309,8 @@ export async function completePlatformPayment(
         current_period_start: new Date().toISOString(),
         current_period_end: newEnd.toISOString(),
         rp_subscription_id: paymentMeta?.rp_subscription_id ?? null,
+        next_billing_at: nextBillingAt ? nextBillingAt.toISOString() : null,
+        subscription_end_at: subscriptionEndAt ? subscriptionEndAt.toISOString() : null,
       })
 
     if (insertError) {
@@ -322,7 +325,9 @@ export async function completePlatformPayment(
 export async function extendPlatformSubscriptionToDate(
   supabase: SupabaseClient,
   userId: number,
-  currentEndUnix: number
+  currentEndUnix: number,
+  chargeAtUnix?: number,
+  endAtUnix?: number
 ) {
   const { data: activeSub } = await supabase
     .from("user_subscriptions")
@@ -345,6 +350,8 @@ export async function extendPlatformSubscriptionToDate(
     .from("user_subscriptions")
     .update({
       current_period_end: exactEndDate.toISOString(),
+      ...(chargeAtUnix ? { next_billing_at: new Date(chargeAtUnix * 1000).toISOString() } : {}),
+      ...(endAtUnix ? { subscription_end_at: new Date(endAtUnix * 1000).toISOString() } : {}),
     })
     .eq("id", activeSub.id)
 }
@@ -357,6 +364,8 @@ export async function processPlatformRenewal(
     rp_subscription_id?: string
     rp_event_id: string
     current_end?: number
+    charge_at?: number
+    end_at?: number
   }
 ): Promise<boolean> {
   // 1. Prevent duplicate webhook processing
@@ -418,36 +427,37 @@ export async function processPlatformRenewal(
     return false
   }
 
-  // 4. Extend the subscription period
-  if (paymentMeta.current_end) {
-    await extendPlatformSubscriptionToDate(supabase, originalPayment.user_id, paymentMeta.current_end)
+  // 4. Use webhook payload dates if available, otherwise fallback to fetching from API
+  let currentEndUnix = paymentMeta.current_end
+  let chargeAtUnix = paymentMeta.charge_at
+  let endAtUnix = paymentMeta.end_at
+
+  if (!currentEndUnix || !chargeAtUnix || !endAtUnix) {
+    const rpSubId = paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id
+    if (rpSubId) {
+      try {
+        const razorpay = getRazorpayClient()
+        const rpSub = await razorpay.subscriptions.fetch(rpSubId)
+        if (rpSub && rpSub.current_end) {
+          currentEndUnix = rpSub.current_end
+        }
+        if (rpSub && rpSub.charge_at) {
+          chargeAtUnix = rpSub.charge_at
+        }
+        if (rpSub && rpSub.end_at) {
+          endAtUnix = rpSub.end_at
+        }
+      } catch (err) {
+        console.error("Failed to fetch Razorpay subscription for renewal:", err)
+      }
+    }
+  }
+
+  // 5. Extend the subscription period
+  if (currentEndUnix) {
+    await extendPlatformSubscriptionToDate(supabase, originalPayment.user_id, currentEndUnix, chargeAtUnix, endAtUnix)
   } else {
-    // Fallback if current_end isn't provided
-    const durationDays = 30
-
-    // We recreate a simplified duration adder here for the fallback since we removed the original
-    const { data: activeSub } = await supabase
-      .from("user_subscriptions")
-      .select("*")
-      .eq("user_id", originalPayment.user_id)
-      .eq("status", "active")
-      .order("current_period_end", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    let newEnd = new Date()
-    if (activeSub && activeSub.current_period_end) {
-      const currentEnd = new Date(activeSub.current_period_end)
-      if (currentEnd > newEnd) newEnd = currentEnd
-    }
-    newEnd.setDate(newEnd.getDate() + durationDays)
-
-    if (activeSub) {
-      await supabase
-        .from("user_subscriptions")
-        .update({ current_period_end: newEnd.toISOString() })
-        .eq("id", activeSub.id)
-    }
+    throw new Error("Could not determine subscription end date from Razorpay")
   }
 
   return true

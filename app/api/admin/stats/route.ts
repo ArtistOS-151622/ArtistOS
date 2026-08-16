@@ -20,7 +20,7 @@ export async function GET() {
         .from("user_subscriptions")
         .select("user_id", { count: "exact", head: true })
         .eq("status", "active")
-        .gt("current_period_end", now),
+        .gt("next_billing_at", now),
     ])
 
     return NextResponse.json({

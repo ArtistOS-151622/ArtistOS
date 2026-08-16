@@ -16,7 +16,7 @@ export async function GET() {
         services (id),
         portfolio_storage_quotas (free_storage_bytes, purchase_storage_bytes, used_storage_bytes),
         portfolio_storage_purchases (status, amount, created_at),
-        user_subscriptions (id, status, current_period_start, current_period_end, platform_subscriptions (name, amount_inr, billing_period))
+        user_subscriptions (id, status, current_period_start, current_period_end, next_billing_at, platform_subscriptions (name, amount_inr, billing_period))
       `)
       .order("created_at", { ascending: false })
 
@@ -62,13 +62,14 @@ export async function GET() {
 
       // Platform subscription
       const allSubs: any[] = user.user_subscriptions || []
-      const activeSub = allSubs.find((s: any) =>
-        s.status === 'active' &&
-        (!s.current_period_end || new Date(s.current_period_end) > now)
-      ) ?? null
+      const activeSub = allSubs.find((s: any) => {
+        const endDateStr = s.next_billing_at
+        return s.status === 'active' && (!endDateStr || new Date(endDateStr) > now)
+      }) ?? null
       const plan = activeSub?.platform_subscriptions ?? null
-      const daysLeft = activeSub?.current_period_end
-        ? Math.max(0, Math.ceil((new Date(activeSub.current_period_end).getTime() - now.getTime()) / 86400000))
+      const endDateStr = activeSub?.next_billing_at
+      const daysLeft = endDateStr
+        ? Math.max(0, Math.ceil((new Date(endDateStr).getTime() - now.getTime()) / 86400000))
         : null
 
       return {
@@ -114,6 +115,7 @@ export async function GET() {
           billing_period: plan?.billing_period ?? '',
           current_period_start: activeSub.current_period_start,
           current_period_end: activeSub.current_period_end,
+          next_billing_at: activeSub.next_billing_at,
           days_left: daysLeft,
         } : null
       }

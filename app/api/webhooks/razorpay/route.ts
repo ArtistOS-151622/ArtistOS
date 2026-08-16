@@ -85,6 +85,8 @@ export async function POST(request: NextRequest) {
             rp_subscription_id: subscription?.id,
             rp_event_id: `${eventId}-renewal`,
             current_end: subscription?.current_end,
+            charge_at: subscription?.charge_at,
+            end_at: subscription?.end_at,
           })
         }
       } else {

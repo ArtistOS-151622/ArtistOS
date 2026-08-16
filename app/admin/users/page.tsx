@@ -51,6 +51,7 @@ type UserData = {
     billing_period: string
     current_period_start: string
     current_period_end: string | null
+    next_billing_at: string | null
     days_left: number | null
   } | null
 }
@@ -379,10 +380,10 @@ export default function AdminUsersPage() {
                           <span className="font-medium text-slate-900">{format(new Date(selectedUser.subscription.current_period_start), 'MMM d, yyyy')}</span>
                         </div>
                       )}
-                      {selectedUser.subscription.current_period_end && (
+                      {selectedUser.subscription.next_billing_at && (
                         <div className="flex justify-between items-center">
-                          <span className="text-slate-500">Expires</span>
-                          <span className="font-medium text-slate-900">{format(new Date(selectedUser.subscription.current_period_end), 'MMM d, yyyy')}</span>
+                          <span className="text-slate-500">Next Billing</span>
+                          <span className="font-medium text-slate-900">{format(new Date(selectedUser.subscription.next_billing_at), 'MMM d, yyyy')}</span>
                         </div>
                       )}
                     </div>

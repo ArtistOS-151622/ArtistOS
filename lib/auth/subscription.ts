@@ -21,16 +21,18 @@ export async function checkIsReadOnly(supabase: SupabaseClient, userId: number):
 
   const { data: activeSub } = await supabase
     .from("user_subscriptions")
-    .select("current_period_end")
+    .select("current_period_end, next_billing_at")
     .eq("user_id", userId)
     .eq("status", "active")
     .order("current_period_end", { ascending: false })
     .limit(1)
     .maybeSingle()
 
+  const endDateStr = activeSub?.next_billing_at
+
   const hasActiveSub =
     !!activeSub &&
-    (!activeSub.current_period_end || new Date(activeSub.current_period_end) > now)
+    (!endDateStr || new Date(endDateStr) > now)
 
   if (hasActiveSub) return false // Active sub = not read only
 

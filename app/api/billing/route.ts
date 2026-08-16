@@ -39,9 +39,10 @@ export async function GET(request: NextRequest) {
       .order("current_period_end", { ascending: false, nullsFirst: true })
       .limit(1)
       .maybeSingle()
+    const endDateStr = subscriptionRow?.next_billing_at
     const subscription =
       subscriptionRow &&
-      (!subscriptionRow.current_period_end || new Date(subscriptionRow.current_period_end) > new Date())
+      (!endDateStr || new Date(endDateStr) > new Date())
         ? subscriptionRow
         : null
 

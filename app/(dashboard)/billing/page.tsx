@@ -93,6 +93,7 @@ type BillingData = {
     id: number
     status: string
     current_period_end: string
+    next_billing_at?: string | null
     platform_subscriptions: Plan
   } | null
   payments: Payment[]
@@ -128,7 +129,7 @@ export default function BillingPage() {
     try {
       const response = await fetch(`/api/billing/invoice/${payment.id}`)
       if (!response.ok) throw new Error("Failed to generate PDF")
-      
+
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement("a")
@@ -192,8 +193,8 @@ export default function BillingPage() {
         description: checkout.description,
         amount: checkout.amount,
         currency: "INR",
-        ...(checkout.type === "subscription" 
-          ? { subscription_id: checkout.subscription_id } 
+        ...(checkout.type === "subscription"
+          ? { subscription_id: checkout.subscription_id }
           : { order_id: checkout.order_id }),
         handler: async (response) => {
           setLoadingPlanId(plan.id)
@@ -248,7 +249,7 @@ export default function BillingPage() {
           await fetch("/api/platform-subscriptions/failed", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
               payment_id: checkout.payment_id,
               error_description: response.error?.description || "Payment failed"
             }),
@@ -315,10 +316,10 @@ export default function BillingPage() {
                     <span className="text-white/60 text-sm mb-1">{currentPlan.billing_period}</span>
                   ) : null}
                 </div>
-                {billing?.subscription?.current_period_end && (
+                {billing?.subscription?.next_billing_at && (
                   <p className="mt-3 text-white/60 text-xs flex items-center gap-1.5">
                     <Calendar className="size-3.5" />
-                    Renews on {format(new Date(billing.subscription.current_period_end), "MMMM d, yyyy")}
+                    Renews on {format(new Date(billing.subscription.next_billing_at), "MMMM d, yyyy")}
                   </p>
                 )}
               </div>
@@ -363,7 +364,7 @@ export default function BillingPage() {
         (() => {
           const filteredPlans = plans.filter(plan => !(currentPlan && plan.amount_inr === 0))
           if (filteredPlans.length === 0) return null
-          
+
           return (
             <section id="plans" className={filteredPlans.length === 2 ? "max-w-2xl mx-auto mt-12" : "mt-12"}>
               <h2 className={`text-sm font-semibold uppercase tracking-widest text-slate-400 mb-4 px-1 ${filteredPlans.length === 2 ? "text-center" : ""}`}>
@@ -371,92 +372,89 @@ export default function BillingPage() {
               </h2>
               <div className={`grid gap-4 sm:grid-cols-2 ${filteredPlans.length >= 3 ? 'lg:grid-cols-3' : ''}`}>
                 {filteredPlans.map(plan => {
-              const isCurrent = currentPlan?.id === plan.id
-              const isFeatured = plan.is_featured
-              const isFreeTier = isFreeTierPlan(plan)
-              return (
-                <div
-                  key={plan.id}
-                  className={`relative flex flex-col overflow-hidden rounded-2xl border p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
-                    isFeatured
-                      ? "bg-gradient-to-br from-[#7c3aed] to-[#5b21b6] border-[#7c3aed] text-white shadow-lg shadow-purple-600/20"
-                      : "bg-white border-slate-100 shadow-sm"
-                  }`}
-                >
-                  {isFeatured && (
-                    <span className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                      <Sparkles className="size-3" /> Best Value
-                    </span>
-                  )}
-                  {isCurrent && (
-                    <span className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                      <ShieldCheck className="size-3" /> Current
-                    </span>
-                  )}
-                  <p className={`text-xs font-bold uppercase tracking-widest mb-2 ${isFeatured ? "text-white/70" : "text-[#7c3aed]"}`}>
-                    {plan.name}
-                  </p>
-                  {plan.compare_at_amount_inr || plan.discount_percentage ? (
-                    <div className="mb-1.5 flex min-h-5 items-center gap-2">
-                      {plan.compare_at_amount_inr ? (
-                        <span className={`text-sm font-semibold line-through ${isFeatured ? "text-white/45" : "text-slate-400"}`}>
-                          ₹{plan.compare_at_amount_inr}
+                  const isCurrent = currentPlan?.id === plan.id
+                  const isFeatured = plan.is_featured
+                  const isFreeTier = isFreeTierPlan(plan)
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`relative flex flex-col overflow-hidden rounded-2xl border p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${isFeatured
+                        ? "bg-gradient-to-br from-[#7c3aed] to-[#5b21b6] border-[#7c3aed] text-white shadow-lg shadow-purple-600/20"
+                        : "bg-white border-slate-100 shadow-sm"
+                        }`}
+                    >
+                      {isFeatured && (
+                        <span className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                          <Sparkles className="size-3" /> Best Value
                         </span>
-                      ) : null}
-                      {plan.discount_percentage ? (
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                          isFeatured ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700"
-                        }`}>
-                          {plan.discount_percentage}% off
+                      )}
+                      {isCurrent && (
+                        <span className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                          <ShieldCheck className="size-3" /> Current
                         </span>
+                      )}
+                      <p className={`text-xs font-bold uppercase tracking-widest mb-2 ${isFeatured ? "text-white/70" : "text-[#7c3aed]"}`}>
+                        {plan.name}
+                      </p>
+                      {plan.compare_at_amount_inr || plan.discount_percentage ? (
+                        <div className="mb-1.5 flex min-h-5 items-center gap-2">
+                          {plan.compare_at_amount_inr ? (
+                            <span className={`text-sm font-semibold line-through ${isFeatured ? "text-white/45" : "text-slate-400"}`}>
+                              ₹{plan.compare_at_amount_inr}
+                            </span>
+                          ) : null}
+                          {plan.discount_percentage ? (
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${isFeatured ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700"
+                              }`}>
+                              {plan.discount_percentage}% off
+                            </span>
+                          ) : null}
+                        </div>
                       ) : null}
-                    </div>
-                  ) : null}
-                  <div className="mb-3 flex flex-wrap items-end gap-1">
-                    <span className={`text-3xl font-bold leading-none ${isFeatured ? "text-white" : "text-slate-900"}`}>
-                      ₹{plan.amount_inr}
-                    </span>
-                    {!isFreeTier && plan.gst_percentage ? (
-                      <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/70" : "text-slate-500"}`}>
-                        + {plan.gst_percentage}% GST
-                      </span>
-                    ) : null}
-                    {isFreeTier ? (
-                      <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>First Month</span>
-                    ) : plan.billing_period ? (
-                      <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>{plan.billing_period}</span>
-                    ) : null}
-                  </div>
-                  <p className={`text-xs leading-5 mb-4 ${isFeatured ? "text-white/70" : "text-slate-500"}`}>{plan.description}</p>
-                  <div className="flex-1 space-y-2 mb-5">
-                    {plan.features.map((f: string) => (
-                      <div key={f} className={`flex items-start gap-2 text-xs ${isFeatured ? "text-white/85" : "text-slate-600"}`}>
-                        <CheckCircle2 className={`size-3.5 shrink-0 mt-0.5 ${isFeatured ? "text-white/70" : "text-[#7c3aed]"}`} />
-                        {f}
+                      <div className="mb-3 flex flex-wrap items-end gap-1">
+                        <span className={`text-3xl font-bold leading-none ${isFeatured ? "text-white" : "text-slate-900"}`}>
+                          ₹{plan.amount_inr}
+                        </span>
+                        {!isFreeTier && plan.gst_percentage ? (
+                          <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/70" : "text-slate-500"}`}>
+                            + {plan.gst_percentage}% GST
+                          </span>
+                        ) : null}
+                        {isFreeTier ? (
+                          <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>First Month</span>
+                        ) : plan.billing_period ? (
+                          <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>{plan.billing_period}</span>
+                        ) : null}
                       </div>
-                    ))}
-                  </div>
-                  <button
-                    disabled={isCurrent || loadingPlanId === plan.id}
-                    onClick={() => handlePurchase(plan)}
-                    className={`w-full h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                      isCurrent
-                        ? "bg-emerald-50 text-emerald-700 cursor-not-allowed"
-                        : isFeatured
-                          ? "bg-white text-[#7c3aed] hover:bg-[#f3e8ff]"
-                          : "bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-md shadow-purple-600/20"
-                    }`}
-                  >
-                    {isCurrent ? (
-                      <><ShieldCheck className="size-3.5" /> Current Plan</>
-                    ) : loadingPlanId === plan.id ? (
-                      <><Loader2 className="size-3.5 animate-spin" /> Processing...</>
-                    ) : (
-                      <><Crown className="size-3.5" /> Get Started</>
-                    )}
-                  </button>
-                </div>
-              )
+                      <p className={`text-xs leading-5 mb-4 ${isFeatured ? "text-white/70" : "text-slate-500"}`}>{plan.description}</p>
+                      <div className="flex-1 space-y-2 mb-5">
+                        {plan.features.map((f: string) => (
+                          <div key={f} className={`flex items-start gap-2 text-xs ${isFeatured ? "text-white/85" : "text-slate-600"}`}>
+                            <CheckCircle2 className={`size-3.5 shrink-0 mt-0.5 ${isFeatured ? "text-white/70" : "text-[#7c3aed]"}`} />
+                            {f}
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        disabled={isCurrent || loadingPlanId === plan.id}
+                        onClick={() => handlePurchase(plan)}
+                        className={`w-full h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${isCurrent
+                          ? "bg-emerald-50 text-emerald-700 cursor-not-allowed"
+                          : isFeatured
+                            ? "bg-white text-[#7c3aed] hover:bg-[#f3e8ff]"
+                            : "bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-md shadow-purple-600/20"
+                          }`}
+                      >
+                        {isCurrent ? (
+                          <><ShieldCheck className="size-3.5" /> Current Plan</>
+                        ) : loadingPlanId === plan.id ? (
+                          <><Loader2 className="size-3.5 animate-spin" /> Processing...</>
+                        ) : (
+                          <><Crown className="size-3.5" /> Get Started</>
+                        )}
+                      </button>
+                    </div>
+                  )
                 })}
               </div>
             </section>
