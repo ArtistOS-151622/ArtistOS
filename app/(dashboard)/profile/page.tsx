@@ -397,6 +397,7 @@ export default function ProfilePage() {
                   icon={<User className="size-4" />}
                   value={profile?.artist_name || ""}
                   onChange={(e) => setProfile(prev => prev ? { ...prev, artist_name: e.target.value } : null)}
+                  maxLength={50}
                   required
                 />
                 <FloatingInput
@@ -405,6 +406,7 @@ export default function ProfilePage() {
                   icon={<Building2 className="size-4" />}
                   value={profile?.studio_name || ""}
                   onChange={(e) => setProfile(prev => prev ? { ...prev, studio_name: e.target.value } : null)}
+                  maxLength={50}
                   required
                 />
                 <FloatingInput

@@ -47,6 +47,7 @@ export function CustomerForm({
         onChange={(e) => set("customer_name", e.target.value)}
         containerClassName="md:col-span-2"
         disabled={loading}
+        maxLength={50}
         required
       />
 
@@ -54,9 +55,16 @@ export function CustomerForm({
         id="phone"
         label="Phone number"
         icon={<Phone className="size-4" />}
-        type="tel"
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        maxLength={10}
         value={values.phone}
-        onChange={(e) => set("phone", e.target.value)}
+        onChange={(e) => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+        onKeyDown={(e) => {
+          const allowed = ["Backspace","Delete","Tab","Escape","Enter","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"]
+          if (!allowed.includes(e.key) && !/^\d$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault()
+        }}
         disabled={loading}
         required
       />
@@ -65,9 +73,16 @@ export function CustomerForm({
         id="alt_phone"
         label="Alternative phone (optional)"
         icon={<Phone className="size-4" />}
-        type="tel"
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        maxLength={10}
         value={values.alt_phone}
-        onChange={(e) => set("alt_phone", e.target.value)}
+        onChange={(e) => set("alt_phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+        onKeyDown={(e) => {
+          const allowed = ["Backspace","Delete","Tab","Escape","Enter","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"]
+          if (!allowed.includes(e.key) && !/^\d$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault()
+        }}
         disabled={loading}
       />
 

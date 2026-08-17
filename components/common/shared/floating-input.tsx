@@ -203,10 +203,34 @@ export function FloatingPhoneInput({
   value,
   defaultValue,
   error,
+  onChange,
+  onKeyDown,
   ...props
 }: FloatingPhoneInputProps) {
   const autoId = useId()
   const id = externalId ?? autoId
+
+  // Strip non-digits and cap at 10 characters
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const cleaned = e.target.value.replace(/\D/g, "").slice(0, 10)
+    if (onChange) {
+      const syntheticEvent = { ...e, target: { ...e.target, value: cleaned } }
+      onChange(syntheticEvent as React.ChangeEvent<HTMLInputElement>)
+    }
+  }
+
+  // Block non-numeric key presses (allow control keys)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const allowed = [
+      "Backspace", "Delete", "Tab", "Escape", "Enter",
+      "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
+      "Home", "End",
+    ]
+    if (!allowed.includes(e.key) && !/^\d$/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault()
+    }
+    if (onKeyDown) onKeyDown(e)
+  }
 
   return (
     <div className={cn("relative group", containerClassName)}>
@@ -215,10 +239,13 @@ export function FloatingPhoneInput({
         type="text"
         inputMode="numeric"
         pattern="[0-9]*"
+        maxLength={10}
         value={value}
         defaultValue={defaultValue}
         disabled={disabled}
         placeholder=" "
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
         className={cn(
           // Base layout
           "peer block w-full rounded-lg border bg-white px-4 h-[46px] text-sm text-slate-900 font-semibold tracking-[0.1em]",
