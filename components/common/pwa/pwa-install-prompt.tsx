@@ -138,6 +138,9 @@ export function PwaInstallPrompt() {
   // Never show the install prompt on shared portfolio pages
   if (pathname?.startsWith("/portfolio/shared/")) return null
 
+  // Already installed — running as a standalone PWA or marked installed
+  if (isStandalone() || (typeof window !== "undefined" && localStorage.getItem(INSTALLED_KEY) === "true")) return null
+
   if (!visible) return null
 
   return (

@@ -44,8 +44,9 @@ export function ServiceForm({
         icon={<ScissorsLineDashed className="size-4" />}
         value={values.service_name}
         onChange={(event) =>
-          onChange({ ...values, service_name: event.target.value })
+          onChange({ ...values, service_name: event.target.value.slice(0, 50) })
         }
+        maxLength={50}
         containerClassName="md:col-span-2"
         disabled={loading}
         required

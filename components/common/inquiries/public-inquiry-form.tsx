@@ -276,7 +276,8 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                     icon={<MapPin className="size-4" />}
                     value={values.address}
                     rows={3}
-                    onChange={(event) => updateValue("address", event.target.value)}
+                    maxLength={200}
+                    onChange={(event) => updateValue("address", event.target.value.slice(0, 200))}
                   />
                 </CardContent>
               </Card>

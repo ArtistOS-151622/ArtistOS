@@ -429,7 +429,8 @@ export default function ProfilePage() {
                   label="Studio / Default Booking Address"
                   icon={<MapPin className="size-4" />}
                   value={profile?.address || ""}
-                  onChange={(e) => setProfile(prev => prev ? { ...prev, address: e.target.value } : null)}
+                  onChange={(e) => setProfile(prev => prev ? { ...prev, address: e.target.value.slice(0, 200) } : null)}
+                  maxLength={200}
                   containerClassName="sm:col-span-2"
                   className="min-h-20"
                   required

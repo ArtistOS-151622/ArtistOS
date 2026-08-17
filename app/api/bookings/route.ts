@@ -172,6 +172,7 @@ export async function POST(request: NextRequest) {
   if (!body.start_time) return NextResponse.json({ error: "Start time is required." }, { status: 400 })
   if (!body.end_time) return NextResponse.json({ error: "End time is required." }, { status: 400 })
   if (!body.status) return NextResponse.json({ error: "Status is required." }, { status: 400 })
+  if (!body.services || body.services.length === 0) return NextResponse.json({ error: "At least one service is required." }, { status: 400 })
 
   // Insert main booking record
   const { data: booking, error: insertError } = await supabase

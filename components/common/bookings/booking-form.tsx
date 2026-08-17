@@ -455,8 +455,9 @@ export function BookingForm({
           disabled={loading}
           value={values.booking_address}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-            onChange({ ...values, booking_address: e.target.value })
+            onChange({ ...values, booking_address: e.target.value.slice(0, 200) })
           }
+          maxLength={200}
           className="min-h-20"
           required
         />

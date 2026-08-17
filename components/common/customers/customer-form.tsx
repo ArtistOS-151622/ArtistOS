@@ -103,7 +103,8 @@ export function CustomerForm({
         label="Customer address"
         icon={<MapPin className="size-4" />}
         value={values.address}
-        onChange={(e) => set("address", e.target.value)}
+        onChange={(e) => set("address", e.target.value.slice(0, 200))}
+        maxLength={200}
         containerClassName="md:col-span-2"
         disabled={loading}
         required

@@ -225,8 +225,9 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
                       type="text"
                       required
                       disabled={loading}
+                      maxLength={200}
                       value={address}
-                      onChange={(e) => setAddress(e.target.value)}
+                      onChange={(e) => setAddress(e.target.value.slice(0, 200))}
                     />
 
                     <FloatingInput

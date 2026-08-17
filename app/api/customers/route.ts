@@ -37,8 +37,12 @@ function validateCustomer(input: CustomerInput) {
   }
 }
 
-const SELECT_FIELDS =
+// Fields to SELECT from the customer_stats view (includes computed booking_count)
+const READ_FIELDS =
   "id, customer_name, phone, alt_phone, email, address, reference_by, created_at, booking_count"
+// Fields to SELECT after writing to the base customers table (no booking_count column)
+const WRITE_FIELDS =
+  "id, customer_name, phone, alt_phone, email, address, reference_by, created_at"
 
 export async function GET(request: NextRequest) {
   const session = getArtistSession(request)
@@ -55,7 +59,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient()
   let query = supabase
     .from("customer_stats")
-    .select(SELECT_FIELDS, { count: "exact" })
+    .select(READ_FIELDS, { count: "exact" })
     .eq("user_id", session.id)
 
   if (search) {
@@ -112,12 +116,23 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { data, error } = await supabase
+  const { data: inserted, error } = await supabase
     .from("customers")
     .insert({ ...result.data, user_id: session.id })
-    .select(SELECT_FIELDS)
+    .select(WRITE_FIELDS)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  // Re-fetch from the stats view so the response includes booking_count
+  const { data, error: fetchError } = await supabase
+    .from("customer_stats")
+    .select(READ_FIELDS)
+    .eq("id", inserted.id)
+    .eq("user_id", session.id)
+    .single()
+
+  if (fetchError) return NextResponse.json({ customer: inserted })
+
   return NextResponse.json({ customer: data })
 }

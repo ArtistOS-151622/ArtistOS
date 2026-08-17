@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Filter, Plus, Search, User, MessageSquare } from "lucide-react";
+import { toast } from "sonner";
 
 import { SkeletonCard } from "@/components/common/shared/skeleton-card";
 import { AppModal } from "@/components/common/shared/app-modal";
@@ -52,7 +53,6 @@ export function CustomerManager() {
   const [duplicatePhonePopupOpen, setDuplicatePhonePopupOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [error, setError] = useState("");
 
   // Search, filter and pagination states
   const [search, setSearch] = useState(initialSearch);
@@ -117,14 +117,13 @@ export function CustomerManager() {
     } else {
       setLoadingMore(true);
     }
-    setError("");
     try {
       const res = await fetch(
         `/api/customers?page=${pageNum}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
       );
       const data = (await res.json()) as CustomersResponse;
       if (!res.ok) {
-        setError(data.error ?? "Unable to load customers.");
+        toast.error(data.error ?? "Unable to load customers.");
       } else {
         const fetched = data.customers ?? [];
         setCustomers((prev) => (append ? [...prev, ...fetched] : fetched));
@@ -133,7 +132,7 @@ export function CustomerManager() {
         if (syncUrl) replaceListUrl(pageNum, searchVal, sortVal);
       }
     } catch {
-      setError("Unable to load customers.");
+      toast.error("Unable to load customers.");
     } finally {
       setInitialLoading(false);
       setLoading(false);
@@ -147,7 +146,6 @@ export function CustomerManager() {
     sortVal: string,
   ) {
     setLoading(true);
-    setError("");
 
     try {
       const responses = await Promise.all(
@@ -163,7 +161,7 @@ export function CustomerManager() {
       const failedIndex = responses.findIndex((res) => !res.ok);
 
       if (failedIndex !== -1) {
-        setError(payloads[failedIndex]?.error ?? "Unable to load customers.");
+        toast.error(payloads[failedIndex]?.error ?? "Unable to load customers.");
         return;
       }
 
@@ -172,7 +170,7 @@ export function CustomerManager() {
       setPage(pageNum);
       replaceListUrl(pageNum, searchVal, sortVal);
     } catch {
-      setError("Unable to load customers.");
+      toast.error("Unable to load customers.");
     } finally {
       setInitialLoading(false);
       setLoading(false);
@@ -213,7 +211,6 @@ export function CustomerManager() {
 
   async function saveCustomer() {
     setLoading(true);
-    setError("");
 
     const payload = {
       customer_name: values.customer_name.trim(),
@@ -240,7 +237,7 @@ export function CustomerManager() {
           setDuplicatePhonePopupOpen(true);
           cancelEdit();
         } else {
-          setError(data.error ?? "Unable to save customer.");
+          toast.error(data.error ?? "Unable to save customer.");
         }
       } else {
         if (editing) pendingScrollId.current = editing.id;
@@ -256,7 +253,7 @@ export function CustomerManager() {
         }
       }
     } catch {
-      setError("Unable to save customer.");
+      toast.error("Unable to save customer.");
     } finally {
       setLoading(false);
     }
@@ -265,7 +262,6 @@ export function CustomerManager() {
   async function deleteCustomer() {
     if (!deleting) return;
     setLoading(true);
-    setError("");
 
     try {
       const res = await fetch(`/api/customers/${deleting.id}`, {
@@ -274,13 +270,13 @@ export function CustomerManager() {
       const data = (await res.json()) as CustomersResponse;
 
       if (!res.ok) {
-        setError(data.error ?? "Unable to delete customer.");
+        toast.error(data.error ?? "Unable to delete customer.");
       } else {
         setDeleting(null);
         void fetchCustomersThrough(page, search, sortBy);
       }
     } catch {
-      setError("Unable to delete customer.");
+      toast.error("Unable to delete customer.");
     } finally {
       setLoading(false);
     }
@@ -380,11 +376,6 @@ export function CustomerManager() {
         }
       />
 
-      {error ? (
-        <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
-          {error}
-        </p>
-      ) : null}
 
       {initialLoading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

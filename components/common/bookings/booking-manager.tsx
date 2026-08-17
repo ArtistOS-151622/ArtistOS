@@ -517,22 +517,30 @@ export function BookingManager() {
             >
               Cancel
             </Button>
-            <Button
-              form="booking-form"
-              type="submit"
-              className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10 disabled:opacity-50"
-              disabled={
-                loading ||
-                !values.customer_id ||
-                !values.booking_address.trim() ||
-                !values.booking_date ||
-                !values.start_time ||
-                !values.end_time ||
-                !values.status
-              }
-            >
-              {editing ? "Update booking" : "Create booking"}
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                form="booking-form"
+                type="submit"
+                className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10 disabled:opacity-50"
+                disabled={
+                  loading ||
+                  !values.customer_id ||
+                  !values.booking_address.trim() ||
+                  !values.booking_date ||
+                  !values.start_time ||
+                  !values.end_time ||
+                  !values.status ||
+                  values.services.length === 0
+                }
+              >
+                {editing ? "Update booking" : "Create booking"}
+              </Button>
+              {values.services.length === 0 && (
+                <p className="text-xs text-amber-600 font-medium">
+                  Select at least 1 service to continue
+                </p>
+              )}
+            </div>
           </>
         }
       >
