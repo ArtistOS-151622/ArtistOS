@@ -363,21 +363,21 @@ function Hero() {
           managed from one powerful workspace.
         </p>
 
-        <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row lg:mt-5">
+        <div className="mt-5 flex flex-row items-center justify-center gap-2.5 sm:gap-3 lg:mt-5">
           <a
             href="/signup"
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#7c3aed] px-6 py-3 text-sm font-medium text-white shadow-md shadow-[#7c3aed]/25 outline-none transition duration-200 hover:-translate-y-0.5 hover:bg-[#6d28d9] focus-visible:ring-2 focus-visible:ring-[#7c3aed]/50 focus-visible:ring-offset-2"
+            className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-[#7c3aed] px-4 py-2.5 text-xs font-medium text-white shadow-md shadow-[#7c3aed]/25 outline-none transition duration-200 hover:-translate-y-0.5 hover:bg-[#6d28d9] focus-visible:ring-2 focus-visible:ring-[#7c3aed]/50 focus-visible:ring-offset-2 sm:px-6 sm:py-3 sm:text-sm"
             suppressHydrationWarning
           >
             Try for Free
-            <ArrowUpRight className="size-3.5" />
+            <ArrowUpRight className="size-3 sm:size-3.5" />
           </a>
           <a
             href="#solutions"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#7c3aed]/35 bg-white px-6 py-3 text-sm font-medium text-[#7c3aed] shadow-xs outline-none transition duration-200 hover:-translate-y-0.5 hover:border-[#7c3aed] hover:bg-[#7c3aed]/5 focus-visible:ring-2 focus-visible:ring-[#7c3aed]/50 focus-visible:ring-offset-2"
+            className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full border border-[#7c3aed]/35 bg-white px-4 py-2.5 text-xs font-medium text-[#7c3aed] shadow-xs outline-none transition duration-200 hover:-translate-y-0.5 hover:border-[#7c3aed] hover:bg-[#7c3aed]/5 focus-visible:ring-2 focus-visible:ring-[#7c3aed]/50 focus-visible:ring-offset-2 sm:px-6 sm:py-3 sm:text-sm"
           >
             See How It Works
-            <ArrowUpRight className="size-3.5" />
+            <ArrowUpRight className="size-3 sm:size-3.5" />
           </a>
         </div>
       </div>
@@ -389,7 +389,7 @@ function Hero() {
       >
         {/* Real hero photo */}
         <Image
-          src="/hero-artist.jpg"
+        src="/hero-artist.jpg"
           alt="Artist professional working at laptop in a warm studio"
           fill
           priority
