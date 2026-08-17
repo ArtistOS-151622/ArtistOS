@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PwaInstallPrompt } from "@/components/common/pwa/pwa-install-prompt";
 import { Toaster } from "@/components/ui/sonner";
+import { JsonLd } from "@/components/common/seo/json-ld";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,19 +15,122 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const APP_URL = "https://artistos.in";
+const OG_IMAGE = `${APP_URL}/og-image.png`;
+
 export const metadata: Metadata = {
-  title: "ArtistOS | Business Software for Beauty Artists",
+  metadataBase: new URL(APP_URL),
+
+  title: {
+    default: "ArtistOS — Business Software for artists | artistos.in",
+    template: "%s | ArtistOS",
+  },
   description:
-    "All-in-one booking, CRM, portfolio, marketing, payment, and dashboard platform for nail, mehendi, bridal, and beauty professionals.",
+    "ArtistOS is India's #1 all-in-one business app for artists. Manage appointments, clients, portfolio, payments, and WhatsApp campaigns — built for nail artists, mehendi artists, bridal makeup artists & salon owners.",
+
+  keywords: [
+    "ArtistOS",
+    "Artist OS",
+    "artist os",
+    "artistos",
+    "artistos.in",
+    "artist app",
+    "artist software",
+    "nail artist app",
+    "nail artist software",
+    "mehendi artist app",
+    "mehendi artist booking",
+    "bridal makeup artist app",
+    "bridal artist software",
+    "beauty salon management software",
+    "beauty salon app India",
+    "salon management software India",
+    "artist business management",
+    "beauty CRM India",
+    "nail art portfolio app",
+    "makeup artist portfolio website",
+    "beauty appointment booking",
+    "artist booking software",
+    "freelance artist tools",
+    "beauty payment tracking",
+    "WhatsApp marketing beauty",
+    "beauty business dashboard",
+    "salon invoice app",
+    "beauty freelancer app India",
+    "artist business software India",
+    "beauty studio management",
+    "nail salon booking app",
+    "henna artist booking app",
+    "artist CRM",
+    "artist os india",
+  ],
+
+  authors: [{ name: "ArtistOS", url: APP_URL }],
+  creator: "ArtistOS",
+  publisher: "ArtistOS",
+  category: "Business Software",
+
+  alternates: {
+    canonical: APP_URL,
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    url: APP_URL,
+    siteName: "ArtistOS",
+    title: "ArtistOS — Business Software for artists",
+    description:
+      "All-in-one booking, CRM, portfolio, payments & WhatsApp campaigns for nail artists, mehendi artists, bridal artists & beauty professionals. Try ArtistOS free.",
+    images: [
+      {
+        url: OG_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: "ArtistOS — Business Software for artists",
+        type: "image/png",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "ArtistOS — Business Software for artists",
+    description:
+      "India's #1 app for nail artists, mehendi artists, bridal makeup artists & beauty professionals. Bookings, CRM, portfolio, payments & more.",
+    images: [OG_IMAGE],
+    creator: "@artistos_in",
+    site: "@artistos_in",
+  },
+
   icons: {
     icon: "/icons/icon-192x192.png",
     shortcut: "/favicon.ico",
     apple: "/icons/icon-180x180.png",
   },
+
   appleWebApp: {
     capable: true,
     title: "ArtistOS",
     statusBarStyle: "default",
+  },
+
+  verification: {
+    // Add your Google Search Console verification token here after setup:
+    // google: "YOUR_GOOGLE_VERIFICATION_TOKEN",
   },
 };
 
@@ -45,6 +149,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <JsonLd />
+      </head>
       <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
         {children}
         <PwaInstallPrompt />

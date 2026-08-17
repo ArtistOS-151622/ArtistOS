@@ -267,6 +267,8 @@ export default function Home() {
         <SyncSection />
         <Testimonials />
         <PricingSection />
+        <FaqSection />
+        <KeywordSection />
         <FinalCta />
         <Footer />
       </div>
@@ -307,11 +309,10 @@ function Hero() {
       <div className="pointer-events-none absolute left-[45%] top-40 h-72 w-72 rounded-full bg-[#e6fff7] blur-3xl" />
       <div className="relative z-10 max-w-xl animate-fade-up">
         <h1 className="text-5xl font-semibold leading-[1.1] tracking-tight text-[#232542] sm:text-6xl lg:text-7xl">
-          All artist business needs solutions, simple and modern
+          The #1 Business App for artists in India
         </h1>
         <p className="mt-5 text-base leading-7 text-[#5d6078] sm:text-lg">
-          A powerful SaaS platform for nail, mehendi, bridal, and beauty artists to
-          manage bookings, clients, portfolios, campaigns, payments, and growth.
+          <strong className="font-semibold text-[#232542]">ArtistOS</strong> is a powerful all-in-one platform for nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers — manage bookings, clients, portfolio, payments, and WhatsApp campaigns from one dashboard.
         </p>
 
         <EmailCtaForm />
@@ -568,83 +569,83 @@ function BusinessSection() {
   return (
     <section id="solutions" className="px-6 py-20 sm:px-12 lg:px-20">
       <div className="grid overflow-hidden rounded-[2rem] bg-[#fbfcff] p-6 shadow-sm sm:p-10 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:gap-16">
-      <div className="relative min-h-[520px]">
-        <div className="absolute left-1/2 top-1/2 h-[380px] w-[380px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#edf0ff] blur-3xl" />
-        <div className="absolute left-[8%] top-[8%] z-10 rounded-2xl bg-white px-5 py-4 shadow-xl shadow-[#9ba0b8]/20 animate-float-small">
-          <div className="flex items-center gap-1 text-[#ffcc36]">
-            <Star className="size-4 fill-current" />
-            <span className="text-sm font-semibold">4.8</span>
+        <div className="relative min-h-[520px]">
+          <div className="absolute left-1/2 top-1/2 h-[380px] w-[380px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#edf0ff] blur-3xl" />
+          <div className="absolute left-[8%] top-[8%] z-10 rounded-2xl bg-white px-5 py-4 shadow-xl shadow-[#9ba0b8]/20 animate-float-small">
+            <div className="flex items-center gap-1 text-[#ffcc36]">
+              <Star className="size-4 fill-current" />
+              <span className="text-sm font-semibold">4.8</span>
+            </div>
+            <p className="mt-1 text-xs text-[#777b95]">artist rating</p>
           </div>
-          <p className="mt-1 text-xs text-[#777b95]">artist rating</p>
+
+          <div className="absolute left-[7%] top-[32%] z-10 w-52 rounded-3xl bg-white p-6 shadow-2xl shadow-[#9ba0b8]/25 animate-fade-up">
+            <div className="mb-5 flex size-10 items-center justify-center rounded-2xl bg-[#f3e8ff] text-[#7c3aed]">
+              <UsersRound className="size-5" />
+            </div>
+            <p className="text-4xl font-semibold tracking-tight">76.8%</p>
+            <p className="mt-2 text-sm text-[#70758f]">Client engagement</p>
+            <p className="mt-3 inline-flex rounded-full bg-[#eafaf4] px-3 py-1 text-xs font-semibold text-[#23a982]">
+              +8.21% this month
+            </p>
+          </div>
+
+          <div className="absolute left-[36%] top-[13%] z-20 w-[min(470px,62vw)] rounded-3xl bg-white p-6 shadow-2xl shadow-[#9ba0b8]/25 animate-fade-up" style={{ animationDelay: "120ms" }}>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Data Analytics</p>
+                <p className="mt-1 text-xs text-[#777b95]">service demand by month</p>
+              </div>
+              <span className="rounded-full bg-[#f3e8ff] px-3 py-1 text-xs font-semibold text-[#7c3aed]">
+                Live
+              </span>
+            </div>
+            <BusinessDemandChart />
+          </div>
+
+          <div className="absolute bottom-[8%] left-[27%] z-30 w-[min(420px,65vw)] rounded-3xl bg-[#7c3aed] p-6 text-white shadow-2xl shadow-[#7c3aed]/25">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-white/70">Monthly growth</p>
+                <p className="mt-2 text-3xl font-semibold">₹2.8L tracked</p>
+              </div>
+              <LineChart className="size-6 text-white/80" />
+            </div>
+            <GrowthLineChart />
+          </div>
         </div>
 
-        <div className="absolute left-[7%] top-[32%] z-10 w-52 rounded-3xl bg-white p-6 shadow-2xl shadow-[#9ba0b8]/25 animate-fade-up">
-          <div className="mb-5 flex size-10 items-center justify-center rounded-2xl bg-[#f3e8ff] text-[#7c3aed]">
-            <UsersRound className="size-5" />
-          </div>
-          <p className="text-4xl font-semibold tracking-tight">76.8%</p>
-          <p className="mt-2 text-sm text-[#70758f]">Client engagement</p>
-          <p className="mt-3 inline-flex rounded-full bg-[#eafaf4] px-3 py-1 text-xs font-semibold text-[#23a982]">
-            +8.21% this month
+        <div className="animate-fade-up self-center">
+          <p className="mb-4 inline-flex rounded-full bg-[#f3e8ff] px-4 py-2 text-sm font-semibold text-[#7c3aed]">
+            Business clarity
           </p>
-        </div>
-
-        <div className="absolute left-[36%] top-[13%] z-20 w-[min(470px,62vw)] rounded-3xl bg-white p-6 shadow-2xl shadow-[#9ba0b8]/25 animate-fade-up" style={{ animationDelay: "120ms" }}>
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold">Data Analytics</p>
-              <p className="mt-1 text-xs text-[#777b95]">service demand by month</p>
-            </div>
-            <span className="rounded-full bg-[#f3e8ff] px-3 py-1 text-xs font-semibold text-[#7c3aed]">
-              Live
-            </span>
+          <h2 className="max-w-xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+            See how can ArtistOS help your business
+          </h2>
+          <p className="mt-5 max-w-xl leading-7 text-[#666a82]">
+            Move from scattered tools to one system that helps artists understand clients,
+            bookings, payments, marketing, and portfolio performance.
+          </p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {businessStats.map((stat) => (
+              <div
+                key={stat.value}
+                className="rounded-2xl border border-[#edf0fa] bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#aeb5d2]/15"
+              >
+                <p className="text-2xl font-semibold text-[#7c3aed]">{stat.value}</p>
+                <p className="mt-2 text-sm leading-6 text-[#656982]">{stat.label}</p>
+              </div>
+            ))}
           </div>
-          <BusinessDemandChart />
-        </div>
-
-        <div className="absolute bottom-[8%] left-[27%] z-30 w-[min(420px,65vw)] rounded-3xl bg-[#7c3aed] p-6 text-white shadow-2xl shadow-[#7c3aed]/25">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-white/70">Monthly growth</p>
-              <p className="mt-2 text-3xl font-semibold">₹2.8L tracked</p>
-            </div>
-            <LineChart className="size-6 text-white/80" />
+          <div className="mt-7 space-y-3">
+            {["Find repeat clients instantly", "Measure service-wise income", "Know which portfolio category performs best"].map((item) => (
+              <CheckItem key={item} text={item} />
+            ))}
           </div>
-          <GrowthLineChart />
+          <PrimaryButton href="#cta" className="mt-8">
+            Try for Free
+          </PrimaryButton>
         </div>
-      </div>
-
-      <div className="animate-fade-up self-center">
-        <p className="mb-4 inline-flex rounded-full bg-[#f3e8ff] px-4 py-2 text-sm font-semibold text-[#7c3aed]">
-          Business clarity
-        </p>
-        <h2 className="max-w-xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-          See how can ArtistOS help your business
-        </h2>
-        <p className="mt-5 max-w-xl leading-7 text-[#666a82]">
-          Move from scattered tools to one system that helps artists understand clients,
-          bookings, payments, marketing, and portfolio performance.
-        </p>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {businessStats.map((stat) => (
-            <div
-              key={stat.value}
-              className="rounded-2xl border border-[#edf0fa] bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#aeb5d2]/15"
-            >
-              <p className="text-2xl font-semibold text-[#7c3aed]">{stat.value}</p>
-              <p className="mt-2 text-sm leading-6 text-[#656982]">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-7 space-y-3">
-          {["Find repeat clients instantly", "Measure service-wise income", "Know which portfolio category performs best"].map((item) => (
-            <CheckItem key={item} text={item} />
-          ))}
-        </div>
-        <PrimaryButton href="#cta" className="mt-8">
-          Try for Free
-        </PrimaryButton>
-      </div>
       </div>
     </section>
   )
@@ -654,71 +655,71 @@ function SyncSection() {
   return (
     <section className="px-6 py-16 sm:px-12 lg:px-20">
       <div className="grid overflow-hidden rounded-[2rem] bg-[#f7f8ff] p-6 shadow-sm sm:p-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:gap-12">
-      <div className="animate-fade-up">
-        <p className="mb-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#7c3aed] shadow-sm">
-          Connected workspace
-        </p>
-        <h2 className="max-w-xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-          Sync your artist business for comfortable work
-        </h2>
-        <p className="mt-5 max-w-xl leading-7 text-[#666a82]">
-          Bring bookings, WhatsApp follow-ups, campaign reminders, payment status, and
-          portfolio links into one easy workflow.
-        </p>
-        <div className="mt-7 grid max-w-xl gap-3 sm:grid-cols-2">
-          {["Booking reminders", "WhatsApp campaigns", "Payment follow-ups", "Portfolio sharing"].map((item) => (
-            <div key={item} className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[#33365a] shadow-sm">
-              <CheckItem text={item} className="text-[#33365a]" />
-            </div>
-          ))}
-        </div>
-        <PrimaryButton href="#cta" className="mt-8">
-          Try for Free
-        </PrimaryButton>
-      </div>
-
-      <div className="relative mt-12 min-h-[430px] lg:mt-0">
-        <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ede9fe] blur-3xl" />
-        <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#c4b5fd]" />
-        <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[470px] w-[470px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#ddd6fe]" style={{ animationDelay: "500ms" }} />
-        <IntegrationIcon className="left-[8%] top-[13%] animate-float-small" icon={<MessageCircle className="size-5" />} label="DMs" />
-        <IntegrationIcon className="right-[12%] top-[7%] animate-float-small" icon={<Megaphone className="size-5" />} label="Campaigns" />
-        <IntegrationIcon className="bottom-[8%] left-[16%] animate-float-small" icon={<Gift className="size-5" />} label="Offers" />
-        <IntegrationIcon className="bottom-[16%] right-[5%] animate-float-small" icon={<CircleDollarSign className="size-5" />} label="Payments" />
-        <div className="absolute left-1/2 top-1/2 w-[min(520px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-5 shadow-2xl shadow-[#9ba0b8]/25">
-          <div className="mb-5 flex items-center justify-between">
-            <div className="flex gap-1.5">
-              <span className="size-2.5 rounded-full bg-[#ff7a90]" />
-              <span className="size-2.5 rounded-full bg-[#ffd166]" />
-              <span className="size-2.5 rounded-full bg-[#58d8b6]" />
-            </div>
-            <span className="rounded-full bg-[#f3e8ff] px-3 py-1 text-xs font-semibold text-[#7c3aed]">
-              Live sync
-            </span>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl bg-[#f3e8ff] p-5">
-              <p className="text-xs font-semibold">Campaign</p>
-              <p className="mt-4 text-3xl font-semibold">62%</p>
-              <div className="mt-5 h-2 rounded-full bg-white">
-                <div className="animate-progress h-2 w-[62%] rounded-full bg-[#7c3aed]" />
-              </div>
-              <p className="mt-5 text-xs leading-5 text-[#686c86]">Festival offer sent to repeat bridal clients.</p>
-            </div>
-            <div className="rounded-2xl bg-[#f3e8ff] p-5">
-              <p className="text-xs font-semibold">Client reach</p>
-              <SyncReachChart />
-            </div>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {["18 reminders", "9 dues cleared", "34 portfolio visits"].map((item) => (
-              <div key={item} className="rounded-xl border border-[#edf0fa] px-3 py-2 text-center text-xs font-semibold text-[#565b79]">
-                {item}
+        <div className="animate-fade-up">
+          <p className="mb-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#7c3aed] shadow-sm">
+            Connected workspace
+          </p>
+          <h2 className="max-w-xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+            Sync your artist business for comfortable work
+          </h2>
+          <p className="mt-5 max-w-xl leading-7 text-[#666a82]">
+            Bring bookings, WhatsApp follow-ups, campaign reminders, payment status, and
+            portfolio links into one easy workflow.
+          </p>
+          <div className="mt-7 grid max-w-xl gap-3 sm:grid-cols-2">
+            {["Booking reminders", "WhatsApp campaigns", "Payment follow-ups", "Portfolio sharing"].map((item) => (
+              <div key={item} className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[#33365a] shadow-sm">
+                <CheckItem text={item} className="text-[#33365a]" />
               </div>
             ))}
           </div>
+          <PrimaryButton href="#cta" className="mt-8">
+            Try for Free
+          </PrimaryButton>
         </div>
-      </div>
+
+        <div className="relative mt-12 min-h-[430px] lg:mt-0">
+          <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ede9fe] blur-3xl" />
+          <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#c4b5fd]" />
+          <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[470px] w-[470px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#ddd6fe]" style={{ animationDelay: "500ms" }} />
+          <IntegrationIcon className="left-[8%] top-[13%] animate-float-small" icon={<MessageCircle className="size-5" />} label="DMs" />
+          <IntegrationIcon className="right-[12%] top-[7%] animate-float-small" icon={<Megaphone className="size-5" />} label="Campaigns" />
+          <IntegrationIcon className="bottom-[8%] left-[16%] animate-float-small" icon={<Gift className="size-5" />} label="Offers" />
+          <IntegrationIcon className="bottom-[16%] right-[5%] animate-float-small" icon={<CircleDollarSign className="size-5" />} label="Payments" />
+          <div className="absolute left-1/2 top-1/2 w-[min(520px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-5 shadow-2xl shadow-[#9ba0b8]/25">
+            <div className="mb-5 flex items-center justify-between">
+              <div className="flex gap-1.5">
+                <span className="size-2.5 rounded-full bg-[#ff7a90]" />
+                <span className="size-2.5 rounded-full bg-[#ffd166]" />
+                <span className="size-2.5 rounded-full bg-[#58d8b6]" />
+              </div>
+              <span className="rounded-full bg-[#f3e8ff] px-3 py-1 text-xs font-semibold text-[#7c3aed]">
+                Live sync
+              </span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl bg-[#f3e8ff] p-5">
+                <p className="text-xs font-semibold">Campaign</p>
+                <p className="mt-4 text-3xl font-semibold">62%</p>
+                <div className="mt-5 h-2 rounded-full bg-white">
+                  <div className="animate-progress h-2 w-[62%] rounded-full bg-[#7c3aed]" />
+                </div>
+                <p className="mt-5 text-xs leading-5 text-[#686c86]">Festival offer sent to repeat bridal clients.</p>
+              </div>
+              <div className="rounded-2xl bg-[#f3e8ff] p-5">
+                <p className="text-xs font-semibold">Client reach</p>
+                <SyncReachChart />
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {["18 reminders", "9 dues cleared", "34 portfolio visits"].map((item) => (
+                <div key={item} className="rounded-xl border border-[#edf0fa] px-3 py-2 text-center text-xs font-semibold text-[#565b79]">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -769,9 +770,9 @@ function PricingSection() {
   const count = displayPlans.length
   const gridClass =
     count === 1 ? "lg:grid-cols-1 lg:max-w-sm lg:mx-auto" :
-    count === 2 ? "lg:grid-cols-2 lg:max-w-2xl lg:mx-auto" :
-    count === 4 ? "lg:grid-cols-2" :
-    "lg:grid-cols-3"
+      count === 2 ? "lg:grid-cols-2 lg:max-w-2xl lg:mx-auto" :
+        count === 4 ? "lg:grid-cols-2" :
+          "lg:grid-cols-3"
 
   const scrollSlider = (dir: "left" | "right") => {
     if (!sliderRef.current) return
@@ -843,11 +844,10 @@ function PricingSection() {
                 return (
                   <article
                     key={plan.id || plan.name}
-                    className={`relative flex min-h-[480px] w-[82vw] max-w-[330px] shrink-0 snap-start flex-col overflow-hidden rounded-[2rem] p-7 shadow-xl transition ${
-                      isFeatured
+                    className={`relative flex min-h-[480px] w-[82vw] max-w-[330px] shrink-0 snap-start flex-col overflow-hidden rounded-[2rem] p-7 shadow-xl transition ${isFeatured
                         ? "border-0 bg-gradient-to-br from-[#7c3aed] via-[#6d28d9] to-[#5b21b6] text-white shadow-[#7c3aed]/30"
                         : "border border-[#eaedf8] bg-white text-[#232542] shadow-[#b8bdd8]/15"
-                    }`}
+                      }`}
                   >
                     {isFeatured && (
                       <span className="absolute right-6 top-6 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#7c3aed]">Best value</span>
@@ -886,11 +886,10 @@ function PricingSection() {
               return (
                 <article
                   key={plan.id || plan.name}
-                  className={`relative flex min-h-[480px] flex-col overflow-hidden rounded-[2rem] p-7 shadow-xl transition duration-300 hover:-translate-y-2 hover:shadow-2xl ${
-                    isFeatured
+                  className={`relative flex min-h-[480px] flex-col overflow-hidden rounded-[2rem] p-7 shadow-xl transition duration-300 hover:-translate-y-2 hover:shadow-2xl ${isFeatured
                       ? "border-0 bg-gradient-to-br from-[#7c3aed] via-[#6d28d9] to-[#5b21b6] text-white shadow-[#7c3aed]/30"
                       : "border border-[#eaedf8] bg-white text-[#232542] shadow-[#b8bdd8]/15"
-                  }`}
+                    }`}
                 >
                   {isFeatured && (
                     <span className="absolute right-6 top-6 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#7c3aed]">Best value</span>
@@ -923,9 +922,8 @@ function PricingCardInner({ plan, isFeatured }: { plan: PricingPlan; isFeatured:
 
       {/* Header */}
       <div className="relative">
-        <div className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest mb-4 ${
-          isFeatured ? "bg-white/15 text-white" : "bg-[#f3e8ff] text-[#7c3aed]"
-        }`}>
+        <div className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest mb-4 ${isFeatured ? "bg-white/15 text-white" : "bg-[#f3e8ff] text-[#7c3aed]"
+          }`}>
           {plan.name}
         </div>
 
@@ -938,9 +936,8 @@ function PricingCardInner({ plan, isFeatured }: { plan: PricingPlan; isFeatured:
               </span>
             )}
             {plan.discount_percentage && (
-              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${
-                isFeatured ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700"
-              }`}>
+              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${isFeatured ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700"
+                }`}>
                 {plan.discount_percentage}% off
               </span>
             )}
@@ -974,12 +971,11 @@ function PricingCardInner({ plan, isFeatured }: { plan: PricingPlan; isFeatured:
       <div className="flex-1 space-y-3">
         {(plan.features || []).map((feature: string) => (
           <div key={feature} className="flex items-start gap-3">
-            <span className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
-              isFeatured ? "bg-white/20" : "bg-[#f3e8ff]"
-            }`}>
-              <CheckCircle2 className={`size-3 ${ isFeatured ? "text-white" : "text-[#7c3aed]"}`} />
+            <span className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${isFeatured ? "bg-white/20" : "bg-[#f3e8ff]"
+              }`}>
+              <CheckCircle2 className={`size-3 ${isFeatured ? "text-white" : "text-[#7c3aed]"}`} />
             </span>
-            <span className={`text-sm leading-6 ${ isFeatured ? "text-white/85" : "text-[#3d4169]"}`}>{feature}</span>
+            <span className={`text-sm leading-6 ${isFeatured ? "text-white/85" : "text-[#3d4169]"}`}>{feature}</span>
           </div>
         ))}
       </div>
@@ -987,17 +983,95 @@ function PricingCardInner({ plan, isFeatured }: { plan: PricingPlan; isFeatured:
       {/* CTA */}
       <a
         href={plan.name.toLowerCase() === 'custom' ? "#cta" : "/login?next=/billing"}
-        className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold tracking-wide transition-all duration-200 ${
-          isFeatured
+        className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold tracking-wide transition-all duration-200 ${isFeatured
             ? "bg-white text-[#7c3aed] hover:bg-[#f3e8ff] shadow-lg shadow-black/10"
             : "bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-lg shadow-[#7c3aed]/25"
-        }`}
+          }`}
         suppressHydrationWarning
       >
         {plan.cta || "Get Started"}
         <ArrowRight className="size-4" />
       </a>
     </>
+  )
+}
+
+function FaqSection() {
+  const faqs = [
+    {
+      q: "What is ArtistOS?",
+      a: "ArtistOS is India's #1 all-in-one business management platform designed for artists — nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers. It brings bookings, client CRM, portfolio, payments, WhatsApp campaigns, and analytics into one powerful dashboard.",
+    },
+    {
+      q: "Who is ArtistOS for?",
+      a: "ArtistOS is built for any beauty professional: nail artists, nail art studio owners, mehendi / henna artists, bridal makeup artists, hair stylists, eyelash artists, salon owners, beauty academy owners, and solo beauty freelancers across India.",
+    },
+    {
+      q: "How much does ArtistOS cost?",
+      a: "ArtistOS starts at just ₹249/month. The yearly plan is ₹2799/year — saving you over 40%. Both plans include booking calendar, client CRM, portfolio gallery, payment tracking, WhatsApp campaigns, and business reports. A custom white-label plan is available for salons, studios, and beauty academies.",
+    },
+    {
+      q: "Can ArtistOS manage my bookings and appointments?",
+      a: "Yes. ArtistOS has a full appointment booking calendar so artists can schedule services, set time slots, avoid double bookings, send reminders, and track booking history — all in one place.",
+    },
+    {
+      q: "Does ArtistOS support WhatsApp marketing?",
+      a: "Yes. ArtistOS includes WhatsApp broadcast tools so nail artists, mehendi artists, and beauty professionals can send festival offers, birthday messages, repeat-client promotions, and payment reminders directly from the platform.",
+    },
+    {
+      q: "Is ArtistOS available in India?",
+      a: "Yes. ArtistOS (artistos.in) is made in India and built for Indian artists. It supports ₹ INR pricing, GST-inclusive invoicing, and is optimised for the Indian beauty and salon market.",
+    },
+  ]
+
+  return (
+    <section id="faq" className="px-6 py-20 sm:px-12 lg:px-20">
+      <SectionHeading
+        eyebrow="FAQ"
+        title="Frequently asked questions about ArtistOS"
+        description="Everything you need to know about the ArtistOS artist business platform."
+        className="animate-fade-up"
+      />
+      <div className="mt-12 mx-auto max-w-3xl divide-y divide-[#edf0fa]">
+        {faqs.map((faq) => (
+          <div key={faq.q} className="py-6">
+            <h3 className="text-base font-semibold text-[#232542]">{faq.q}</h3>
+            <p className="mt-3 text-sm leading-7 text-[#5d6078]">{faq.a}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function KeywordSection() {
+  const keywords = [
+    "ArtistOS", "Artist OS", "artistos.in", "Nail Artist App", "Mehendi Artist App",
+    "Bridal Makeup Artist Software", "Beauty Salon Management", "artist CRM",
+    "Salon Booking Software India", "Beauty Freelancer App", "Nail Art Portfolio",
+    "Mehendi Booking App", "WhatsApp Marketing Beauty", "Beauty Business Dashboard",
+    "Makeup Artist Portfolio", "Henna Artist App", "Salon Payment Tracking",
+    "Artist Business Software", "Beauty Studio App", "Nail Salon Software India",
+    "Beauty Appointment Booking", "Artist Invoice App", "Beauty Analytics Dashboard",
+    "Salon CRM India", "artist Platform India",
+  ]
+
+  return (
+    <section className="px-6 py-12 sm:px-12 lg:px-20 bg-[#faf9ff]">
+      <p className="mb-5 text-center text-xs font-semibold uppercase tracking-widest text-[#9096b5]">
+        ArtistOS — Built for every beauty professional
+      </p>
+      <div className="flex flex-wrap justify-center gap-2.5">
+        {keywords.map((kw) => (
+          <span
+            key={kw}
+            className="rounded-full border border-[#e8e4ff] bg-white px-3.5 py-1.5 text-xs font-medium text-[#5a5f80] shadow-sm"
+          >
+            {kw}
+          </span>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -1008,15 +1082,18 @@ function FinalCta() {
         <div className="absolute left-8 top-8 h-24 w-24 rotate-45 border border-white/20" />
         <div className="absolute bottom-8 right-10 h-28 w-28 rotate-45 border border-white/20" />
         <h2 className="relative mx-auto max-w-xl text-3xl font-semibold leading-tight sm:text-4xl">
-          Make artist business success inevitable with ArtistOS
+          Make your artist business unstoppable with ArtistOS
         </h2>
+        <p className="relative mt-4 mx-auto max-w-lg text-sm text-white/70">
+          Join thousands of nail artists, mehendi artists, bridal makeup artists, and beauty professionals across India who use ArtistOS to grow their business every day.
+        </p>
         <div className="relative mt-7 flex flex-col justify-center gap-3 sm:flex-row">
           <a
-            href="#"
+            href="/signup"
             className="inline-flex h-10 items-center justify-center rounded-md bg-white px-5 text-sm font-semibold text-[#7c3aed]"
             suppressHydrationWarning
           >
-            Try for Free
+            Try ArtistOS Free
           </a>
           <OutlineButton href="#pricing">See Prices</OutlineButton>
         </div>
@@ -1032,14 +1109,17 @@ function Footer() {
         <div>
           <BrandLogo imageClassName="h-11" />
           <p className="mt-4 max-w-xs text-sm leading-6 text-[#666a82]">
-            The fastest and simplest way to run a modern beauty artist business.
+            ArtistOS (artistos.in) is India&apos;s leading business management software for artists — nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers.
+          </p>
+          <p className="mt-3 max-w-xs text-xs leading-5 text-[#9096b5]">
+            Manage bookings, client CRM, portfolio, payments, WhatsApp campaigns, and analytics — all in one platform.
           </p>
         </div>
         <div className="grid gap-8 text-sm sm:grid-cols-3">
           {[
-            ["Product", "CRM", "Booking", "Portfolio", "Payments"],
-            ["Company", "About", "Privacy Policy", "Terms", "Contact"],
-            ["Resources", "Guides", "Blog", "Tools", "Support"],
+            ["Product", "Booking Calendar", "Client CRM", "Portfolio Gallery", "Payment Tracking", "WhatsApp Campaigns", "Business Reports"],
+            ["Company", "About ArtistOS", "Privacy Policy", "Terms of Service", "Contact Us"],
+            ["Resources", "Nail Artist Guide", "Mehendi Artist Tips", "Beauty Business Blog", "Salon Management Tools", "Support"],
           ].map(([title, ...items]) => (
             <div key={title}>
               <p className="font-semibold text-[#292c48]">{title}</p>
@@ -1052,8 +1132,9 @@ function Footer() {
           ))}
         </div>
       </div>
-      <div className="bg-[#202344] px-5 py-4 text-xs text-white/70">
-        © 2026 ArtistOS. All rights reserved.
+      <div className="bg-[#202344] px-5 py-4 text-xs text-white/70 flex flex-wrap justify-between gap-2">
+        <span>© 2026 ArtistOS (artistos.in). All rights reserved. Built in India 🇮🇳 for artists.</span>
+        <span className="text-white/40">Nail Artist App · Mehendi Artist App · Bridal Artist Software · Beauty Salon Management</span>
       </div>
     </footer>
   )
