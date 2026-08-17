@@ -1,14 +1,16 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Image as ImageIcon, Paperclip } from "lucide-react"
+import { Image as ImageIcon, Share2 } from "lucide-react"
 
 import { PortfolioFileGrid } from "@/components/portfolio/portfolio-file-grid"
 import { PortfolioLightbox } from "@/components/portfolio/portfolio-lightbox"
+import { PortfolioShareModal } from "@/components/portfolio/portfolio-share-modal"
 import { PortfolioUploader } from "@/components/portfolio/portfolio-uploader"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import type { PortfolioFileWithUrl } from "@/lib/portfolio/types"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
+import type { PortfolioFileWithUrl, PortfolioFolderWithStats } from "@/lib/portfolio/types"
 
 type BookingPortfolioTabProps = {
   bookingId: number
@@ -17,9 +19,10 @@ type BookingPortfolioTabProps = {
 
 export function BookingPortfolioTab({ bookingId, onQuotaExceeded }: BookingPortfolioTabProps) {
   const [deliveryFiles, setDeliveryFiles] = useState<PortfolioFileWithUrl[]>([])
-  const [folderId, setFolderId] = useState<number | null>(null)
+  const [folder, setFolder] = useState<PortfolioFolderWithStats | null>(null)
   const [previewFile, setPreviewFile] = useState<PortfolioFileWithUrl | null>(null)
   const [loading, setLoading] = useState(true)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const loadPortfolio = useCallback(async () => {
     setLoading(true)
@@ -27,7 +30,7 @@ export function BookingPortfolioTab({ bookingId, onQuotaExceeded }: BookingPortf
       const res = await fetch(`/api/bookings/${bookingId}/portfolio`)
       const json = await res.json()
       if (json.status) {
-        setFolderId(json.data.folder?.id ?? null)
+        setFolder(json.data.folder ?? null)
         setDeliveryFiles(json.data.delivery_files ?? [])
       }
     } finally {
@@ -58,10 +61,30 @@ export function BookingPortfolioTab({ bookingId, onQuotaExceeded }: BookingPortf
               </CardTitle>
             </div>
           </div>
-          <div className="shrink-0">
+
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Share Booking Folder Button */}
+            {folder && (
+              <Button
+                type="button"
+                variant={folder.is_shared ? "default" : "outline"}
+                size="icon"
+                className={cn(
+                  "size-9 rounded-xl transition-all shadow-2xs",
+                  folder.is_shared
+                    ? "bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-purple-600/20"
+                    : "border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50"
+                )}
+                onClick={() => setShareOpen(true)}
+                title={folder.is_shared ? "Folder is shared" : "Share this folder"}
+              >
+                <Share2 className={cn("size-4", folder.is_shared ? "text-white" : "text-[#7c3aed]")} />
+              </Button>
+            )}
+
             <PortfolioUploader
               bookingId={bookingId}
-              folderId={folderId ?? undefined}
+              folderId={folder?.id ?? undefined}
               section="delivery"
               onUploaded={loadPortfolio}
               onQuotaExceeded={onQuotaExceeded}
@@ -83,6 +106,13 @@ export function BookingPortfolioTab({ bookingId, onQuotaExceeded }: BookingPortf
         open={!!previewFile}
         onClose={() => setPreviewFile(null)}
         file={previewFile}
+      />
+
+      <PortfolioShareModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        folder={folder}
+        onUpdated={() => void loadPortfolio()}
       />
     </>
   )
