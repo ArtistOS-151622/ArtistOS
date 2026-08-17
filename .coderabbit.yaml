@@ -1,0 +1,68 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+
+# Review tone and behavior
+reviews:
+  profile: "assertive"          # strict but constructive
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+  review_status: true
+  collapse_walkthrough: false
+  poem: false
+
+  # Auto-review settings
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+      - develop
+
+  # Custom review instructions for this project
+  instructions: |
+    This is ArtistOS — a Next.js App Router + Supabase (Postgres) booking/CRM app for freelance artists.
+    Apply these project-specific rules during every review:
+
+    CRITICAL CHECKS:
+    - NEVER approve code that creates a `middleware.ts` file. This repo uses `proxy.ts` (exports `proxy()` not `middleware()`).
+    - NEVER approve `npm install` or `yarn add` commands in scripts/docs — this project uses pnpm exclusively.
+    - Flag any direct call to Supabase Auth methods (supabase.auth.*) — auth is fully custom via lib/auth/session.ts.
+    - Flag any migration file that was hand-named (must use `supabase migration new` to get a unique timestamp).
+    - Flag any hardcoded secrets, API keys, or credentials.
+
+    ARCHITECTURE:
+    - Verify new API routes return structured JSON { error: string } on failure with correct HTTP status codes.
+    - Verify server components use lib/supabase/server.ts, not lib/supabase/client.ts.
+    - New CRM resources should follow the manager/form/card/types quad pattern.
+    - Portfolio feature uses Cloudflare R2 (lib/r2/), never Supabase Storage.
+    - Razorpay webhook is the source of truth for payment state, not client-side verify calls.
+    - Subscription dates must use Razorpay's next_billing_at, not local date arithmetic.
+
+    UI / COMPONENTS:
+    - Prefer shadcn/ui components over custom implementations.
+    - All dropdowns must use the DropdownMenu family from components/ui/dropdown-menu.tsx.
+    - Form field icons must be inside the input border using relative/absolute positioning + pl-10 class.
+    - Charts must use the shadcn chart pattern (components/ui/chart.tsx), not hand-built SVG/div elements.
+    - Repeated markup should be extracted into components/common/shared/, not duplicated.
+
+    GENERAL:
+    - Flag console.log in route handlers or lib/ files.
+    - Flag use of `any` TypeScript type without an explanatory comment.
+    - Flag relative import chains (../../..) that could use path aliases (@/lib/, @/components/).
+    - Praise atomic, well-scoped commits.
+
+# Files to skip reviewing
+path_filters:
+  - "!**/pnpm-lock.yaml"
+  - "!**/package-lock.json"
+  - "!**/.next/**"
+  - "!**/node_modules/**"
+  - "!**/*.generated.ts"
+  - "!**/tsconfig.tsbuildinfo"
+  - "!**/*.sql"           # migrations reviewed separately
+
+# Chat settings
+chat:
+  auto_reply: true

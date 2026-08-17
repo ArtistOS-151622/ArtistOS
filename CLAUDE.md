@@ -3,6 +3,8 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 @AGENTS.md
+@RULES.md
+@MEMORY.md
 
 ## What this is
 
@@ -49,3 +51,24 @@ No test runner is configured in this repo. Package manager is pnpm (see `package
 ## Plan mode: where plans go
 
 Whenever a plan is written in plan mode for this repo, save a copy into `plans/` at the repo root (filename `YYYY-MM-DD-short-description.md`), in addition to the default harness plan-file location. This keeps implementation plans reviewable/diffable alongside the code they describe.
+
+## GSD Instant Execution Mode
+
+This repo uses a **GSD (Get Shit Done)** / **Ralph Loop** agentic workflow:
+
+- **MEMORY.md** — living project memory (gotchas, arch truths, lessons learned). Read before every session. Update whenever you learn something new.
+- **RULES.md** — non-negotiable coding standards and forbidden actions. Read before every session.
+- **ralph-loop.sh** — autonomous multi-task loop. Spawns a fresh agent per task from `TODO.md`.
+- **.coderabbit.yaml** — AI code review config for PRs (CodeRabbit app on GitHub).
+
+**GSD instant execution** (small tasks):
+1. Read MEMORY.md → check for known patterns.
+2. Execute directly without a formal plan.
+3. `pnpm lint` → fix errors → commit atomically.
+4. Update MEMORY.md if you learned something new.
+
+**GSD full mode** (complex / multi-file tasks):
+1. Read MEMORY.md + RULES.md.
+2. Write plan to `plans/YYYY-MM-DD-<slug>.md`.
+3. Get approval, then execute.
+4. Update MEMORY.md on completion.
