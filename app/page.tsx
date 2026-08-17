@@ -50,24 +50,72 @@ import { TestimonialCard } from "@/components/common/landing/testimonial-card"
 import { FloatingClientChip } from "@/components/common/landing/floating-client-chip"
 import { IntegrationIcon } from "@/components/common/landing/integration-icon"
 
-const features = [
+const productFeatures = [
   {
-    icon: CalendarCheck2,
-    title: "Appointment booking",
-    text: "Avoid double bookings with a clean calendar, reminders, service slots, and booking history.",
-    className: "bg-[#f5f3ff]",
+    key: "dashboard",
+    icon: LineChart,
+    tag: "Dashboard",
+    title: "Your whole business, one screen.",
+    text: "Track active clients, new bookings, revenue, and client satisfaction at a glance — with live appointment trends and revenue-source breakdowns so you always know where you stand.",
+    points: ["Real-time revenue & booking stats", "Yearly appointment trend chart", "Revenue source distribution"],
+    image: "/features/dashboard.png",
+    accent: "#7c3aed",
+    bg: "#f5f3ff",
   },
   {
+    key: "customers",
     icon: UsersRound,
-    title: "Client CRM",
-    text: "Save customer details, repeat visits, preferences, birthdays, and contact history in one place.",
-    className: "bg-[#ecffd9]",
+    tag: "Client CRM",
+    title: "Never lose a client's history again.",
+    text: "Every customer's contact details, address, and full booking history live in one searchable place — so follow-ups, repeat bookings, and broadcasts are effortless.",
+    points: ["Searchable client directory", "Call, chat & WhatsApp shortcuts", "Booking count per customer"],
+    image: "/features/customers.png",
+    accent: "#2f8fe0",
+    bg: "#edf8ff",
   },
   {
+    key: "services",
+    icon: Gift,
+    tag: "Services",
+    title: "Price and manage every service you offer.",
+    text: "Set up your full service menu — duration, rate, and category — once, then reuse it instantly across every booking without retyping a thing.",
+    points: ["Custom rates & durations", "Organized service categories", "Instantly reusable in bookings"],
+    image: "/features/services.png",
+    accent: "#e0862f",
+    bg: "#fff6ec",
+  },
+  {
+    key: "bookings",
+    icon: CalendarCheck2,
+    tag: "Bookings",
+    title: "A calendar that never double-books you.",
+    text: "See every appointment for the day, its status, services, and payment total — switch between day and month views and jump straight into a new booking in seconds.",
+    points: ["Day & calendar month views", "Status, services & pricing at a glance", "One-tap new booking"],
+    image: "/features/bookings.png",
+    accent: "#7c3aed",
+    bg: "#f5f3ff",
+  },
+  {
+    key: "portfolio",
     icon: GalleryHorizontalEnd,
-    title: "Portfolio gallery",
-    text: "Organize nail, mehendi, bridal, and beauty work into categories instead of messy posts.",
-    className: "bg-[#edf8ff]",
+    tag: "Portfolio",
+    title: "A gallery clients actually want to browse.",
+    text: "Organize your nail, mehendi, bridal, and beauty work into folders per client or category, then share a private link — all backed by generous cloud storage.",
+    points: ["Folder-based organization", "Shareable client links", "Built-in storage meter"],
+    image: "/features/portfolio.png",
+    accent: "#23a982",
+    bg: "#ecfff8",
+  },
+  {
+    key: "reports",
+    icon: Search,
+    tag: "Reports",
+    title: "Know exactly who owes you what.",
+    text: "See total billed, collected, and outstanding dues across every customer — sorted by recent activity so you know exactly who to follow up with next.",
+    points: ["Total billed vs. collected", "Outstanding dues per client", "Customers, services & payments tabs"],
+    image: "/features/reports.png",
+    accent: "#d23f6e",
+    bg: "#fff0f4",
   },
 ]
 
@@ -226,8 +274,8 @@ export default function Home() {
         <Header />
         <Hero />
       </div>
+      <Features />
       <div className="overflow-hidden bg-white">
-        <Features />
         <BusinessSection />
         <SyncSection />
         <Testimonials />
@@ -535,27 +583,296 @@ function SyncReachChart() {
 
 
 function Features() {
-  return (
-    <section id="features" className="px-6 py-20 sm:px-12 lg:px-20">
-      <SectionHeading
-        title="Our platform features"
-        description="Improve relationships, reduce manual work, organize customer data, and grow repeat bookings with one beauty-business platform."
-      />
+  const sectionRef = useRef<HTMLElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [isDesktop, setIsDesktop] = useState(false)
+  const count = productFeatures.length
 
-      <div className="mt-16 grid gap-6 lg:grid-cols-3">
-        {features.map((feature) => (
-          <article
-            key={feature.title}
-            className={`animate-fade-up rounded-md p-8 transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#a7adca]/20 ${feature.className}`}
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1024px)")
+    const onChange = () => setIsDesktop(mql.matches)
+    onChange()
+    mql.addEventListener("change", onChange)
+    return () => mql.removeEventListener("change", onChange)
+  }, [])
+
+  useEffect(() => {
+    if (!isDesktop) return
+    const section = sectionRef.current
+    const track = trackRef.current
+    if (!section || !track) return
+
+    let raf = 0
+
+    const onScroll = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const rect = section.getBoundingClientRect()
+        const scrollable = section.offsetHeight - window.innerHeight
+        const progress = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0
+
+        track.style.transform = `translate3d(-${(progress * (count - 1) * 100) / count}%, 0, 0)`
+        setActiveIndex(Math.min(count - 1, Math.round(progress * (count - 1))))
+      })
+    }
+
+    onScroll()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    window.addEventListener("resize", onScroll)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener("scroll", onScroll)
+      window.removeEventListener("resize", onScroll)
+    }
+  }, [count, isDesktop])
+
+  const scrollToIndex = (index: number) => {
+    const section = sectionRef.current
+    if (!section) return
+    const scrollable = section.offsetHeight - window.innerHeight
+    const target = section.offsetTop + (scrollable * index) / (count - 1)
+    window.scrollTo({ top: target, behavior: "smooth" })
+  }
+
+  return (
+    <section
+      id="features"
+      ref={sectionRef}
+      className="relative"
+      style={{ height: isDesktop ? `${count * 100}vh` : "auto" }}
+    >
+      <div className="py-16 sm:py-20 lg:sticky lg:top-0 lg:flex lg:h-svh lg:flex-col lg:justify-center lg:overflow-hidden lg:py-10">
+        <div className="animate-fade-up mx-auto px-6 text-center sm:px-12 lg:px-20">
+          <p className="text-sm font-semibold text-primary">Inside ArtistOS</p>
+          <h2 className="mt-3 text-[1.85rem] font-semibold tracking-tight text-[#282a47] sm:text-4xl lg:whitespace-nowrap lg:text-5xl">
+            Everything your business needs, <span className="text-[#7c3aed]">built in</span>
+          </h2>
+        </div>
+
+        {/* Desktop: pinned horizontal scroll-jack track */}
+        <div className="relative mt-8 hidden flex-1 overflow-hidden lg:block">
+          <div
+            ref={trackRef}
+            className="flex h-full will-change-transform"
+            style={{ width: `${count * 100}%` }}
           >
-            <feature.icon className="size-9 text-[#222541]" />
-            <div className="my-7 h-px bg-[#252842]/20" />
-            <h3 className="text-xl font-semibold">{feature.title}</h3>
-            <p className="mt-4 leading-7 text-[#4f536b]">{feature.text}</p>
-          </article>
-        ))}
+            {productFeatures.map((feature, i) => (
+              <FeatureSlide
+                key={feature.key}
+                feature={feature}
+                index={i}
+                active={i === activeIndex}
+                widthPercent={100 / count}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Progress dots — desktop only, driven by scroll */}
+        <div className="mt-6 hidden items-center justify-center gap-2 lg:flex">
+          {productFeatures.map((f, i) => (
+            <button
+              key={f.key}
+              onClick={() => scrollToIndex(i)}
+              aria-label={`Go to ${f.tag}`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === activeIndex ? "w-8 bg-[#7c3aed]" : "w-1.5 bg-[#d9d5f5] hover:bg-[#b9aef0]"
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Mobile / tablet: swipeable carousel */}
+        <div className="mt-8 lg:hidden">
+          <MobileFeatureCarousel />
+        </div>
       </div>
     </section>
+  )
+}
+
+function MobileFeatureCarousel() {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  const onScroll = () => {
+    const track = trackRef.current
+    if (!track) return
+    const index = Math.round(track.scrollLeft / track.clientWidth)
+    setActiveIndex(Math.min(productFeatures.length - 1, Math.max(0, index)))
+  }
+
+  const scrollToIndex = (index: number) => {
+    const track = trackRef.current
+    if (!track) return
+    track.scrollTo({ left: index * track.clientWidth, behavior: "smooth" })
+  }
+
+  return (
+    <div>
+      <div
+        ref={trackRef}
+        onScroll={onScroll}
+        className="flex snap-x snap-mandatory gap-0 overflow-x-auto scroll-smooth custom-scrollbar"
+      >
+        {productFeatures.map((feature) => (
+          <div key={feature.key} className="w-full shrink-0 snap-start px-6 sm:px-12">
+            <MobileFeatureCard feature={feature} />
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 flex items-center justify-center gap-2">
+        {productFeatures.map((f, i) => (
+          <button
+            key={f.key}
+            onClick={() => scrollToIndex(i)}
+            aria-label={`Go to ${f.tag}`}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              i === activeIndex ? "w-8 bg-[#7c3aed]" : "w-1.5 bg-[#d9d5f5]"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MobileFeatureCard({ feature }: { feature: ProductFeature }) {
+  return (
+    <div>
+      <div
+        className="relative overflow-hidden rounded-[1.25rem] border border-[#eaecf5] bg-[#f7f8ff] shadow-xl shadow-[#9ba0b8]/20"
+        style={{ aspectRatio: "16 / 11" }}
+      >
+        <div className="flex items-center gap-1.5 border-b border-[#edf0fa] bg-white px-3 py-2">
+          <span className="size-1.5 rounded-full bg-[#ff7a90]" />
+          <span className="size-1.5 rounded-full bg-[#ffd166]" />
+          <span className="size-1.5 rounded-full bg-[#58d8b6]" />
+          <span className="ml-2 truncate rounded-full bg-[#f4f5fb] px-2.5 py-0.5 text-[0.6rem] text-[#9096b5]">
+            artistos.in/{feature.key}
+          </span>
+        </div>
+        <div className="relative h-full w-full">
+          <Image
+            src={feature.image}
+            alt={`ArtistOS ${feature.tag} screen`}
+            fill
+            className="object-cover object-top"
+            sizes="100vw"
+          />
+        </div>
+      </div>
+
+      <span
+        className="mt-5 inline-flex size-10 items-center justify-center rounded-2xl"
+        style={{ backgroundColor: feature.bg, color: feature.accent }}
+      >
+        <feature.icon className="size-4.5" />
+      </span>
+      <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em]" style={{ color: feature.accent }}>
+        {feature.tag}
+      </p>
+      <h3 className="mt-2 text-xl font-semibold leading-tight tracking-tight text-[#232542] sm:text-2xl">
+        {feature.title}
+      </h3>
+      <p className="mt-3 leading-6 text-[#666a82]">{feature.text}</p>
+      <div className="mt-4 space-y-2.5">
+        {feature.points.map((point) => (
+          <div key={point} className="flex items-center gap-2.5 text-sm font-semibold text-[#3b3f62]">
+            <CheckCircle2 className="size-4 shrink-0" style={{ color: feature.accent }} />
+            {point}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+type ProductFeature = (typeof productFeatures)[number]
+
+function FeatureSlide({
+  feature,
+  index,
+  active,
+  widthPercent,
+}: {
+  feature: ProductFeature
+  index: number
+  active: boolean
+  widthPercent: number
+}) {
+  return (
+    <div
+      className="flex h-full shrink-0 items-center px-6 sm:px-12 lg:px-20"
+      style={{ width: `${widthPercent}%` }}
+    >
+      <div className="grid w-full max-w-full items-center gap-8 overflow-hidden lg:grid-cols-[0.85fr_1.15fr] lg:gap-14">
+        {/* Left: content */}
+        <div
+          className={`order-2 transition-opacity duration-500 ease-out lg:order-1 ${
+            active ? "opacity-100" : "opacity-40"
+          }`}
+        >
+          <span
+            className="inline-flex size-11 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: feature.bg, color: feature.accent }}
+          >
+            <feature.icon className="size-5" />
+          </span>
+          <p
+            className="mt-4 text-xs font-bold uppercase tracking-[0.18em]"
+            style={{ color: feature.accent }}
+          >
+            {String(index + 1).padStart(2, "0")} · {feature.tag}
+          </p>
+          <h3 className="mt-3 text-2xl font-semibold leading-tight tracking-tight text-[#232542] sm:text-3xl lg:text-[2.15rem]">
+            {feature.title}
+          </h3>
+          <p className="mt-4 max-w-md leading-7 text-[#666a82]">{feature.text}</p>
+          <div className="mt-6 space-y-3">
+            {feature.points.map((point) => (
+              <div key={point} className="flex items-center gap-3 text-sm font-semibold text-[#3b3f62]">
+                <CheckCircle2 className="size-4 shrink-0" style={{ color: feature.accent }} />
+                {point}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: real product screenshot */}
+        <div
+          className={`order-1 min-w-0 transition-opacity duration-500 ease-out lg:order-2 ${
+            active ? "opacity-100" : "opacity-40"
+          }`}
+        >
+          <div
+            className="relative w-full max-w-full overflow-hidden rounded-[1.5rem] border border-[#eaecf5] bg-[#f7f8ff] shadow-2xl shadow-[#9ba0b8]/25 sm:rounded-[1.75rem]"
+            style={{ aspectRatio: "16 / 10" }}
+          >
+            {/* Browser chrome bar */}
+            <div className="flex items-center gap-1.5 border-b border-[#edf0fa] bg-white px-4 py-2.5">
+              <span className="size-2 rounded-full bg-[#ff7a90]" />
+              <span className="size-2 rounded-full bg-[#ffd166]" />
+              <span className="size-2 rounded-full bg-[#58d8b6]" />
+              <span className="ml-3 truncate rounded-full bg-[#f4f5fb] px-3 py-0.5 text-[0.65rem] text-[#9096b5]">
+                artistos.in/{feature.key}
+              </span>
+            </div>
+            <div className="relative h-full w-full">
+              <Image
+                src={feature.image}
+                alt={`ArtistOS ${feature.tag} screen`}
+                fill
+                className="object-cover object-top"
+                sizes="(max-width: 1024px) 100vw, 60vw"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
