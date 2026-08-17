@@ -3,6 +3,7 @@
 import Image from "next/image"
 import { X } from "lucide-react"
 import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 
 import { PwaInstallGuideModal } from "@/components/common/pwa/pwa-install-guide-modal"
 import { Button } from "@/components/ui/button"
@@ -32,6 +33,7 @@ function isStandalone() {
 }
 
 export function PwaInstallPrompt() {
+  const pathname = usePathname()
   const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(null)
   const [visible, setVisible] = useState(false)
   const [isIosDevice, setIsIosDevice] = useState(false)
@@ -132,6 +134,9 @@ export function PwaInstallPrompt() {
     localStorage.setItem(DISMISSED_KEY, "true")
     setVisible(false)
   }
+
+  // Never show the install prompt on shared portfolio pages
+  if (pathname?.startsWith("/portfolio/shared/")) return null
 
   if (!visible) return null
 

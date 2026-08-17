@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import {
   Search, Users, TrendingUp, Wallet, AlertCircle,
   ChevronRight, Phone, Mail, MapPin, Calendar, CreditCard,
-  X, BookOpen,
+  X, BookOpen, ExternalLink,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -53,6 +54,7 @@ type CustomerReport = {
 }
 
 export function ReportCustomerTab({ dateRange }: { dateRange: { start: string; end: string } | null }) {
+  const router = useRouter()
   const [data, setData] = useState<{ customers: CustomerReport[]; totals: any } | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -356,13 +358,27 @@ export function ReportCustomerTab({ dateRange }: { dateRange: { start: string; e
                         const due = billed - paid
                         const serviceNames = services.map((s: any) => s.service?.service_name).filter(Boolean)
 
+                        const isNavigable = b.status === "confirmed" || b.status === "completed"
+
                         return (
-                          <div key={b.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
+                          <div
+                            key={b.id}
+                            onClick={() => isNavigable && router.push(`/bookings/${b.id}`)}
+                            className={cn(
+                              "rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3 group transition-all duration-150",
+                              isNavigable
+                                ? "cursor-pointer hover:border-purple-200 hover:shadow-md hover:shadow-purple-950/[0.06] hover:bg-purple-50/20"
+                                : "cursor-default"
+                            )}
+                          >
                             <div className="flex items-start justify-between gap-2">
-                              <div>
+                              <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <BookOpen className="size-3.5 text-slate-400 shrink-0" />
                                   <span className="text-sm font-semibold text-slate-700">{formatDate(b.booking_date)}</span>
+                                  {isNavigable && (
+                                    <ExternalLink className="size-3 text-slate-300 group-hover:text-[#7c3aed] transition-colors ml-auto shrink-0" />
+                                  )}
                                 </div>
                                 {serviceNames.length > 0 && (
                                   <div className="flex flex-wrap gap-1 mt-1.5">
