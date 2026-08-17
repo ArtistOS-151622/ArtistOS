@@ -1,8 +1,10 @@
 "use client"
+// next/image used inside Hero for the background photo
 
 
 import {
   ArrowRight,
+  ArrowUpRight,
   CalendarCheck2,
   CheckCircle2,
   ChevronLeft,
@@ -13,10 +15,11 @@ import {
   LineChart,
   Megaphone,
   MessageCircle,
+  Search,
   Star,
   UsersRound,
 } from "lucide-react"
-import { useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   Area,
   AreaChart,
@@ -36,16 +39,15 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import { BrandLogo, BrandMark } from "@/components/common/brand/brand-logo"
+import Image from "next/image"
+import { BrandLogo } from "@/components/common/brand/brand-logo"
 import { SectionHeading } from "@/components/common/shared/section-heading"
 import { NavLink } from "@/components/common/shared/nav-link"
 import { PrimaryButton } from "@/components/common/shared/primary-button"
 import { OutlineButton } from "@/components/common/shared/outline-button"
 import { CheckItem } from "@/components/common/shared/check-item"
-import { EmailCtaForm } from "@/components/common/landing/email-cta-form"
 import { TestimonialCard } from "@/components/common/landing/testimonial-card"
-import { DashboardCard } from "@/components/common/dashboard/dashboard-card"
-import { FloatingMetric } from "@/components/common/landing/floating-metric"
+import { FloatingClientChip } from "@/components/common/landing/floating-client-chip"
 import { IntegrationIcon } from "@/components/common/landing/integration-icon"
 
 const features = [
@@ -76,30 +78,6 @@ const businessStats = [
   { value: "165k+", label: "portfolio views created" },
 ]
 
-const heroRevenueData = [
-  { month: "Jan", bookings: 44, revenue: 18 },
-  { month: "Feb", bookings: 64, revenue: 24 },
-  { month: "Mar", bookings: 38, revenue: 15 },
-  { month: "Apr", bookings: 76, revenue: 28 },
-  { month: "May", bookings: 54, revenue: 20 },
-  { month: "Jun", bookings: 88, revenue: 32 },
-  { month: "Jul", bookings: 48, revenue: 18 },
-  { month: "Aug", bookings: 70, revenue: 26 },
-  { month: "Sep", bookings: 96, revenue: 36 },
-  { month: "Oct", bookings: 58, revenue: 22 },
-  { month: "Nov", bookings: 84, revenue: 31 },
-  { month: "Dec", bookings: 112, revenue: 42 },
-]
-
-const heroReachData = [
-  { day: "Mon", clients: 24, campaigns: 18 },
-  { day: "Tue", clients: 34, campaigns: 26 },
-  { day: "Wed", clients: 32, campaigns: 28 },
-  { day: "Thu", clients: 48, campaigns: 36 },
-  { day: "Fri", clients: 54, campaigns: 40 },
-  { day: "Sat", clients: 56, campaigns: 42 },
-]
-
 const businessBarData = [
   { label: "N", value: 58 },
   { label: "M", value: 100 },
@@ -126,16 +104,6 @@ const syncReachData = [
   { label: "5", reach: 72, clients: 56 },
   { label: "6", reach: 74, clients: 58 },
 ]
-
-const revenueChartConfig = {
-  bookings: { label: "Bookings", color: "#58d8b6" },
-  revenue: { label: "Revenue", color: "#7c3aed" },
-} satisfies ChartConfig
-
-const reachChartConfig = {
-  clients: { label: "Clients", color: "#58d8b6" },
-  campaigns: { label: "Campaigns", color: "#7c3aed" },
-} satisfies ChartConfig
 
 const businessChartConfig = {
   value: { label: "Demand", color: "#7c3aed" },
@@ -250,18 +218,15 @@ const pricingPlans: PricingPlan[] = [
   },
 ]
 
-const appointments = [
-  { customer: "Aarohi Shah", service: "Bridal makeup", amount: "₹18,000" },
-  { customer: "Meera Patel", service: "Mehendi session", amount: "₹6,500" },
-  { customer: "Nisha Rao", service: "Gel nail art", amount: "₹2,200" },
-]
-
 export default function Home() {
   return (
     <main className="min-h-svh bg-white text-[#1f213f]">
-      <div className="overflow-hidden bg-white">
+      {/* Above-fold: header + hero together = exactly one viewport height on all screens */}
+      <div className="flex h-svh flex-col overflow-hidden bg-white">
         <Header />
         <Hero />
+      </div>
+      <div className="overflow-hidden bg-white">
         <Features />
         <BusinessSection />
         <SyncSection />
@@ -278,197 +243,226 @@ export default function Home() {
 
 function Header() {
   return (
-    <header className="flex items-center justify-between px-6 py-5 sm:px-12 lg:px-20">
-      <BrandLogo imageClassName="h-12" priority />
+    <header className="flex items-center justify-between px-5 py-4 sm:px-8 lg:px-10">
+      <BrandLogo imageClassName="h-9" priority />
 
-      <nav className="hidden items-center gap-9 text-sm font-medium text-[#575b78] lg:flex">
-        <NavLink href="#features">Products</NavLink>
-        <NavLink href="#solutions">Solutions</NavLink>
+      <nav className="hidden items-center gap-8 text-sm font-medium text-[#4a4a4a] lg:flex">
+        <NavLink href="#features">Product</NavLink>
+        <NavLink href="#solutions">Features</NavLink>
         <NavLink href="#pricing">Pricing</NavLink>
-        <NavLink href="#company">Company</NavLink>
         <NavLink href="#resources">Resources</NavLink>
+        <NavLink href="#company">About</NavLink>
       </nav>
 
-      <div className="flex items-center gap-4">
-        <a href="/login" className="hidden text-sm font-medium text-[#343757] sm:inline" suppressHydrationWarning>
-          Log in
+      <div className="flex items-center gap-3">
+        <a
+          href="/login"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#7c3aed] px-5 py-2.5 text-sm font-medium text-white shadow-sm shadow-[#7c3aed]/20 outline-none transition duration-200 hover:-translate-y-0.5 hover:bg-[#6d28d9] focus-visible:ring-2 focus-visible:ring-[#7c3aed]/50 focus-visible:ring-offset-2"
+          suppressHydrationWarning
+        >
+          Login
+          <ArrowUpRight className="size-3.5" />
         </a>
-        <PrimaryButton href="/signup">
-          Sign up
-          <ArrowRight className="size-4" />
-        </PrimaryButton>
       </div>
     </header>
   )
 }
 
-function Hero() {
+const heroProfessions = [
+  { label: "Makeup Artist",  emoji: "💄", delay: "0ms"   },
+  { label: "Nail Artist",    emoji: "💅", delay: "60ms"  },
+  { label: "Bridal Artist",  emoji: "👰", delay: "120ms" },
+  { label: "Mehendi Artist", emoji: "🌿", delay: "180ms" },
+  { label: "Salon Owner",    emoji: "✂️",  delay: "240ms" },
+  { label: "Beauty Studio",  emoji: "🪞", delay: "300ms" },
+  { label: "Hair Stylist",   emoji: "💇", delay: "360ms" },
+  { label: "Lash Artist",    emoji: "👁️",  delay: "420ms" },
+]
+
+const rotatingHeroPhrases = [
+  "Made Completely Effortless.",
+  "On Pure Autopilot.",
+  "Organized in Seconds.",
+  "Without the Chaos.",
+  "Built for Top Artists.",
+]
+
+function RotatingHeroText() {
+  const [index, setIndex] = useState(0)
+  const [animating, setAnimating] = useState(false)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAnimating(true)
+      setTimeout(() => {
+        setIndex((prev) => (prev + 1) % rotatingHeroPhrases.length)
+        setAnimating(false)
+      }, 350)
+    }, 2800)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
-    <section className="relative grid gap-8 overflow-hidden px-6 pb-12 pt-6 sm:px-12 lg:grid-cols-[0.88fr_1.12fr] lg:px-20 lg:pb-16 lg:pt-8">
-      <div className="pointer-events-none absolute -right-24 top-20 h-[560px] w-[560px] rounded-full bg-[#faf5ff] blur-3xl" />
-      <div className="pointer-events-none absolute left-[45%] top-40 h-72 w-72 rounded-full bg-[#e6fff7] blur-3xl" />
-      <div className="relative z-10 max-w-xl animate-fade-up">
-        <h1 className="text-5xl font-semibold leading-[1.1] tracking-tight text-[#232542] sm:text-6xl lg:text-7xl">
-          The #1 Business App for artists in India
-        </h1>
-        <p className="mt-5 text-base leading-7 text-[#5d6078] sm:text-lg">
-          <strong className="font-semibold text-[#232542]">ArtistOS</strong> is a powerful all-in-one platform for nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers — manage bookings, clients, portfolio, payments, and WhatsApp campaigns from one dashboard.
-        </p>
-
-        <EmailCtaForm />
-
-        <div className="mt-5 flex flex-wrap gap-5 text-sm text-[#535770]">
-          <CheckItem text="No credit required" className="text-[#535770]" />
-          <CheckItem text="Real-time insights" className="text-[#535770]" />
-        </div>
-      </div>
-
-      <div className="relative min-h-[560px] animate-fade-up lg:min-h-[540px]" style={{ animationDelay: "120ms" }}>
-        <div className="animate-soft-glow absolute right-0 top-6 h-[430px] w-[82%] rounded-[2rem] bg-[#7c3aed]" />
-        <div className="absolute right-8 top-16 hidden h-[380px] w-[73%] rounded-[1.6rem] border border-white/25 bg-[linear-gradient(135deg,rgba(255,255,255,.24)_1px,transparent_1px)] bg-[length:72px_72px] lg:block" />
-        <DashboardMockup />
-        <FloatingMetric className="left-0 top-28 animate-float-small" title="Today bookings" value="18" helper="+6 new requests" />
-        <FloatingMetric className="bottom-12 left-8 animate-float-small" title="Pending dues" value="₹8,240" helper="9 payments tracked" />
-      </div>
-    </section>
+    <span className="relative inline-block px-1">
+      <span
+        className={`inline-block font-serif italic font-normal tracking-normal text-transparent bg-clip-text bg-gradient-to-r from-[#7c3aed] via-[#9333ea] to-[#a855f7] transition-all duration-350 ease-out transform min-h-[1.2em] ${
+          animating
+            ? "opacity-0 -translate-y-2 blur-[1px]"
+            : "opacity-100 translate-y-0 blur-0"
+        }`}
+      >
+        {rotatingHeroPhrases[index]}
+      </span>
+      {/* Hand-drawn curved swoosh underline */}
+      <svg
+        className={`pointer-events-none absolute -bottom-1 sm:-bottom-2 left-0 w-full h-[10px] sm:h-[13px] overflow-visible transition-all duration-300 ${
+          animating ? "opacity-25 scale-x-90" : "opacity-100 scale-x-100"
+        }`}
+        viewBox="0 0 280 14"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M 3 10 C 60 2, 170 2, 277 8"
+          stroke="url(#hero-curve-grad)"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M 28 12 C 95 6, 200 6, 255 11"
+          stroke="url(#hero-curve-grad)"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          opacity="0.6"
+        />
+        <defs>
+          <linearGradient id="hero-curve-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#7c3aed" />
+            <stop offset="60%" stopColor="#9333ea" />
+            <stop offset="100%" stopColor="#c084fc" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </span>
   )
 }
 
-function DashboardMockup() {
+function Hero() {
   return (
-    <div className="absolute right-0 top-16 w-full max-w-[760px] rounded-[1.6rem] border border-white/70 bg-white/95 p-3 shadow-2xl shadow-[#8389a8]/35 backdrop-blur lg:-right-8 lg:animate-float-soft">
-      <div className="overflow-hidden rounded-[1.25rem] border border-[#edf0fa] bg-[#fbfcff]">
-        <div className="flex items-center justify-between border-b border-[#edf0fa] bg-white px-4 py-3">
-          <div className="flex items-center gap-3">
-            <BrandMark className="size-8 rounded-xl" />
-            <div>
-              <p className="text-sm font-semibold">ArtistOS Studio</p>
-              <p className="text-[0.68rem] text-[#7a7f99]">Beauty business dashboard</p>
-            </div>
+    <section className="relative flex flex-1 flex-col px-5 pb-8 pt-10 sm:px-8 lg:flex-1 lg:px-10 lg:pb-6 lg:pt-6">
+      {/* Centered headline block */}
+      <div className="animate-fade-up mx-auto text-center">
+        <h1 className="text-[2.15rem] font-semibold leading-[1.1] tracking-[-0.035em] text-[#31324f] sm:text-[2.85rem] lg:text-[3.45rem]">
+          <span className="block drop-shadow-xs">Your Booking & Client Management</span>
+          <RotatingHeroText />
+        </h1>
+        <p className="mx-auto mt-4 max-w-[440px] text-[0.9rem] leading-[1.3] text-[#6b6b6b] lg:mt-4 font-medium">
+          Bookings, clients, portfolio, payments and WhatsApp campaigns - all
+          managed from one powerful workspace.
+        </p>
+
+        <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row lg:mt-5">
+          <a
+            href="/signup"
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#7c3aed] px-6 py-3 text-sm font-medium text-white shadow-md shadow-[#7c3aed]/25 outline-none transition duration-200 hover:-translate-y-0.5 hover:bg-[#6d28d9] focus-visible:ring-2 focus-visible:ring-[#7c3aed]/50 focus-visible:ring-offset-2"
+            suppressHydrationWarning
+          >
+            Try for Free
+            <ArrowUpRight className="size-3.5" />
+          </a>
+          <a
+            href="#solutions"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#7c3aed]/35 bg-white px-6 py-3 text-sm font-medium text-[#7c3aed] shadow-xs outline-none transition duration-200 hover:-translate-y-0.5 hover:border-[#7c3aed] hover:bg-[#7c3aed]/5 focus-visible:ring-2 focus-visible:ring-[#7c3aed]/50 focus-visible:ring-offset-2"
+          >
+            See How It Works
+            <ArrowUpRight className="size-3.5" />
+          </a>
+        </div>
+      </div>
+
+      {/* ── Large visual card ── */}
+      <div
+        className="animate-fade-up relative mx-auto mt-6 w-full flex-1 overflow-hidden rounded-[20px] lg:mt-5"
+        style={{ animationDelay: "120ms" }}
+      >
+        {/* Real hero photo */}
+        <Image
+          src="/hero-artist.jpg"
+          alt="Artist professional working at laptop in a warm studio"
+          fill
+          priority
+          className="object-cover object-center"
+          sizes="(max-width: 1100px) 100vw, 1100px"
+        />
+
+        {/* Left-side gradient overlay — keeps text legible over bokeh */}
+        <div className="absolute inset-0 bg-[linear-gradient(95deg,rgba(4,3,2,0.72)_0%,rgba(4,3,2,0.40)_35%,rgba(4,3,2,0.10)_55%,transparent_68%)]" />
+        {/* Bottom vignette */}
+        <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(0,0,0,0.38)_0%,transparent_45%)]" />
+
+        {/* ── Top-left badge cluster ── */}
+        <div className="animate-fade-up absolute left-4 top-4 z-10 flex items-center gap-2 sm:left-5 sm:top-5">
+          <span className="inline-flex h-7 items-center rounded-full bg-white/20 px-3 text-[0.6rem] font-semibold uppercase tracking-widest text-white/90 backdrop-blur-sm">
+            Event
+          </span>
+          <span className="inline-flex h-7 items-center gap-1 rounded-full bg-white/90 px-3 text-[0.65rem] font-medium text-[#0a0a0a] backdrop-blur-sm">
+            Book a session
+            <ArrowUpRight className="size-3" />
+          </span>
+        </div>
+
+        {/* ── Top-right pill ── */}
+        <a
+          href="#features"
+          className="animate-fade-up absolute right-4 top-4 z-10 inline-flex h-8 items-center gap-1 rounded-full bg-white/15 px-3.5 text-[0.68rem] font-medium text-white outline-none backdrop-blur-md transition hover:bg-white/25 focus-visible:ring-2 focus-visible:ring-white/70 sm:right-5 sm:top-5"
+          style={{ animationDelay: "80ms" }}
+        >
+          Match yours
+          <ArrowUpRight className="size-3" />
+        </a>
+
+        {/* ── Bottom bar — text left, profession badges right ── */}
+        <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 px-4 pb-5 sm:px-6 sm:pb-6 lg:flex-row lg:items-end lg:justify-between lg:gap-4 lg:px-8 lg:pb-7">
+          {/* Left: text */}
+          <div
+            className="animate-fade-up min-w-0 max-w-[240px] flex-shrink-0 sm:max-w-[300px] lg:max-w-[360px]"
+            style={{ animationDelay: "160ms" }}
+          >
+            <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-[0.6rem] font-medium text-white/85 backdrop-blur-sm">
+              Artist Bookings
+            </span>
+            <h2 className="mt-2 text-[1.2rem] font-semibold leading-[1.1] tracking-[-0.025em] text-white sm:text-[1.4rem] lg:text-[1.65rem]">
+              Efficiently manage your
+              <br />
+              artist business.
+            </h2>
+            <p className="mt-1.5 text-[0.62rem] leading-[1.5] text-white/70 sm:text-[0.68rem]">
+              ArtistOS automates bookings, payments and client management
+              so you stay focused on your craft.
+            </p>
           </div>
-          <div className="hidden h-9 w-56 rounded-full border border-[#edf0fa] bg-[#f7f8ff] px-4 text-[0.7rem] leading-9 text-[#8a8fac] sm:block">
-            Search client, booking, payment
-          </div>
-          <div className="flex -space-x-2">
-            {["R", "A", "N"].map((item) => (
-              <span key={item} className="flex size-8 items-center justify-center rounded-full border-2 border-white bg-[#f5f3ff] text-xs font-semibold text-[#7c3aed]">
-                {item}
+
+          {/* Right: profession badges — hidden on mobile, wrap on sm+ */}
+          <div
+            className="animate-fade-up flex flex-wrap gap-1.5 sm:gap-2 lg:max-w-[480px] lg:justify-end"
+            style={{ animationDelay: "200ms" }}
+          >
+            {heroProfessions.map((p) => (
+              <span
+                key={p.label}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-[0.63rem] font-semibold text-[#161616] shadow-[0_2px_12px_rgba(0,0,0,0.10)] backdrop-blur-sm transition-transform duration-200 hover:-translate-y-0.5"
+                style={{ animationDelay: p.delay }}
+              >
+                <span className="text-sm leading-none">{p.emoji}</span>
+                {p.label}
               </span>
             ))}
           </div>
         </div>
-
-        <div className="grid min-h-[430px] gap-4 p-4 md:grid-cols-[150px_1fr]">
-          <aside className="hidden rounded-2xl bg-[#f3e8ff] p-3 text-xs font-medium text-[#717694] md:block">
-            <div className="mb-5 flex items-center gap-2 px-2 text-[#232542]">
-              <span className="size-2 rounded-full bg-[#58d8b6]" />
-              Live workspace
-            </div>
-            {["Dashboard", "Bookings", "Clients", "Portfolio", "Campaigns", "Payments"].map((item, index) => (
-              <div
-                key={item}
-                className={`mb-1 rounded-xl px-3 py-2.5 ${index === 0 ? "bg-[#7c3aed] text-white shadow-lg shadow-[#7c3aed]/20" : ""}`}
-              >
-                {item}
-              </div>
-            ))}
-          </aside>
-
-          <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <DashboardCard label="Revenue" value="₹42.7k" helper="+12.4%" />
-              <DashboardCard label="Bookings" value="18" helper="+6 today" />
-              <DashboardCard label="Repeat clients" value="68%" helper="+8.2%" />
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-              <div className="rounded-2xl border border-[#edf0fa] bg-white p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold">Revenue analytics</p>
-                    <p className="text-[0.7rem] text-[#858aa5]">Nail, mehendi, bridal services</p>
-                  </div>
-                  <LineChart className="size-4 text-[#7c3aed]" />
-                </div>
-                <HeroRevenueChart />
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-[#edf0fa] bg-white p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold">Campaign reach</p>
-                    <span className="rounded-full bg-[#eafaf4] px-2.5 py-1 text-[0.65rem] font-semibold text-[#23a982]">
-                      Live
-                    </span>
-                  </div>
-                  <HeroReachChart />
-                </div>
-
-                <div className="rounded-2xl bg-[#7c3aed] p-4 text-white">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold">Festival campaign</p>
-                    <Megaphone className="size-4 text-white/80" />
-                  </div>
-                  <p className="mt-3 text-2xl font-semibold">124 clients</p>
-                  <p className="mt-1 text-xs text-white/70">ready for WhatsApp offer</p>
-                  <div className="mt-4 h-2 rounded-full bg-white/20">
-                    <div className="animate-progress h-2 w-[72%] rounded-full bg-white" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              {appointments.map((appointment) => (
-                <div key={appointment.customer} className="rounded-2xl border border-[#edf0fa] bg-white p-3">
-                  <p className="text-xs font-semibold">{appointment.customer}</p>
-                  <p className="mt-1 text-[0.7rem] text-[#717694]">{appointment.service}</p>
-                  <p className="mt-3 text-xs font-semibold text-[#58a890]">{appointment.amount}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
-    </div>
-  )
-}
-
-
-
-function HeroRevenueChart() {
-  return (
-    <ChartContainer config={revenueChartConfig} className="h-40 w-full">
-      <BarChart data={heroRevenueData} accessibilityLayer>
-        <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="bookings" fill="var(--color-bookings)" radius={[8, 8, 0, 0]} />
-        <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[8, 8, 0, 0]} />
-      </BarChart>
-    </ChartContainer>
-  )
-}
-
-function HeroReachChart() {
-  return (
-    <ChartContainer config={reachChartConfig} className="mt-4 h-24 w-full">
-      <RechartsLineChart data={heroReachData} accessibilityLayer>
-        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-        <Line
-          type="monotone"
-          dataKey="clients"
-          stroke="var(--color-clients)"
-          strokeWidth={4}
-          dot={false}
-        />
-        <Line
-          type="monotone"
-          dataKey="campaigns"
-          stroke="var(--color-campaigns)"
-          strokeWidth={4}
-          dot={false}
-        />
-      </RechartsLineChart>
-    </ChartContainer>
+    </section>
   )
 }
 
