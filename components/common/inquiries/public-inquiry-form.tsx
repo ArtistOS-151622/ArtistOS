@@ -251,7 +251,7 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                       icon={<UserRound className="size-4" />}
                       value={values.customer_name}
                       maxLength={50}
-                      onChange={(event) => updateValue("customer_name", event.target.value)}
+                      onChange={(event) => updateValue("customer_name", event.target.value.slice(0, 50))}
                     />
                     <FloatingPhoneInput
                       label="Phone number"

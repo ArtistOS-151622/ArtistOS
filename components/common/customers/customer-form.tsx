@@ -44,7 +44,7 @@ export function CustomerForm({
         label="Customer name"
         icon={<User className="size-4" />}
         value={values.customer_name}
-        onChange={(e) => set("customer_name", e.target.value)}
+        onChange={(e) => set("customer_name", e.target.value.slice(0, 50))}
         containerClassName="md:col-span-2"
         disabled={loading}
         maxLength={50}
