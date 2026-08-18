@@ -87,41 +87,52 @@ export default function PublicPortfolioSharePage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
             {data.files
               .filter(f => f.mime_type.startsWith("image/") || f.mime_type.startsWith("video/"))
-              .map((file) => (
-              <div key={file.id} className="group relative aspect-square overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-                {/* Thumbnail — click to preview */}
-                <button
-                  type="button"
-                  onClick={() => setPreview(file)}
-                  className="absolute inset-0 h-full w-full"
-                >
-                  {file.mime_type.startsWith("image/") ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={file.public_url} alt={file.original_name} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="relative flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 group-hover:from-violet-600 group-hover:via-fuchsia-600 group-hover:to-pink-600 transition-colors">
-                      <PlayCircle className="size-12 text-white drop-shadow-md" />
-                    </div>
-                  )}
-                </button>
-                {/* Download icon — always visible on mobile, hover-only on desktop */}
-                <a
-                  href={file.public_url}
-                  download={file.original_name}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="absolute bottom-2 right-2 z-10 flex size-8 items-center justify-center rounded-xl bg-black/60 text-white opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/80 backdrop-blur-sm"
-                  title="Download"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                </a>
-              </div>
-            ))}
+              .map((file) => {
+                let downloadHref = file.public_url
+                try {
+                  const urlObj = new URL(file.public_url)
+                  urlObj.searchParams.set("download", file.original_name || "true")
+                  downloadHref = urlObj.toString()
+                } catch (e) {
+                  // Fallback in case of invalid URL
+                }
+                
+                return (
+                  <div key={file.id} className="group relative aspect-square overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                    {/* Thumbnail — click to preview */}
+                    <button
+                      type="button"
+                      onClick={() => setPreview(file)}
+                      className="absolute inset-0 h-full w-full"
+                    >
+                      {file.mime_type.startsWith("image/") ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={file.public_url} alt={file.original_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="relative flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 group-hover:from-violet-600 group-hover:via-fuchsia-600 group-hover:to-pink-600 transition-colors">
+                          <PlayCircle className="size-12 text-white drop-shadow-md" />
+                        </div>
+                      )}
+                    </button>
+                    {/* Download icon — always visible on mobile, hover-only on desktop */}
+                    <a
+                      href={downloadHref}
+                      download={file.original_name}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute bottom-2 right-2 z-10 flex size-8 items-center justify-center rounded-xl bg-black/60 text-white opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/80 backdrop-blur-sm"
+                      title="Download"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                    </a>
+                  </div>
+                )
+            })}
           </div>
         )}
       </main>

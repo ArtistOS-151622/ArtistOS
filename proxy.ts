@@ -12,6 +12,7 @@ const protectedPrefixes = [
   "/calendar",
   "/portfolio",
   "/profile",
+  "/billing",
 ]
 
 function getJwtExpiry(token: string): number | null {

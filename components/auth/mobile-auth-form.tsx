@@ -121,7 +121,7 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
         }
       }
 
-      router.push(redirectPath)
+      window.location.href = redirectPath
     } catch {
       setError("Unable to connect to the authentication server. Please check your connection and try again.")
     } finally {
