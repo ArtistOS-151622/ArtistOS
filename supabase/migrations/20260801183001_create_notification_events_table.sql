@@ -20,6 +20,7 @@ create table if not exists public.notification_events (
   devices_sent    int not null default 0,
   last_error      text,
   sent_at         timestamp with time zone,
+  read_at         timestamp with time zone,
   created_at      timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at      timestamp with time zone default timezone('utc'::text, now()) not null
 );

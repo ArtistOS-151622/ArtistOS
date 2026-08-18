@@ -5,6 +5,8 @@ create table if not exists public.user_subscriptions (
   status varchar(20) not null default 'active',
   current_period_start timestamp with time zone default timezone('utc'::text, now()),
   current_period_end timestamp with time zone,
+  next_billing_at timestamp with time zone,
+  subscription_end_at timestamp with time zone,
   cancel_at_period_end boolean default false,
   rp_subscription_id varchar(255),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,

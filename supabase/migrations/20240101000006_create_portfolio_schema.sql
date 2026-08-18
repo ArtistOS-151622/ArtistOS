@@ -91,7 +91,6 @@ create table if not exists storage_plans (
   name varchar(100) not null,
   storage_bytes bigint not null,
   price_inr numeric(10,2) not null,
-  expires_in_days integer not null default 30,
   razorpay_plan_id varchar(100) unique,
   is_active boolean not null default true,
   sort_order integer not null default 0,
@@ -104,12 +103,12 @@ create trigger storage_plans_set_updated_at
 before update on storage_plans
 for each row execute function public.set_updated_at();
 
-insert into storage_plans (name, storage_bytes, price_inr, expires_in_days, sort_order)
+insert into storage_plans (name, storage_bytes, price_inr, sort_order)
 select * from (values
-  ('Starter — 500 MB / month', 524288000::bigint, 99.00::numeric, 30, 1),
-  ('Pro — 2 GB / month', 2147483648::bigint, 199.00::numeric, 30, 2),
-  ('Studio — 10 GB / month', 10737418240::bigint, 499.00::numeric, 30, 3)
-) as v(name, storage_bytes, price_inr, expires_in_days, sort_order)
+  ('Starter — 500 MB / month', 524288000::bigint, 99.00::numeric, 1),
+  ('Pro — 2 GB / month', 2147483648::bigint, 199.00::numeric, 2),
+  ('Studio — 10 GB / month', 10737418240::bigint, 499.00::numeric, 3)
+) as v(name, storage_bytes, price_inr, sort_order)
 where not exists (select 1 from storage_plans limit 1);
 
 -- Purchase ledger

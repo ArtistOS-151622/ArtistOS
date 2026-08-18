@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.broadcast_campaigns (
     user_id BIGINT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     message_template TEXT NOT NULL,
+    image_url TEXT,
     status TEXT NOT NULL DEFAULT 'DRAFT',
     min_delay_sec INTEGER NOT NULL DEFAULT 240,
     max_delay_sec INTEGER NOT NULL DEFAULT 300,

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_templates (
     title TEXT NOT NULL,
     content TEXT NOT NULL,
     image_url TEXT,
+    language TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

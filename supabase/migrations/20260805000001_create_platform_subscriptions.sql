@@ -3,10 +3,14 @@ create table if not exists platform_subscriptions (
   name text not null,
   description text,
   amount_inr numeric not null default 0,
+  original_price_inr numeric(10,2),
   billing_period text,
   features jsonb default '[]'::jsonb,
   is_active boolean not null default true,
   is_featured boolean not null default false,
+  badge_text text,
+  display_order integer not null default 0,
+  razorpay_plan_id text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
