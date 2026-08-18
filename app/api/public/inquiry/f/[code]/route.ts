@@ -174,6 +174,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       .select("id")
       .eq("user_id", artist.id)
       .eq("customer_id", customerId)
+      .eq("status", "new")
       .gte("created_at", activeWindowStart)
       .limit(1)
       .maybeSingle()

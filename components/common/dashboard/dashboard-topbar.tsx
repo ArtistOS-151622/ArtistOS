@@ -127,7 +127,7 @@ export function DashboardTopbar() {
             </Link>
           ) : null}
 
-          <UserMenu showActions />
+          <UserMenu />
         </div>
       </div>
 
