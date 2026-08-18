@@ -30,12 +30,12 @@ export async function GET(request: NextRequest) {
   try {
     const userId = session.id
 
-    // Get user's active/pending/halted subscription (if any)
+    // Get user's active/pending/halted/cancelled subscription (if any)
     const { data: subscriptionRow } = await supabase
       .from("user_subscriptions")
       .select("*, platform_subscriptions(*)")
       .eq("user_id", userId)
-      .in("status", ["active", "pending", "halted"])
+      .in("status", ["active", "pending", "halted", "cancelled"])
       .order("created_at", { ascending: false, nullsFirst: true })
       .limit(1)
       .maybeSingle()

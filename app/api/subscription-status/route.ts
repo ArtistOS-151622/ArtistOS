@@ -37,12 +37,12 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // 2. Check for any active, pending, or halted subscription
+  // 2. Check for any active, pending, halted, or cancelled subscription
   const { data: activeSub } = await supabase
     .from("user_subscriptions")
     .select("id, current_period_end, next_billing_at, status")
     .eq("user_id", session.id)
-    .in("status", ["active", "pending", "halted"])
+    .in("status", ["active", "pending", "halted", "cancelled"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -50,10 +50,10 @@ export async function GET(request: NextRequest) {
   const subStatus = activeSub?.status || "none"
   const endDateStr = activeSub?.next_billing_at
   
-  // Determine if they effectively have an active sub (active + not expired OR pending)
+  // Determine if they effectively have an active sub (active/cancelled + not expired OR pending)
   const isPending = subStatus === "pending"
-  const isActiveAndNotExpired = subStatus === "active" && (!endDateStr || new Date(endDateStr) > now)
-  const hasActiveSub = !!activeSub && (isPending || isActiveAndNotExpired)
+  const isActiveOrCancelledAndNotExpired = (subStatus === "active" || subStatus === "cancelled") && (!endDateStr || new Date(endDateStr) > now)
+  const hasActiveSub = !!activeSub && (isPending || isActiveOrCancelledAndNotExpired)
 
   // 3. If user has an active/pending subscription, return its status
   if (hasActiveSub) {

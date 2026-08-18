@@ -23,7 +23,7 @@ export async function checkIsReadOnly(supabase: SupabaseClient, userId: number):
     .from("user_subscriptions")
     .select("status, current_period_end, next_billing_at")
     .eq("user_id", userId)
-    .in("status", ["active", "pending", "halted"])
+    .in("status", ["active", "pending", "halted", "cancelled"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -39,11 +39,11 @@ export async function checkIsReadOnly(supabase: SupabaseClient, userId: number):
       return true
     }
 
-    if (activeSub.status === "active") {
-      // If active, check if the billing period has expired
+    if (activeSub.status === "active" || activeSub.status === "cancelled") {
+      // If active or cancelled, check if the billing period has expired
       const endDateStr = activeSub.next_billing_at
       if (!endDateStr || new Date(endDateStr) > now) {
-        return false // Active and not expired
+        return false // Not expired
       }
     }
   }
