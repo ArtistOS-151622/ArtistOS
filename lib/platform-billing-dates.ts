@@ -37,11 +37,17 @@ export function resolveCompletedPlatformPaymentDates(params: {
   now?: Date
 }): PlatformSubscriptionDates {
   if (params.rpSubscriptionId) {
+
     if (!params.razorpayDates?.currentPeriodEnd) {
-      throw new Error("Could not determine subscription dates from Razorpay")
+      console.log("Razorpay dates incomplete during checkout (expected). Webhook will sync dates later.")
     }
 
-    return params.razorpayDates
+    return params.razorpayDates ?? {
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      nextBillingAt: null,
+      subscriptionEndAt: null,
+    }
   }
 
   if (!params.rpOrderId && params.amount === 0) {

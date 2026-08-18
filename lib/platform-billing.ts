@@ -221,6 +221,28 @@ export async function completePlatformPayment(
 
   const rpSubId = paymentMeta?.rp_subscription_id ?? payment.rp_subscription_id
 
+  let razorpayDates = null
+
+  if (rpSubId) {
+    try {
+      razorpayDates = await fetchRazorpaySubscriptionDates(rpSubId)
+    } catch (err) {
+      console.error("Failed to fetch Razorpay subscription for end date:", err)
+    }
+  }
+
+  const {
+    currentPeriodStart,
+    currentPeriodEnd,
+    nextBillingAt,
+    subscriptionEndAt,
+  } = resolveCompletedPlatformPaymentDates({
+    amount: Number(payment.amount),
+    rpSubscriptionId: rpSubId,
+    rpOrderId: payment.rp_order_id,
+    razorpayDates,
+  })
+
   // Update payment status and generate an invoice number. The status condition
   // makes browser verification and Razorpay webhooks safe if they arrive together.
   const invoiceNumber = `INV-PLT-${payment.id}-${Math.floor(1000 + Math.random() * 9000)}`
@@ -270,28 +292,6 @@ export async function completePlatformPayment(
 
     activeSub = latestActiveSub
   }
-
-  let razorpayDates = null
-
-  if (rpSubId) {
-    try {
-      razorpayDates = await fetchRazorpaySubscriptionDates(rpSubId)
-    } catch (err) {
-      console.error("Failed to fetch Razorpay subscription for end date:", err)
-    }
-  }
-
-  const {
-    currentPeriodStart,
-    currentPeriodEnd,
-    nextBillingAt,
-    subscriptionEndAt,
-  } = resolveCompletedPlatformPaymentDates({
-    amount: Number(payment.amount),
-    rpSubscriptionId: rpSubId,
-    rpOrderId: payment.rp_order_id,
-    razorpayDates,
-  })
 
   if (activeSub) {
     // Update existing subscription
@@ -424,7 +424,43 @@ export async function processPlatformRenewal(
   }
 
   if (paymentMeta.rp_payment_id) {
-    if (originalPayment.rp_payment_id === paymentMeta.rp_payment_id) return false
+    if (originalPayment.rp_payment_id === paymentMeta.rp_payment_id) {
+      // This is the initial payment. We don't want to create a new invoice, 
+      // but we DO want to sync the latest dates from Razorpay.
+      let currentStartUnix = paymentMeta.current_start
+      let currentEndUnix = paymentMeta.current_end
+      let chargeAtUnix = paymentMeta.charge_at
+      let endAtUnix = paymentMeta.end_at
+
+      if (!currentStartUnix || !currentEndUnix || !chargeAtUnix || !endAtUnix) {
+        const rpSubId = paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id
+        if (rpSubId) {
+          try {
+            const razorpay = getRazorpayClient()
+            const rpSub = await razorpay.subscriptions.fetch(rpSubId)
+            if (rpSub && rpSub.current_start) currentStartUnix = rpSub.current_start
+            if (rpSub && rpSub.current_end) currentEndUnix = rpSub.current_end
+            if (rpSub && rpSub.charge_at) chargeAtUnix = rpSub.charge_at
+            if (rpSub && rpSub.end_at) endAtUnix = rpSub.end_at
+          } catch (err) {
+            console.error("Failed to fetch Razorpay subscription for initial sync:", err)
+          }
+        }
+      }
+
+      if (currentEndUnix) {
+        await extendPlatformSubscriptionToDate(
+          supabase,
+          originalPayment.user_id,
+          currentEndUnix,
+          currentStartUnix,
+          chargeAtUnix,
+          endAtUnix,
+          paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id
+        )
+      }
+      return true
+    }
 
     const { data: existingPayment } = await supabase
       .from("platform_payments")
