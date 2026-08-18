@@ -6,49 +6,35 @@ import {
   ArrowRight,
   ArrowUpRight,
   CalendarCheck2,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
   GalleryHorizontalEnd,
   Gift,
   LineChart,
-  Megaphone,
-  MessageCircle,
   Search,
-  Star,
   UsersRound,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  Cell,
-  Line,
-  LineChart as RechartsLineChart,
-  XAxis,
-} from "recharts"
 import useSWR from "swr"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
 import Image from "next/image"
+import { useScrollReveal } from "@/lib/hooks/use-scroll-reveal"
 import { BrandLogo } from "@/components/common/brand/brand-logo"
-import { SectionHeading } from "@/components/common/shared/section-heading"
 import { NavLink } from "@/components/common/shared/nav-link"
 import { PrimaryButton } from "@/components/common/shared/primary-button"
 import { OutlineButton } from "@/components/common/shared/outline-button"
 import { CheckItem } from "@/components/common/shared/check-item"
 import { TestimonialCard } from "@/components/common/landing/testimonial-card"
 import { FloatingClientChip } from "@/components/common/landing/floating-client-chip"
-import { IntegrationIcon } from "@/components/common/landing/integration-icon"
 
 const productFeatures = [
   {
@@ -126,77 +112,54 @@ const businessStats = [
   { value: "165k+", label: "portfolio views created" },
 ]
 
-const businessBarData = [
-  { label: "N", value: 58 },
-  { label: "M", value: 100 },
-  { label: "B", value: 76 },
-  { label: "P", value: 118 },
-  { label: "S", value: 88 },
-  { label: "R", value: 132 },
-]
-
-const growthLineData = [
-  { month: "Jan", revenue: 44, payments: 32 },
-  { month: "Feb", revenue: 58, payments: 45 },
-  { month: "Mar", revenue: 52, payments: 48 },
-  { month: "Apr", revenue: 78, payments: 60 },
-  { month: "May", revenue: 72, payments: 58 },
-  { month: "Jun", revenue: 96, payments: 74 },
-]
-
-const syncReachData = [
-  { label: "1", reach: 28, clients: 20 },
-  { label: "2", reach: 42, clients: 30 },
-  { label: "3", reach: 48, clients: 34 },
-  { label: "4", reach: 68, clients: 52 },
-  { label: "5", reach: 72, clients: 56 },
-  { label: "6", reach: 74, clients: 58 },
-]
-
-const businessChartConfig = {
-  value: { label: "Demand", color: "#7c3aed" },
-} satisfies ChartConfig
-
-const growthChartConfig = {
-  revenue: { label: "Revenue", color: "#ffffff" },
-  payments: { label: "Payments", color: "#58d8b6" },
-} satisfies ChartConfig
-
-const syncChartConfig = {
-  reach: { label: "Reach", color: "#7c3aed" },
-  clients: { label: "Clients", color: "#21d3a6" },
-} satisfies ChartConfig
-
 const testimonials = [
   {
-    name: "Riya M.",
+    name: "Riya Mehta",
     role: "Nail Artist",
-    text: "ArtistOS helped me stop mixing WhatsApp bookings with notebook entries. My repeat clients are finally easy to manage.",
+    location: "Pune",
+    text: "I used to lose track of who booked what between WhatsApp and my diary. Now every client's history is in one place — I stopped double-booking completely, and my repeat clients went from 12 to 31 in four months.",
+    highlight: "31 repeat clients",
+    accent: "#7c3aed",
   },
   {
-    name: "Ayesha K.",
+    name: "Ayesha Khan",
     role: "Mehendi Artist",
-    text: "Festival offers and pending payments are much easier to track. I can see my whole week in one dashboard.",
+    location: "Hyderabad",
+    text: "Before Karva Chauth I sent one broadcast to my repeat clients. Nine of them booked the same week. I'd have never remembered to message them all one by one.",
+    highlight: "9 bookings from 1 message",
+    accent: "#23a982",
   },
   {
-    name: "Neha S.",
-    role: "Bridal Artist",
-    text: "My portfolio looks organized and professional now. Clients can find bridal, party, and engagement work quickly.",
+    name: "Neha Sharma",
+    role: "Bridal Makeup Artist",
+    location: "Jaipur",
+    text: "Brides always ask to see similar work. Now I just send a private portfolio link with their category — engagement, reception, bridal — instead of scrolling my gallery on a call.",
+    highlight: "Shares work in seconds",
+    accent: "#d23f6e",
   },
   {
-    name: "Kavya P.",
+    name: "Kavya Pillai",
     role: "Beauty Studio Owner",
-    text: "The dashboard gives me bookings, dues, and campaign status without checking three different apps.",
+    location: "Kochi",
+    text: "Running two artists plus myself, I never knew who owed what. The dues report showed ₹25,000 pending that I'd genuinely forgotten about. Collected most of it in two weeks.",
+    highlight: "₹25,000 in dues recovered",
+    accent: "#e0862f",
   },
   {
-    name: "Sana Q.",
+    name: "Sana Qureshi",
     role: "Makeup Artist",
-    text: "Birthday wishes and repeat-client offers helped me bring back old customers with very little manual work.",
+    location: "Lucknow",
+    text: "The birthday reminders are my favourite thing. Clients get a wish plus a small offer, and a good number come back that same month without me lifting a finger.",
+    highlight: "Automated birthday offers",
+    accent: "#2f8fe0",
   },
   {
-    name: "Isha V.",
+    name: "Isha Verma",
     role: "Mehendi Artist",
-    text: "My festival calendar is finally organized. I know who to message and which payments are still pending.",
+    location: "Indore",
+    text: "Festival season used to be pure chaos. Now I open the calendar and see the whole month — who's confirmed, who still owes advance, which slots are free.",
+    highlight: "Whole month at a glance",
+    accent: "#7c3aed",
   },
 ]
 
@@ -217,7 +180,80 @@ type PricingPlan = {
   is_featured?: boolean
 }
 
-const isFreeTierPricingPlan = (plan: PricingPlan) => plan.amount_inr === 0 && (plan.billing_period ?? plan.period ?? "") !== ""
+/**
+ * Which tier a plan belongs to, derived from its name / billing period.
+ * Used to resolve the hardcoded comparison matrix against live API plans.
+ */
+type PlanTier = "monthly" | "yearly" | "custom"
+
+function resolvePlanTier(plan: PricingPlan): PlanTier {
+  const name = plan.name.toLowerCase()
+  if (name.includes("custom") || name.includes("white")) return "custom"
+  const period = (plan.billing_period ?? plan.period ?? "").toLowerCase()
+  if (name.includes("year") || period.includes("year")) return "yearly"
+  return "monthly"
+}
+
+/**
+ * Per-tier feature matrix driving each paid plan card's feature list.
+ * Values: true = included, false = omitted from the card,
+ * string = included with a qualifier appended (e.g. "Cloud storage · 5 GB").
+ */
+const pricingComparison: {
+  group: string
+  rows: { label: string; monthly: boolean | string; yearly: boolean | string; custom: boolean | string }[]
+}[] = [
+  {
+    group: "Core workspace",
+    rows: [
+      { label: "Booking calendar & scheduling", monthly: true, yearly: true, custom: true },
+      { label: "Client CRM & booking history", monthly: true, yearly: true, custom: true },
+      { label: "Service & pricing management", monthly: true, yearly: true, custom: true },
+      { label: "Payment & invoice tracking", monthly: true, yearly: true, custom: true },
+      { label: "Business reports & analytics", monthly: true, yearly: true, custom: true },
+    ],
+  },
+  {
+    group: "Portfolio & marketing",
+    rows: [
+      { label: "Portfolio gallery", monthly: true, yearly: true, custom: true },
+      { label: "Cloud storage", monthly: "1 GB", yearly: "5 GB", custom: "Custom" },
+      { label: "Shareable client links", monthly: true, yearly: true, custom: true },
+      { label: "WhatsApp broadcast campaigns", monthly: true, yearly: true, custom: true },
+      { label: "Automated birthday & festival offers", monthly: false, yearly: true, custom: true },
+    ],
+  },
+  {
+    group: "Support & scale",
+    rows: [
+      { label: "Email support", monthly: true, yearly: true, custom: true },
+      { label: "Priority customer support", monthly: false, yearly: true, custom: true },
+      { label: "Personal onboarding session", monthly: false, yearly: true, custom: true },
+      { label: "Early access to new features", monthly: false, yearly: true, custom: true },
+      { label: "Team / multi-artist access", monthly: false, yearly: false, custom: true },
+      { label: "Custom branding & domain", monthly: false, yearly: false, custom: true },
+    ],
+  },
+]
+
+/**
+ * Marketing-only free trial card shown first in the pricing section.
+ * Not a row in `platform_subscriptions` — its CTA goes to signup, not checkout.
+ */
+const freeTrialPlan: PricingPlan = {
+  name: "Free Trial",
+  price: "₹0",
+  period: "for 1 month",
+  description: "Try every core feature for a full month. No card required.",
+  features: [
+    "Booking calendar & scheduling",
+    "Client CRM & booking history",
+    "Service & pricing management",
+    "Portfolio gallery",
+    "Payment tracking",
+  ],
+  cta: "Start free",
+}
 
 const pricingPlans: PricingPlan[] = [
   {
@@ -267,6 +303,8 @@ const pricingPlans: PricingPlan[] = [
 ]
 
 export default function Home() {
+  useScrollReveal()
+
   return (
     <main className="min-h-svh bg-white text-[#1f213f]">
       {/* Above-fold: header + hero together = exactly one viewport height on all screens */}
@@ -278,8 +316,8 @@ export default function Home() {
       <div className="overflow-hidden bg-white">
         <BusinessSection />
         <SyncSection />
-        <Testimonials />
         <PricingSection />
+        <Testimonials />
         <FaqSection />
         <KeywordSection />
         <FinalCta />
@@ -292,7 +330,7 @@ export default function Home() {
 function Header() {
   return (
     <header className="flex items-center justify-between px-5 py-4 sm:px-8 lg:px-10">
-      <BrandLogo imageClassName="h-9" priority />
+      <BrandLogo imageClassName="h-12" priority />
 
       <nav className="hidden items-center gap-8 text-sm font-medium text-[#4a4a4a] lg:flex">
         <NavLink href="#features">Product</NavLink>
@@ -514,74 +552,6 @@ function Hero() {
   )
 }
 
-function BusinessDemandChart() {
-  return (
-    <ChartContainer config={businessChartConfig} className="h-40 w-full">
-      <BarChart data={businessBarData} accessibilityLayer>
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
-        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-        <Bar dataKey="value" fill="var(--color-value)" radius={[12, 12, 0, 0]}>
-          {businessBarData.map((item) => (
-            <Cell key={item.label} fill="#7c3aed" />
-          ))}
-        </Bar>
-      </BarChart>
-    </ChartContainer>
-  )
-}
-
-function GrowthLineChart() {
-  return (
-    <ChartContainer config={growthChartConfig} className="mt-5 h-24 w-full">
-      <AreaChart data={growthLineData} accessibilityLayer>
-        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-        <Area
-          type="monotone"
-          dataKey="revenue"
-          stroke="var(--color-revenue)"
-          fill="var(--color-revenue)"
-          fillOpacity={0.18}
-          strokeWidth={4}
-        />
-        <Area
-          type="monotone"
-          dataKey="payments"
-          stroke="var(--color-payments)"
-          fill="var(--color-payments)"
-          fillOpacity={0.18}
-          strokeWidth={4}
-        />
-      </AreaChart>
-    </ChartContainer>
-  )
-}
-
-function SyncReachChart() {
-  return (
-    <ChartContainer config={syncChartConfig} className="mt-4 h-24 w-full">
-      <RechartsLineChart data={syncReachData} accessibilityLayer>
-        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-        <Line
-          type="monotone"
-          dataKey="reach"
-          stroke="var(--color-reach)"
-          strokeWidth={4}
-          dot={false}
-        />
-        <Line
-          type="monotone"
-          dataKey="clients"
-          stroke="var(--color-clients)"
-          strokeWidth={4}
-          dot={false}
-        />
-      </RechartsLineChart>
-    </ChartContainer>
-  )
-}
-
-
-
 function Features() {
   const sectionRef = useRef<HTMLElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
@@ -643,7 +613,7 @@ function Features() {
       style={{ height: isDesktop ? `${count * 100}vh` : "auto" }}
     >
       <div className="py-16 sm:py-20 lg:sticky lg:top-0 lg:flex lg:h-svh lg:flex-col lg:justify-center lg:overflow-hidden lg:py-10">
-        <div className="animate-fade-up mx-auto px-6 text-center sm:px-12 lg:px-20">
+        <div data-reveal="blur-in" className="mx-auto px-6 text-center sm:px-12 lg:px-20">
           <p className="text-sm font-semibold text-primary">Inside ArtistOS</p>
           <h2 className="mt-3 text-[1.85rem] font-semibold tracking-tight text-[#282a47] sm:text-4xl lg:whitespace-nowrap lg:text-5xl">
             Everything your business needs, <span className="text-[#7c3aed]">built in</span>
@@ -878,197 +848,281 @@ function FeatureSlide({
 
 function BusinessSection() {
   return (
-    <section id="solutions" className="px-6 py-20 sm:px-12 lg:px-20">
-      <div className="grid overflow-hidden rounded-[2rem] bg-[#fbfcff] p-6 shadow-sm sm:p-10 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:gap-16">
-        <div className="relative min-h-[520px]">
-          <div className="absolute left-1/2 top-1/2 h-[380px] w-[380px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#edf0ff] blur-3xl" />
-          <div className="absolute left-[8%] top-[8%] z-10 rounded-2xl bg-white px-5 py-4 shadow-xl shadow-[#9ba0b8]/20 animate-float-small">
-            <div className="flex items-center gap-1 text-[#ffcc36]">
-              <Star className="size-4 fill-current" />
-              <span className="text-sm font-semibold">4.8</span>
-            </div>
-            <p className="mt-1 text-xs text-[#777b95]">artist rating</p>
-          </div>
+    <section id="solutions" className="px-6 py-10 sm:px-12 lg:px-20">
+      <div data-reveal="blur-in" className="mx-auto text-center">
+        <p className="text-sm font-semibold text-primary">Client CRM</p>
+        <h2 className="mt-3 text-4xl font-semibold tracking-tight text-[#282a47] sm:text-5xl">
+          Chaos becomes. <span className="text-[#7c3aed]">One clean record</span>
+        </h2>
+      </div>
 
-          <div className="absolute left-[7%] top-[32%] z-10 w-52 rounded-3xl bg-white p-6 shadow-2xl shadow-[#9ba0b8]/25 animate-fade-up">
-            <div className="mb-5 flex size-10 items-center justify-center rounded-2xl bg-[#f3e8ff] text-[#7c3aed]">
-              <UsersRound className="size-5" />
-            </div>
-            <p className="text-4xl font-semibold tracking-tight">76.8%</p>
-            <p className="mt-2 text-sm text-[#70758f]">Client engagement</p>
-            <p className="mt-3 inline-flex rounded-full bg-[#eafaf4] px-3 py-1 text-xs font-semibold text-[#23a982]">
-              +8.21% this month
-            </p>
-          </div>
+      <div className="mt-8 grid gap-6 lg:grid-cols-2 lg:gap-8">
+        {/* Before: chaos */}
+        <div
+          data-reveal="slide-left"
+          className="relative overflow-hidden rounded-[2rem] bg-[#f4f2f6] p-6 sm:p-10"
+        >
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e4e1eb] px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#6b6a78]">
+            Before
+          </span>
+          <p className="mt-3 text-sm font-medium text-[#6b6a78]">
+            Client details scattered across WhatsApp, notebooks, and memory.
+          </p>
 
-          <div className="absolute left-[36%] top-[13%] z-20 w-[min(470px,62vw)] rounded-3xl bg-white p-6 shadow-2xl shadow-[#9ba0b8]/25 animate-fade-up" style={{ animationDelay: "120ms" }}>
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold">Data Analytics</p>
-                <p className="mt-1 text-xs text-[#777b95]">service demand by month</p>
-              </div>
-              <span className="rounded-full bg-[#f3e8ff] px-3 py-1 text-xs font-semibold text-[#7c3aed]">
-                Live
-              </span>
+          <div className="relative mt-8 min-h-[320px]">
+            <div className="absolute left-[2%] top-0 w-[78%] -rotate-2 rounded-2xl rounded-tl-sm bg-white p-4 shadow-md">
+              <p className="text-xs font-semibold text-[#3b3f62]">Heena Kaur</p>
+              <p className="mt-1 text-sm text-[#5b5f78]">Hi, can I book mehendi for 24th? 🙏</p>
+              <p className="mt-2 text-[0.65rem] text-[#a5a9c0]">WhatsApp · 11:42 PM</p>
             </div>
-            <BusinessDemandChart />
-          </div>
 
-          <div className="absolute bottom-[8%] left-[27%] z-30 w-[min(420px,65vw)] rounded-3xl bg-[#7c3aed] p-6 text-white shadow-2xl shadow-[#7c3aed]/25">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-white/70">Monthly growth</p>
-                <p className="mt-2 text-3xl font-semibold">₹2.8L tracked</p>
-              </div>
-              <LineChart className="size-6 text-white/80" />
+            <div className="absolute right-[0%] top-[16%] w-[70%] rotate-1 rounded-2xl rounded-tr-sm bg-[#fff8d6] p-4 shadow-md">
+              <p className="text-sm text-[#5b5220]">Priyanka – due ₹1300, follow up!!</p>
+              <p className="mt-2 text-[0.65rem] text-[#b3a45a]">sticky note</p>
             </div>
-            <GrowthLineChart />
+
+            <div className="absolute left-[10%] top-[42%] w-[62%] -rotate-3 rounded-2xl bg-white p-4 shadow-md">
+              <p className="text-xs font-semibold text-[#3b3f62]">+91 90909 090XX</p>
+              <p className="mt-1 text-sm text-[#5b5f78]">saved as &quot;Bridal client&quot; — name?</p>
+              <p className="mt-2 text-[0.65rem] text-[#a5a9c0]">Contacts</p>
+            </div>
+
+            <div className="absolute bottom-0 right-[6%] w-[72%] rotate-2 rounded-2xl rounded-br-sm bg-white p-4 shadow-md">
+              <p className="text-xs font-semibold text-[#3b3f62]">Notebook, page 14</p>
+              <p className="mt-1 text-sm text-[#5b5f78]">Isha — nail art x2, ₹800 paid?</p>
+              <p className="mt-2 text-[0.65rem] text-[#a5a9c0]">handwritten</p>
+            </div>
           </div>
         </div>
 
-        <div className="animate-fade-up self-center">
-          <p className="mb-4 inline-flex rounded-full bg-[#f3e8ff] px-4 py-2 text-sm font-semibold text-[#7c3aed]">
-            Business clarity
+        {/* After: one clean record */}
+        <div
+          data-reveal="slide-right"
+          className="relative overflow-hidden rounded-[2rem] bg-[#f3e8ff] p-6 sm:p-10"
+          style={{ animationDelay: "120ms" }}
+        >
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#7c3aed] px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
+            After
+          </span>
+          <p className="mt-3 text-sm font-medium text-[#5b3a9e]">
+            Every client, one searchable profile — in ArtistOS.
           </p>
-          <h2 className="max-w-xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-            See how can ArtistOS help your business
-          </h2>
-          <p className="mt-5 max-w-xl leading-7 text-[#666a82]">
-            Move from scattered tools to one system that helps artists understand clients,
-            bookings, payments, marketing, and portfolio performance.
-          </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {businessStats.map((stat) => (
-              <div
-                key={stat.value}
-                className="rounded-2xl border border-[#edf0fa] bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#aeb5d2]/15"
-              >
-                <p className="text-2xl font-semibold text-[#7c3aed]">{stat.value}</p>
-                <p className="mt-2 text-sm leading-6 text-[#656982]">{stat.label}</p>
+
+          <div className="relative mt-8 flex min-h-[320px] items-center justify-center">
+            <FloatingClientChip
+              name="Priyanka Viradiya"
+              role="Mehendi · 3 bookings"
+              initials="PV"
+              gradient="linear-gradient(135deg, #23a982, #58d8b6)"
+              className="left-0 top-0 z-100 hidden sm:flex"
+            />
+            <FloatingClientChip
+              name="Isha Vasani"
+              role="Nail Art · 1 booking"
+              initials="IV"
+              gradient="linear-gradient(135deg, #e0862f, #ffb15c)"
+              className="right-0 bottom-0 z-100 hidden sm:flex"
+              style={{ animationDelay: "300ms" }}
+            />
+
+            <div className="relative z-20 w-full max-w-[380px] rounded-3xl bg-white p-6 shadow-2xl shadow-[#7c3aed]/20">
+              <div className="flex items-center gap-3">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#7c3aed] to-[#a855f7] text-sm font-semibold text-white">
+                  NV
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-[#232542]">Heena Kaur</p>
+                  <p className="truncate text-xs text-[#8b8fa8]">+91 63548 60609 · Mumbai</p>
+                </div>
+                <span className="ml-auto rounded-full bg-[#f3e8ff] px-3 py-1 text-xs font-semibold text-[#7c3aed]">
+                  2 bookings
+                </span>
               </div>
-            ))}
+
+              <div className="mt-5 grid grid-cols-3 gap-3 border-y border-[#f0f1f8] py-4">
+                <div>
+                  <p className="text-lg font-semibold text-[#232542]">₹3,750</p>
+                  <p className="mt-0.5 text-[0.7rem] text-[#9096b5]">Total billed</p>
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-[#23a982]">₹600</p>
+                  <p className="mt-0.5 text-[0.7rem] text-[#9096b5]">Paid</p>
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-[#e0526d]">₹3,150</p>
+                  <p className="mt-0.5 text-[0.7rem] text-[#9096b5]">Due</p>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-[#9096b5]">
+                  Upcoming booking
+                </p>
+                <div className="mt-2 flex items-center justify-between rounded-xl bg-[#f7f8ff] px-3.5 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[#3b3f62]">Bridal Mehendi Touch-up</p>
+                    <p className="text-xs text-[#8b8fa8]">24 Aug · 2:30 PM</p>
+                  </div>
+                  <span className="inline-flex items-center rounded-full bg-[#eafaf4] px-2.5 py-1 text-[0.65rem] font-semibold text-[#23a982]">
+                    Confirmed
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="mt-7 space-y-3">
-            {["Find repeat clients instantly", "Measure service-wise income", "Know which portfolio category performs best"].map((item) => (
-              <CheckItem key={item} text={item} />
-            ))}
-          </div>
-          <PrimaryButton href="#cta" className="mt-8">
-            Try for Free
-          </PrimaryButton>
         </div>
+      </div>
+
+      {/* <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {businessStats.map((stat) => (
+          <div
+            key={stat.value}
+            className="animate-fade-up rounded-2xl border border-[#edf0fa] bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#aeb5d2]/15"
+          >
+            <p className="text-2xl font-semibold text-[#7c3aed]">{stat.value}</p>
+            <p className="mt-2 text-sm leading-6 text-[#656982]">{stat.label}</p>
+          </div>
+        ))}
+      </div> */}
+
+      <div data-reveal="rise" className="mt-10 flex flex-col items-center gap-6 text-center">
+        <div className="flex flex-wrap justify-center gap-x-8 gap-y-3">
+          {["See every client's full booking & payment history", "Know exactly who owes what, at a glance", "Never miss a repeat-booking follow-up"].map((item) => (
+            <CheckItem key={item} text={item} />
+          ))}
+        </div>
+        {/* <PrimaryButton href="#cta">Try for Free</PrimaryButton> */}
       </div>
     </section>
   )
 }
+
+const campaignReplies = [
+  { name: "Ayesha K.", initials: "AK", text: "Yes! Book me for the 24th 🙌", time: "10:12 AM" },
+  { name: "Riya M.", initials: "RM", text: "Is the bridal package included?", time: "10:19 AM" },
+  { name: "Isha V.", initials: "IV", text: "Sending advance now, save my slot", time: "10:31 AM" },
+]
 
 function SyncSection() {
   return (
     <section className="px-6 py-16 sm:px-12 lg:px-20">
-      <div className="grid overflow-hidden rounded-[2rem] bg-[#f7f8ff] p-6 shadow-sm sm:p-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:gap-12">
-        <div className="animate-fade-up">
-          <p className="mb-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#7c3aed] shadow-sm">
-            Connected workspace
-          </p>
-          <h2 className="max-w-xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-            Sync your artist business for comfortable work
-          </h2>
-          <p className="mt-5 max-w-xl leading-7 text-[#666a82]">
-            Bring bookings, WhatsApp follow-ups, campaign reminders, payment status, and
-            portfolio links into one easy workflow.
-          </p>
-          <div className="mt-7 grid max-w-xl gap-3 sm:grid-cols-2">
-            {["Booking reminders", "WhatsApp campaigns", "Payment follow-ups", "Portfolio sharing"].map((item) => (
-              <div key={item} className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[#33365a] shadow-sm">
-                <CheckItem text={item} className="text-[#33365a]" />
-              </div>
-            ))}
-          </div>
-          <PrimaryButton href="#cta" className="mt-8">
-            Try for Free
-          </PrimaryButton>
-        </div>
+      <div data-reveal="blur-in" className="mx-auto max-w-3xl text-center">
+        <p className="text-sm font-semibold text-primary">WhatsApp Campaigns</p>
+        <h2 className="mt-3 text-4xl font-semibold tracking-tight text-[#282a47] sm:text-5xl">
+          One message. <span className="text-[#7c3aed]">Nine bookings.</span>
+        </h2>
+      </div>
 
-        <div className="relative mt-12 min-h-[430px] lg:mt-0">
-          <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ede9fe] blur-3xl" />
-          <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#c4b5fd]" />
-          <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[470px] w-[470px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#ddd6fe]" style={{ animationDelay: "500ms" }} />
-          <IntegrationIcon className="left-[8%] top-[13%] animate-float-small" icon={<MessageCircle className="size-5" />} label="DMs" />
-          <IntegrationIcon className="right-[12%] top-[7%] animate-float-small" icon={<Megaphone className="size-5" />} label="Campaigns" />
-          <IntegrationIcon className="bottom-[8%] left-[16%] animate-float-small" icon={<Gift className="size-5" />} label="Offers" />
-          <IntegrationIcon className="bottom-[16%] right-[5%] animate-float-small" icon={<CircleDollarSign className="size-5" />} label="Payments" />
-          <div className="absolute left-1/2 top-1/2 w-[min(520px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-5 shadow-2xl shadow-[#9ba0b8]/25">
-            <div className="mb-5 flex items-center justify-between">
-              <div className="flex gap-1.5">
-                <span className="size-2.5 rounded-full bg-[#ff7a90]" />
-                <span className="size-2.5 rounded-full bg-[#ffd166]" />
-                <span className="size-2.5 rounded-full bg-[#58d8b6]" />
+      <div className="mt-14 grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+        {/* Chat thread */}
+        <div data-reveal="zoom" className="relative mx-auto w-full max-w-[520px]">
+          <div className="overflow-hidden rounded-[1.75rem] border border-[#e6e9f5] bg-[#efe7dd] shadow-2xl shadow-[#9ba0b8]/25">
+            {/* Chat header */}
+            <div className="flex items-center gap-3 bg-[#075e54] px-5 py-3.5">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white">
+                42
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">Repeat bridal clients</p>
+                <p className="truncate text-[0.7rem] text-white/70">Broadcast list · 42 recipients</p>
               </div>
-              <span className="rounded-full bg-[#f3e8ff] px-3 py-1 text-xs font-semibold text-[#7c3aed]">
-                Live sync
+              <span className="ml-auto shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[0.6rem] font-semibold uppercase tracking-wider text-white">
+                Sent
               </span>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl bg-[#f3e8ff] p-5">
-                <p className="text-xs font-semibold">Campaign</p>
-                <p className="mt-4 text-3xl font-semibold">62%</p>
-                <div className="mt-5 h-2 rounded-full bg-white">
-                  <div className="animate-progress h-2 w-[62%] rounded-full bg-[#7c3aed]" />
+
+            {/* Messages */}
+            <div className="space-y-3 px-4 pb-16 pt-5 sm:px-5">
+              {/* Outgoing broadcast */}
+              <div className="flex justify-end">
+                <div className="max-w-[82%] rounded-2xl rounded-tr-sm bg-[#dcf8c6] px-4 py-3 shadow-sm">
+                  <p className="text-sm leading-6 text-[#1f2c23]">
+                    🎉 Diwali special — 20% off bridal mehendi this month. Book your slot
+                    before the calendar fills up!
+                  </p>
+                  <p className="mt-1.5 text-right text-[0.62rem] text-[#5c7a63]">
+                    10:04 AM · sent from ArtistOS ✓✓
+                  </p>
                 </div>
-                <p className="mt-5 text-xs leading-5 text-[#686c86]">Festival offer sent to repeat bridal clients.</p>
               </div>
-              <div className="rounded-2xl bg-[#f3e8ff] p-5">
-                <p className="text-xs font-semibold">Client reach</p>
-                <SyncReachChart />
-              </div>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {["18 reminders", "9 dues cleared", "34 portfolio visits"].map((item) => (
-                <div key={item} className="rounded-xl border border-[#edf0fa] px-3 py-2 text-center text-xs font-semibold text-[#565b79]">
-                  {item}
+
+              {/* Incoming replies */}
+              {campaignReplies.map((reply, i) => (
+                <div
+                  key={reply.name}
+                  data-reveal="pop"
+                  className="flex items-end gap-2"
+                  style={{ animationDelay: `${260 + i * 200}ms` }}
+                >
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#7c3aed] to-[#a855f7] text-[0.6rem] font-semibold text-white">
+                    {reply.initials}
+                  </span>
+                  <div className="max-w-[78%] rounded-2xl rounded-bl-sm bg-white px-4 py-2.5 shadow-sm">
+                    <p className="text-[0.68rem] font-semibold text-[#7c3aed]">{reply.name}</p>
+                    <p className="mt-0.5 text-sm leading-6 text-[#2b2f47]">{reply.text}</p>
+                    <p className="mt-1 text-right text-[0.62rem] text-[#a5a9c0]">{reply.time}</p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* Outcome badge */}
+          <div
+            data-reveal="pop"
+            className="absolute -bottom-5 right-2 flex items-center gap-3 rounded-2xl bg-white px-5 py-3.5 shadow-2xl shadow-[#7c3aed]/20 sm:-right-4"
+            style={{ animationDelay: "900ms" }}
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f3e8ff] text-[#7c3aed]">
+              <CalendarCheck2 className="size-5" />
+            </span>
+            <div>
+              <p className="text-xl font-semibold leading-none text-[#232542]">9 bookings</p>
+              <p className="mt-1 text-[0.7rem] text-[#9096b5]">from one broadcast</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Copy */}
+        <div data-reveal="slide-right" style={{ animationDelay: "160ms" }}>
+          <h3 className="text-2xl font-semibold leading-tight tracking-tight text-[#232542] sm:text-3xl">
+            Your clients already live on WhatsApp. Meet them there.
+          </h3>
+          <p className="mt-4 max-w-md leading-7 text-[#666a82]">
+            Pick an audience from your CRM — repeat bridal clients, birthdays this week,
+            anyone with dues — write once, and send. Replies land straight in your chat,
+            bookings land straight in your calendar.
+          </p>
+
+          <div className="mt-7 space-y-3">
+            {[
+              "Target by booking history, service, or dues",
+              "Festival offers, birthday wishes & payment reminders",
+              "Track sent, read, and booked for every campaign",
+            ].map((item) => (
+              <CheckItem key={item} text={item} />
+            ))}
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-2">
+            {["Festival offers", "Birthday wishes", "Payment reminders", "Repeat-client promos"].map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full border border-[#e8e4ff] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#5a5f80] shadow-sm"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+
+          <PrimaryButton href="#cta" className="mt-8">
+            Try for Free
+          </PrimaryButton>
         </div>
       </div>
     </section>
   )
 }
-
-
-
-function Testimonials() {
-  const marqueeItems = [...testimonials, ...testimonials]
-
-  return (
-    <section className="overflow-hidden bg-[#fbfcff] px-6 py-20 text-center sm:px-12 lg:px-20">
-      <SectionHeading
-        eyebrow="Loved by artists"
-        title="Customer success is our success"
-        description="Discover how beauty professionals use ArtistOS to acquire, engage, and support customers."
-        className="animate-fade-up"
-      />
-
-      <div className="pause-animation relative mt-12">
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-[#fbfcff] to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-[#fbfcff] to-transparent" />
-        <div className="animate-marquee flex w-max gap-6 text-left">
-          {marqueeItems.map((testimonial, index) => (
-            <TestimonialCard
-              key={`${testimonial.name}-${index}`}
-              name={testimonial.name}
-              role={testimonial.role}
-              text={testimonial.text}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 function PricingSection() {
   const { data: plans, isLoading } = useSWR<PricingPlan[]>("/api/platform-subscriptions", fetcher)
@@ -1077,13 +1131,8 @@ function PricingSection() {
   // Use the fetched plans, fallback to hardcoded ONLY if the API returned an error/non-array
   const displayPlans = plans && Array.isArray(plans) ? plans : pricingPlans
 
-  // Determine the desktop grid layout based on count
-  const count = displayPlans.length
-  const gridClass =
-    count === 1 ? "lg:grid-cols-1 lg:max-w-sm lg:mx-auto" :
-      count === 2 ? "lg:grid-cols-2 lg:max-w-2xl lg:mx-auto" :
-        count === 4 ? "lg:grid-cols-2" :
-          "lg:grid-cols-3"
+  // Marketing-only free trial card, always shown first (not a billable DB plan).
+  const cardPlans: PricingPlan[] = [freeTrialPlan, ...displayPlans]
 
   const scrollSlider = (dir: "left" | "right") => {
     if (!sliderRef.current) return
@@ -1092,13 +1141,13 @@ function PricingSection() {
   }
 
   return (
-    <section id="pricing" className="px-6 py-20 sm:px-12 lg:px-20">
-      <SectionHeading
-        eyebrow="Simple pricing"
-        title="Plans that fit every artist's growth stage"
-        description="Start small, save yearly, or create a fully white-label ArtistOS platform for your beauty brand."
-        className="animate-fade-up"
-      />
+    <section id="pricing" className="px-6 py-10 sm:px-12 lg:px-20">
+      <div data-reveal="blur-in" className="mx-auto max-w-3xl text-center">
+        <p className="text-sm font-semibold text-primary">Simple pricing</p>
+        <h2 className="mt-3 text-4xl font-semibold tracking-tight text-[#282a47] sm:text-5xl">
+          Start free, <span className="text-[#7c3aed]">grow from there</span>
+        </h2>
+      </div>
 
       {isLoading ? (
         // Skeleton: mobile slider, desktop grid
@@ -1150,27 +1199,15 @@ function PricingSection() {
               ref={sliderRef}
               className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
             >
-              {displayPlans.map((plan) => {
-                const isFeatured = plan.is_featured ?? plan.featured ?? false
-                return (
-                  <article
-                    key={plan.id || plan.name}
-                    className={`relative flex min-h-[480px] w-[82vw] max-w-[330px] shrink-0 snap-start flex-col overflow-hidden rounded-[2rem] p-7 shadow-xl transition ${isFeatured
-                        ? "border-0 bg-gradient-to-br from-[#7c3aed] via-[#6d28d9] to-[#5b21b6] text-white shadow-[#7c3aed]/30"
-                        : "border border-[#eaedf8] bg-white text-[#232542] shadow-[#b8bdd8]/15"
-                      }`}
-                  >
-                    {isFeatured && (
-                      <span className="absolute right-6 top-6 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#7c3aed]">Best value</span>
-                    )}
-                    <PricingCardInner plan={plan} isFeatured={isFeatured} />
-                  </article>
-                )
-              })}
+              {cardPlans.map((plan) => (
+                <div key={plan.id || plan.name} className="w-[82vw] max-w-[330px] shrink-0 snap-start">
+                  <PricingCard plan={plan} />
+                </div>
+              ))}
             </div>
 
             {/* Prev / Next buttons — only shown when >1 plan */}
-            {displayPlans.length > 1 && (
+            {cardPlans.length > 1 && (
               <div className="mt-5 flex items-center justify-center gap-3">
                 <button
                   onClick={() => scrollSlider("left")}
@@ -1190,25 +1227,28 @@ function PricingSection() {
             )}
           </div>
 
-          {/* Desktop: smart grid */}
-          <div className={`hidden lg:grid gap-6 ${gridClass}`}>
-            {displayPlans.map((plan) => {
-              const isFeatured = plan.is_featured ?? plan.featured ?? false
-              return (
-                <article
-                  key={plan.id || plan.name}
-                  className={`relative flex min-h-[480px] flex-col overflow-hidden rounded-[2rem] p-7 shadow-xl transition duration-300 hover:-translate-y-2 hover:shadow-2xl ${isFeatured
-                      ? "border-0 bg-gradient-to-br from-[#7c3aed] via-[#6d28d9] to-[#5b21b6] text-white shadow-[#7c3aed]/30"
-                      : "border border-[#eaedf8] bg-white text-[#232542] shadow-[#b8bdd8]/15"
-                    }`}
-                >
-                  {isFeatured && (
-                    <span className="absolute right-6 top-6 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#7c3aed]">Best value</span>
-                  )}
-                  <PricingCardInner plan={plan} isFeatured={isFeatured} />
-                </article>
-              )
-            })}
+          {/* Desktop: card grid */}
+          <div
+            className={`hidden gap-6 lg:grid ${
+              cardPlans.length === 1
+                ? "lg:mx-auto lg:max-w-sm lg:grid-cols-1"
+                : cardPlans.length === 2
+                  ? "lg:mx-auto lg:max-w-3xl lg:grid-cols-2"
+                  : cardPlans.length === 4
+                    ? "lg:grid-cols-4"
+                    : "lg:grid-cols-3"
+            }`}
+          >
+            {cardPlans.map((plan, i) => (
+              <div
+                key={plan.id || plan.name}
+                data-reveal="flip-up"
+                className="h-full"
+                style={{ animationDelay: `${i * 110}ms` }}
+              >
+                <PricingCard plan={plan} />
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -1216,96 +1256,255 @@ function PricingSection() {
   )
 }
 
+function PricingCard({ plan }: { plan: PricingPlan }) {
+  const tier = resolvePlanTier(plan)
+  const isFeatured = plan.is_featured ?? plan.featured ?? false
+  const isFree = plan.amount_inr === 0 || plan.price === "\u20b90"
 
-function PricingCardInner({ plan, isFeatured }: { plan: PricingPlan; isFeatured: boolean }) {
-  const price = plan.amount_inr !== undefined ? `₹${plan.amount_inr}` : plan.price ?? ""
-  const compareAtPrice = plan.compare_at_amount_inr ? `₹${plan.compare_at_amount_inr}` : null
-  const isFreeTier = isFreeTierPricingPlan(plan)
-  const gstText = !isFreeTier && plan.gst_percentage ? `+ ${plan.gst_percentage}% GST` : ""
-  const periodText = isFreeTier ? "First Month" : plan.billing_period || plan.period
+  const price = plan.amount_inr !== undefined ? `\u20b9${plan.amount_inr}` : plan.price ?? ""
+  const compareAtPrice = plan.compare_at_amount_inr ? `\u20b9${plan.compare_at_amount_inr}` : null
+  const gstText = !isFree && plan.gst_percentage ? `+ ${plan.gst_percentage}% GST` : ""
+  const periodText = plan.billing_period || plan.period
+
+  // Free card lists its own copy; paid cards read the shared comparison matrix.
+  const features = isFree
+    ? (plan.features ?? [])
+    : pricingComparison
+        .flatMap((group) => group.rows)
+        .filter((row) => row[tier] !== false)
+        .map((row) => (typeof row[tier] === "string" ? `${row.label} \u00b7 ${row[tier]}` : row.label))
+
+  const href = isFree
+    ? "/signup"
+    : plan.name.toLowerCase().includes("custom")
+      ? "#cta"
+      : "/login?next=/billing"
 
   return (
-    <>
-      {/* Decorative orb for featured */}
+    <article
+      className={`relative flex h-full flex-col overflow-hidden rounded-[1.75rem] p-7 transition duration-300 hover:-translate-y-1.5 ${
+        isFeatured
+          ? "bg-[#1c1435] text-white shadow-2xl shadow-[#7c3aed]/25 ring-1 ring-[#7c3aed]/40"
+          : "border border-[#eaedf8] bg-white text-[#232542] shadow-sm shadow-[#b8bdd8]/20 hover:shadow-xl hover:shadow-[#b8bdd8]/25"
+      }`}
+    >
       {isFeatured && (
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-[#7c3aed]/30 blur-3xl" />
       )}
 
-      {/* Header */}
       <div className="relative">
-        <div className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest mb-4 ${isFeatured ? "bg-white/15 text-white" : "bg-[#f3e8ff] text-[#7c3aed]"
-          }`}>
-          {plan.name}
+        <div className="flex items-center justify-between gap-3">
+          <p
+            className={`text-xs font-bold uppercase tracking-[0.18em] ${
+              isFeatured ? "text-[#c4b5fd]" : isFree ? "text-[#23a982]" : "text-[#9096b5]"
+            }`}
+          >
+            {plan.name}
+          </p>
+          {isFeatured && (
+            <span className="rounded-full bg-[#7c3aed] px-3 py-1 text-[0.6rem] font-bold uppercase tracking-wider text-white">
+              Best value
+            </span>
+          )}
+          {isFree && (
+            <span className="rounded-full bg-[#eafaf4] px-3 py-1 text-[0.6rem] font-bold uppercase tracking-wider text-[#1c8f6f]">
+              No card
+            </span>
+          )}
         </div>
 
-        {/* Price */}
         {(compareAtPrice || plan.discount_percentage) && (
-          <div className="mt-1 flex min-h-6 flex-wrap items-center gap-2">
+          <div className="mt-4 flex min-h-6 flex-wrap items-center gap-2">
             {compareAtPrice && (
-              <span className={`text-base font-semibold line-through ${isFeatured ? "text-white/45" : "text-[#9aa0bd]"}`}>
+              <span
+                className={`text-sm font-semibold line-through ${
+                  isFeatured ? "text-white/40" : "text-[#9aa0bd]"
+                }`}
+              >
                 {compareAtPrice}
               </span>
             )}
-            {plan.discount_percentage && (
-              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${isFeatured ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700"
-                }`}>
+            {plan.discount_percentage ? (
+              <span
+                className={`rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider ${
+                  isFeatured ? "bg-white/15 text-white" : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
                 {plan.discount_percentage}% off
               </span>
-            )}
+            ) : null}
           </div>
         )}
-        <div className="mt-1 flex flex-wrap items-end gap-1.5">
-          <span className={`text-[3.25rem] font-bold leading-none tracking-tight ${isFeatured ? "text-white" : "text-[#1a1d3a]"}`}>
+
+        <div className={`flex flex-wrap items-end gap-1.5 ${compareAtPrice || plan.discount_percentage ? "mt-1" : "mt-4"}`}>
+          <span
+            className={`text-[2.75rem] font-bold leading-none tracking-tight ${
+              isFeatured ? "text-white" : "text-[#1a1d3a]"
+            }`}
+          >
             {price}
           </span>
-          {gstText && (
-            <span className={`mb-1.5 text-sm font-semibold ${isFeatured ? "text-white/70" : "text-[#606684]"}`}>
-              {gstText}
-            </span>
-          )}
           {periodText && (
-            <span className={`mb-1.5 text-sm font-medium ${isFeatured ? "text-white/60" : "text-[#9096b5]"}`}>
+            <span className={`mb-1 text-sm font-medium ${isFeatured ? "text-white/55" : "text-[#9096b5]"}`}>
               {periodText}
             </span>
           )}
+          {gstText && (
+          <p className={`mb-1 text-sm font-medium ${isFeatured ? "text-white/60" : "text-[#606684]"}`}>
+            {gstText}
+          </p>
+        )}
         </div>
+        
 
-        <p className={`mt-3 text-sm leading-6 ${isFeatured ? "text-white/70" : "text-[#6b6f8e]"}`}>
-          {plan.description}
-        </p>
+        {/* {plan.description && (
+          <p className={`mt-3 text-sm leading-6 ${isFeatured ? "text-white/65" : "text-[#6b6f8e]"}`}>
+            {plan.description}
+          </p>
+        )} */}
       </div>
 
-      {/* Divider */}
-      <div className={`my-6 h-px ${isFeatured ? "bg-white/15" : "bg-[#eaecf5]"}`} />
+      <div className={`my-6 h-px ${isFeatured ? "bg-white/12" : "bg-[#eef0f7]"}`} />
 
-      {/* Features */}
-      <div className="flex-1 space-y-3">
-        {(plan.features || []).map((feature: string) => (
+      <div className="flex-1 space-y-1">
+        {features.map((feature) => (
           <div key={feature} className="flex items-start gap-3">
-            <span className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${isFeatured ? "bg-white/20" : "bg-[#f3e8ff]"
-              }`}>
-              <CheckCircle2 className={`size-3 ${isFeatured ? "text-white" : "text-[#7c3aed]"}`} />
+            <span
+              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
+                isFeatured ? "bg-white/15" : isFree ? "bg-[#eafaf4]" : "bg-[#f3e8ff]"
+              }`}
+            >
+              <Check
+                className={`size-3 ${isFeatured ? "text-white" : isFree ? "text-[#23a982]" : "text-[#7c3aed]"}`}
+                strokeWidth={3}
+              />
             </span>
-            <span className={`text-sm leading-6 ${isFeatured ? "text-white/85" : "text-[#3d4169]"}`}>{feature}</span>
+            <span className={`text-sm leading-6 ${isFeatured ? "text-white/85" : "text-[#3d4169]"}`}>
+              {feature}
+            </span>
           </div>
         ))}
       </div>
 
-      {/* CTA */}
       <a
-        href={plan.name.toLowerCase() === 'custom' ? "#cta" : "/login?next=/billing"}
-        className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold tracking-wide transition-all duration-200 ${isFeatured
-            ? "bg-white text-[#7c3aed] hover:bg-[#f3e8ff] shadow-lg shadow-black/10"
-            : "bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-lg shadow-[#7c3aed]/25"
-          }`}
+        href={href}
+        className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold tracking-wide transition-all duration-200 ${
+          isFeatured
+            ? "bg-white text-[#1c1435] shadow-lg shadow-black/20 hover:bg-[#f3e8ff]"
+            : isFree
+              ? "bg-[#23a982] text-white shadow-lg shadow-[#23a982]/25 hover:bg-[#1c8f6f]"
+              : "bg-[#7c3aed] text-white shadow-lg shadow-[#7c3aed]/25 hover:bg-[#6d28d9]"
+        }`}
         suppressHydrationWarning
       >
         {plan.cta || "Get Started"}
         <ArrowRight className="size-4" />
       </a>
-    </>
+    </article>
   )
 }
+
+function Testimonials() {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  const onScroll = () => {
+    const track = trackRef.current
+    if (!track) return
+    const card = track.querySelector("article")
+    if (!card) return
+    const step = card.getBoundingClientRect().width + 24
+    setActiveIndex(Math.min(testimonials.length - 1, Math.max(0, Math.round(track.scrollLeft / step))))
+  }
+
+  const scrollByCards = (dir: "left" | "right") => {
+    const track = trackRef.current
+    if (!track) return
+    const card = track.querySelector("article")
+    if (!card) return
+    const step = card.getBoundingClientRect().width + 24
+    track.scrollBy({ left: dir === "right" ? step : -step, behavior: "smooth" })
+  }
+
+  const scrollToIndex = (index: number) => {
+    const track = trackRef.current
+    if (!track) return
+    const card = track.querySelector("article")
+    if (!card) return
+    const step = card.getBoundingClientRect().width + 24
+    track.scrollTo({ left: index * step, behavior: "smooth" })
+  }
+
+  return (
+    <section className="overflow-hidden bg-[#fbfcff] px-6 py-20 sm:px-12 lg:px-20">
+      <div data-reveal="blur-in" className="mx-auto max-w-3xl text-center">
+        <p className="text-sm font-semibold text-primary">Loved by artists</p>
+        <h2 className="mt-3 text-4xl font-semibold tracking-tight text-[#282a47] sm:text-5xl">
+          Real artists, <span className="text-[#7c3aed]">real results</span>
+        </h2>
+      </div>
+
+      <div data-reveal="rise" className="relative mt-12">
+        <div
+          ref={trackRef}
+          onScroll={onScroll}
+          className="custom-scrollbar flex snap-x snap-mandatory gap-6 overflow-x-auto pb-2"
+        >
+          {testimonials.map((testimonial) => (
+            <div
+              key={testimonial.name}
+              className="w-[85%] shrink-0 snap-start sm:w-[46%] lg:w-[calc((100%-3rem)/3)]"
+            >
+              <TestimonialCard
+                name={testimonial.name}
+                role={testimonial.role}
+                location={testimonial.location}
+                text={testimonial.text}
+                highlight={testimonial.highlight}
+                accent={testimonial.accent}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Controls */}
+        <div className="mt-8 flex items-center justify-center gap-4">
+          <button
+            onClick={() => scrollByCards("left")}
+            aria-label="Previous testimonial"
+            className="flex size-11 items-center justify-center rounded-full border border-[#e0e3f5] bg-white text-[#7c3aed] shadow-sm transition hover:bg-[#7c3aed] hover:text-white active:scale-95"
+          >
+            <ChevronLeft className="size-5" />
+          </button>
+
+          <div className="flex items-center gap-2">
+            {testimonials.map((t, i) => (
+              <button
+                key={t.name}
+                onClick={() => scrollToIndex(i)}
+                aria-label={`Go to testimonial from ${t.name}`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === activeIndex ? "w-8 bg-[#7c3aed]" : "w-1.5 bg-[#d9d5f5] hover:bg-[#b9aef0]"
+                }`}
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={() => scrollByCards("right")}
+            aria-label="Next testimonial"
+            className="flex size-11 items-center justify-center rounded-full border border-[#e0e3f5] bg-white text-[#7c3aed] shadow-sm transition hover:bg-[#7c3aed] hover:text-white active:scale-95"
+          >
+            <ChevronRight className="size-5" />
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+const fetcher = (url: string) => fetch(url).then(res => res.json())
+
 
 function FaqSection() {
   const faqs = [
@@ -1319,7 +1518,7 @@ function FaqSection() {
     },
     {
       q: "How much does ArtistOS cost?",
-      a: "ArtistOS starts at just ₹249/month. The yearly plan is ₹2799/year — saving you over 40%. Both plans include booking calendar, client CRM, portfolio gallery, payment tracking, WhatsApp campaigns, and business reports. A custom white-label plan is available for salons, studios, and beauty academies.",
+      a: "Start with a free month — no card required. After that, ArtistOS is ₹299/month or ₹2999/year (saving you 50%). Every plan includes the booking calendar, client CRM, portfolio gallery, payment tracking, WhatsApp campaigns, and business reports. A custom white-label plan is available for salons, studios, and beauty academies.",
     },
     {
       q: "Can ArtistOS manage my bookings and appointments?",
@@ -1336,52 +1535,139 @@ function FaqSection() {
   ]
 
   return (
-    <section id="faq" className="px-6 py-20 sm:px-12 lg:px-20">
-      <SectionHeading
-        eyebrow="FAQ"
-        title="Frequently asked questions about ArtistOS"
-        description="Everything you need to know about the ArtistOS artist business platform."
-        className="animate-fade-up"
-      />
-      <div className="mt-12 mx-auto max-w-3xl divide-y divide-[#edf0fa]">
-        {faqs.map((faq) => (
-          <div key={faq.q} className="py-6">
-            <h3 className="text-base font-semibold text-[#232542]">{faq.q}</h3>
-            <p className="mt-3 text-sm leading-7 text-[#5d6078]">{faq.a}</p>
-          </div>
-        ))}
+    <section id="faq" className="px-6 py-10 sm:px-12 lg:px-20">
+      <div data-reveal="blur-in" className="mx-auto max-w-3xl text-center">
+        <p className="text-sm font-semibold text-primary">FAQ</p>
+        <h2 className="mt-3 text-4xl font-semibold tracking-tight text-[#282a47] sm:text-5xl">
+          Questions? <span className="text-[#7c3aed]">We&apos;ve got answers</span>
+        </h2>
       </div>
+
+      <Accordion className="mx-auto mt-12 max-w-3xl gap-4" multiple={false} defaultValue={[0]}>
+        {faqs.map((faq, index) => (
+          <AccordionItem
+            key={faq.q}
+            value={index}
+            data-reveal="rise"
+            style={{ animationDelay: `${index * 80}ms` }}
+            className="group overflow-hidden rounded-2xl border border-[#eaedf8] bg-white shadow-sm shadow-[#b8bdd8]/10 transition-colors not-last:border-b data-open:border-[#d9cffb] data-open:bg-[#fbfaff]"
+          >
+            <AccordionTrigger className="items-center gap-4 px-6 py-5 text-base font-semibold text-[#232542] hover:no-underline **:data-[slot=accordion-trigger-icon]:size-5 **:data-[slot=accordion-trigger-icon]:text-[#7c3aed]">
+              {faq.q}
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-5 text-sm leading-7 text-[#5d6078]">
+              {faq.a}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+
+      <p data-reveal="rise" className="mt-10 text-center text-sm text-[#8b8fa8]">
+        Still have a question?{" "}
+        <a href="#cta" className="font-semibold text-[#7c3aed] hover:underline">
+          Get in touch
+        </a>
+      </p>
     </section>
   )
 }
 
-function KeywordSection() {
-  const keywords = [
-    "ArtistOS", "Artist OS", "artistos.in", "Nail Artist App", "Mehendi Artist App",
-    "Bridal Makeup Artist Software", "Beauty Salon Management", "artist CRM",
-    "Salon Booking Software India", "Beauty Freelancer App", "Nail Art Portfolio",
-    "Mehendi Booking App", "WhatsApp Marketing Beauty", "Beauty Business Dashboard",
-    "Makeup Artist Portfolio", "Henna Artist App", "Salon Payment Tracking",
-    "Artist Business Software", "Beauty Studio App", "Nail Salon Software India",
-    "Beauty Appointment Booking", "Artist Invoice App", "Beauty Analytics Dashboard",
-    "Salon CRM India", "artist Platform India",
-  ]
+const audienceSegments = [
+  {
+    emoji: "💅",
+    title: "Nail Artists",
+    text: "Track nail art sets, repeat clients, and design galleries per customer.",
+    accent: "#d23f6e",
+    bg: "#fff0f4",
+  },
+  {
+    emoji: "🌿",
+    title: "Mehendi Artists",
+    text: "Handle festival rushes, bridal bookings, and advance payments in one calendar.",
+    accent: "#23a982",
+    bg: "#ecfff8",
+  },
+  {
+    emoji: "👰",
+    title: "Bridal Makeup Artists",
+    text: "Manage trials, wedding-day slots, and share bridal portfolios privately.",
+    accent: "#7c3aed",
+    bg: "#f5f3ff",
+  },
+  {
+    emoji: "💄",
+    title: "Makeup Artists",
+    text: "Party, engagement, and shoot bookings with service-wise pricing built in.",
+    accent: "#e0862f",
+    bg: "#fff6ec",
+  },
+  {
+    emoji: "💇",
+    title: "Hair Stylists",
+    text: "Time-boxed appointments, repeat schedules, and payment history per client.",
+    accent: "#2f8fe0",
+    bg: "#edf8ff",
+  },
+  {
+    emoji: "👁️",
+    title: "Lash & Brow Artists",
+    text: "Quick rebooking reminders and touch-up cycles that keep clients returning.",
+    accent: "#7c3aed",
+    bg: "#f5f3ff",
+  },
+  {
+    emoji: "✂️",
+    title: "Salon Owners",
+    text: "See the whole studio — bookings, dues, and revenue across every artist.",
+    accent: "#23a982",
+    bg: "#ecfff8",
+  },
+  {
+    emoji: "🎓",
+    title: "Beauty Academies",
+    text: "Run batches and student records on a fully white-labelled platform.",
+    accent: "#d23f6e",
+    bg: "#fff0f4",
+  },
+]
 
+function KeywordSection() {
   return (
-    <section className="px-6 py-12 sm:px-12 lg:px-20 bg-[#faf9ff]">
-      <p className="mb-5 text-center text-xs font-semibold uppercase tracking-widest text-[#9096b5]">
-        ArtistOS — Built for every beauty professional
-      </p>
-      <div className="flex flex-wrap justify-center gap-2.5">
-        {keywords.map((kw) => (
-          <span
-            key={kw}
-            className="rounded-full border border-[#e8e4ff] bg-white px-3.5 py-1.5 text-xs font-medium text-[#5a5f80] shadow-sm"
+    <section className="bg-[#faf9ff] px-6 py-20 sm:px-12 lg:px-20">
+      <div data-reveal="blur-in" className="mx-auto max-w-3xl text-center">
+        <p className="text-sm font-semibold text-primary">Who it&apos;s for</p>
+        <h2 className="mt-3 text-4xl font-semibold tracking-tight text-[#282a47] sm:text-5xl">
+          Built for every <span className="text-[#7c3aed]">beauty professional</span>
+        </h2>
+      </div>
+
+      <div className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {audienceSegments.map((segment, i) => (
+          <article
+            key={segment.title}
+            data-reveal="pop"
+            className="rounded-2xl border border-[#eceaf8] bg-white p-6 shadow-sm shadow-[#b8bdd8]/10 transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#b8bdd8]/20"
+            style={{ animationDelay: `${i * 70}ms` }}
           >
-            {kw}
-          </span>
+            <span
+              className="inline-flex size-12 items-center justify-center rounded-2xl text-xl"
+              style={{ backgroundColor: segment.bg }}
+            >
+              {segment.emoji}
+            </span>
+            <h3 className="mt-4 font-semibold text-[#232542]">{segment.title}</h3>
+            <p className="mt-2 text-sm leading-6 text-[#666a82]">{segment.text}</p>
+            <span
+              className="mt-4 inline-block h-1 w-8 rounded-full"
+              style={{ backgroundColor: segment.accent }}
+            />
+          </article>
         ))}
       </div>
+
+      <p data-reveal="rise" className="mt-10 text-center text-sm text-[#8b8fa8]">
+        Solo freelancer or a full studio — ArtistOS scales with you.
+      </p>
     </section>
   )
 }
@@ -1389,7 +1675,10 @@ function KeywordSection() {
 function FinalCta() {
   return (
     <section id="cta" className="px-6 py-16 sm:px-12 lg:px-20">
-      <div className="relative overflow-hidden rounded-md bg-[#7c3aed] px-8 py-14 text-center text-white">
+      <div
+        data-reveal="zoom"
+        className="relative overflow-hidden rounded-md bg-[#7c3aed] px-8 py-14 text-center text-white"
+      >
         <div className="absolute left-8 top-8 h-24 w-24 rotate-45 border border-white/20" />
         <div className="absolute bottom-8 right-10 h-28 w-28 rotate-45 border border-white/20" />
         <h2 className="relative mx-auto max-w-xl text-3xl font-semibold leading-tight sm:text-4xl">
@@ -1413,39 +1702,91 @@ function FinalCta() {
   )
 }
 
+const footerColumns: { title: string; links: { label: string; href: string }[] }[] = [
+  {
+    title: "Product",
+    links: [
+      { label: "Features", href: "#features" },
+      { label: "Client CRM", href: "#solutions" },
+      { label: "WhatsApp Campaigns", href: "#pricing" },
+      { label: "Pricing", href: "#pricing" },
+      { label: "FAQ", href: "#faq" },
+    ],
+  },
+  {
+    title: "Get started",
+    links: [
+      { label: "Create free account", href: "/signup" },
+      { label: "Log in", href: "/login" },
+      { label: "Start free trial", href: "/signup" },
+    ],
+  },
+  {
+    title: "Support",
+    links: [
+      { label: "Contact us", href: "#cta" },
+      { label: "Help & support", href: "#cta" },
+    ],
+  },
+]
+
 function Footer() {
   return (
     <footer className="px-6 pb-8 sm:px-12 lg:px-20">
-      <div className="grid gap-10 border-t border-[#edf0fa] py-10 lg:grid-cols-[1fr_2fr]">
-        <div>
-          <BrandLogo imageClassName="h-11" />
-          <p className="mt-4 max-w-xs text-sm leading-6 text-[#666a82]">
-            ArtistOS (artistos.in) is India&apos;s leading business management software for artists — nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers.
+      <div className="grid gap-12 border-t border-[#edf0fa] py-14 lg:grid-cols-[1.15fr_1.85fr] lg:gap-20">
+        <div data-reveal="slide-left">
+          <BrandLogo imageClassName="h-14" />
+          <p className="mt-6 max-w-sm leading-7 text-[#666a82]">
+            India&apos;s all-in-one business platform for beauty artists — bookings, client CRM,
+            portfolio, payments, and WhatsApp campaigns in one place.
           </p>
-          <p className="mt-3 max-w-xs text-xs leading-5 text-[#9096b5]">
-            Manage bookings, client CRM, portfolio, payments, WhatsApp campaigns, and analytics — all in one platform.
-          </p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            {["Made in India 🇮🇳", "₹ INR pricing", "GST invoicing"].map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full border border-[#e8e4ff] bg-white px-3 py-1.5 text-xs font-semibold text-[#5a5f80]"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
         </div>
+
         <div className="grid gap-8 text-sm sm:grid-cols-3">
-          {[
-            ["Product", "Booking Calendar", "Client CRM", "Portfolio Gallery", "Payment Tracking", "WhatsApp Campaigns", "Business Reports"],
-            ["Company", "About ArtistOS", "Privacy Policy", "Terms of Service", "Contact Us"],
-            ["Resources", "Nail Artist Guide", "Mehendi Artist Tips", "Beauty Business Blog", "Salon Management Tools", "Support"],
-          ].map(([title, ...items]) => (
-            <div key={title}>
-              <p className="font-semibold text-[#292c48]">{title}</p>
-              <div className="mt-4 space-y-3 text-[#686c86]">
-                {items.map((item) => (
-                  <p key={item}>{item}</p>
+          {footerColumns.map((column, i) => (
+            <div
+              key={column.title}
+              data-reveal="rise"
+              style={{ animationDelay: `${i * 90}ms` }}
+            >
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9096b5]">
+                {column.title}
+              </p>
+              <ul className="mt-5 space-y-3">
+                {column.links.map((link) => (
+                  <li key={link.label}>
+                    <a
+                      href={link.href}
+                      className="text-[#5d6078] transition-colors hover:text-[#7c3aed]"
+                      suppressHydrationWarning
+                    >
+                      {link.label}
+                    </a>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           ))}
         </div>
       </div>
-      <div className="bg-[#202344] px-5 py-4 text-xs text-white/70 flex flex-wrap justify-between gap-2">
-        <span>© 2026 ArtistOS (artistos.in). All rights reserved. Built in India 🇮🇳 for artists.</span>
-        <span className="text-white/40">Nail Artist App · Mehendi Artist App · Bridal Artist Software · Beauty Salon Management</span>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#202344] px-6 py-5 text-xs text-white/70">
+        <span suppressHydrationWarning>
+          © {new Date().getFullYear()} ArtistOS (artistos.in). All rights reserved.
+        </span>
+        <span className="text-white/40">
+          Built in India for nail, mehendi, bridal & beauty artists.
+        </span>
       </div>
     </footer>
   )

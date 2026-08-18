@@ -232,6 +232,113 @@
   animation-play-state: paused;
 }
 
+/* ── Scroll-triggered reveals ───────────────────────────────────────────
+   Elements start hidden and animate once when they enter the viewport.
+   A `data-reveal="<name>"` attribute picks the variant; the IntersectionObserver
+   in `use-scroll-reveal.ts` flips `data-revealed` to "true" to play it. */
+
+[data-reveal] {
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}
+
+[data-reveal="rise"] {
+  transform: translateY(38px);
+}
+[data-reveal="rise"][data-revealed="true"] {
+  animation: artistos-reveal-rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes artistos-reveal-rise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+[data-reveal="slide-left"] {
+  transform: translateX(-56px);
+}
+[data-reveal="slide-left"][data-revealed="true"] {
+  animation: artistos-reveal-slide-x 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+[data-reveal="slide-right"] {
+  transform: translateX(56px);
+}
+[data-reveal="slide-right"][data-revealed="true"] {
+  animation: artistos-reveal-slide-x 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes artistos-reveal-slide-x {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+[data-reveal="zoom"] {
+  transform: scale(0.9);
+}
+[data-reveal="zoom"][data-revealed="true"] {
+  animation: artistos-reveal-zoom 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes artistos-reveal-zoom {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+[data-reveal="flip-up"] {
+  transform: perspective(1000px) rotateX(14deg) translateY(30px);
+  transform-origin: bottom center;
+}
+[data-reveal="flip-up"][data-revealed="true"] {
+  animation: artistos-reveal-flip 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes artistos-reveal-flip {
+  to {
+    opacity: 1;
+    transform: perspective(1000px) rotateX(0) translateY(0);
+  }
+}
+
+[data-reveal="blur-in"] {
+  filter: blur(12px);
+  transform: translateY(20px);
+}
+[data-reveal="blur-in"][data-revealed="true"] {
+  animation: artistos-reveal-blur 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes artistos-reveal-blur {
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+[data-reveal="pop"] {
+  transform: scale(0.82) translateY(18px);
+}
+[data-reveal="pop"][data-revealed="true"] {
+  animation: artistos-reveal-pop 0.62s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes artistos-reveal-pop {
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .artistos-calendar {
   height: 450px;
   color: #15172e;
