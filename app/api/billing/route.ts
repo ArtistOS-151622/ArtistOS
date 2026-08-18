@@ -30,19 +30,19 @@ export async function GET(request: NextRequest) {
   try {
     const userId = session.id
 
-    // Get user's active subscription (if any)
+    // Get user's active/pending/halted subscription (if any)
     const { data: subscriptionRow } = await supabase
       .from("user_subscriptions")
       .select("*, platform_subscriptions(*)")
       .eq("user_id", userId)
-      .eq("status", "active")
-      .order("current_period_end", { ascending: false, nullsFirst: true })
+      .in("status", ["active", "pending", "halted"])
+      .order("created_at", { ascending: false, nullsFirst: true })
       .limit(1)
       .maybeSingle()
     const endDateStr = subscriptionRow?.next_billing_at
     const subscription =
       subscriptionRow &&
-      (!endDateStr || new Date(endDateStr) > new Date())
+      (subscriptionRow.status === "pending" || subscriptionRow.status === "halted" || !endDateStr || new Date(endDateStr) > new Date())
         ? subscriptionRow
         : null
 

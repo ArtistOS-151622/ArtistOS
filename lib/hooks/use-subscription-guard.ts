@@ -5,6 +5,7 @@ type SubscriptionStatus = {
   isTrialExpired: boolean
   hasActiveSub: boolean
   isReadOnly: boolean
+  subscriptionStatus: string
   daysSinceSignup: number
 }
 
@@ -26,6 +27,7 @@ export function useSubscriptionGuard() {
     isReadOnly: data?.isReadOnly ?? false,
     isTrialExpired: data?.isTrialExpired ?? false,
     hasActiveSub: data?.hasActiveSub ?? false,
+    subscriptionStatus: data?.subscriptionStatus ?? "none",
     trialDaysLeft: data?.trialDaysLeft ?? 30,
     isLoading,
     refresh: mutate,

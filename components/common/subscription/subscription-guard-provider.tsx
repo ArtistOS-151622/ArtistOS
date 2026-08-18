@@ -12,6 +12,7 @@ type GuardContextValue = {
   trialDaysLeft: number
   hasActiveSub: boolean
   isTrialExpired: boolean
+  subscriptionStatus: string
 }
 
 const GuardContext = createContext<GuardContextValue>({
@@ -19,6 +20,7 @@ const GuardContext = createContext<GuardContextValue>({
   trialDaysLeft: 30,
   hasActiveSub: false,
   isTrialExpired: false,
+  subscriptionStatus: "none",
 })
 
 export function useGuardContext() {
@@ -26,7 +28,7 @@ export function useGuardContext() {
 }
 
 export function SubscriptionGuardProvider({ children }: { children: ReactNode }) {
-  const { isReadOnly, trialDaysLeft, hasActiveSub, isTrialExpired, isLoading } =
+  const { isReadOnly, trialDaysLeft, hasActiveSub, isTrialExpired, subscriptionStatus, isLoading } =
     useSubscriptionGuard()
 
   // User can dismiss the popup — overlay stays active but modal hides
@@ -43,7 +45,7 @@ export function SubscriptionGuardProvider({ children }: { children: ReactNode })
     }
   }, [pathname, isOnBilling])
 
-  // Show modal when: trial expired + no sub + not loading + not dismissed + not on billing page
+  // Show modal when: (trial expired OR halted) + no active sub + not loading + not dismissed + not on billing page
   const showModal = !isLoading && isReadOnly && !modalDismissed && !isOnBilling
 
   // Show trial banner during active trial (last 14 days, not expired, not paid)
@@ -52,15 +54,15 @@ export function SubscriptionGuardProvider({ children }: { children: ReactNode })
 
   return (
     <GuardContext.Provider
-      value={{ isReadOnly, trialDaysLeft, hasActiveSub, isTrialExpired }}
+      value={{ isReadOnly, trialDaysLeft, hasActiveSub, isTrialExpired, subscriptionStatus }}
     >
       {/* Non-dismissible modal — hidden on billing page, can be closed by user */}
       {showModal && (
-        <TrialExpiredModal onClose={() => setModalDismissed(true)} />
+        <TrialExpiredModal onClose={() => setModalDismissed(true)} subscriptionStatus={subscriptionStatus} />
       )}
 
       {/* Read-only click blocker — always active when expired, independent of modal */}
-      <ReadOnlyOverlay isReadOnly={isReadOnly} />
+      <ReadOnlyOverlay isReadOnly={isReadOnly} subscriptionStatus={subscriptionStatus} />
 
       {/* Trial countdown banner (last 14 days of active trial) */}
       {showTrialBanner && <TrialBanner daysLeft={trialDaysLeft} />}

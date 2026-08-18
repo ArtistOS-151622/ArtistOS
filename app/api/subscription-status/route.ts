@@ -37,32 +37,34 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // 2. Check for any active subscription
+  // 2. Check for any active, pending, or halted subscription
   const { data: activeSub } = await supabase
     .from("user_subscriptions")
     .select("id, current_period_end, next_billing_at, status")
     .eq("user_id", session.id)
-    .eq("status", "active")
-    .order("current_period_end", { ascending: false })
+    .in("status", ["active", "pending", "halted"])
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
 
+  const subStatus = activeSub?.status || "none"
   const endDateStr = activeSub?.next_billing_at
-  // Active = has a row AND period hasn't expired
-  const hasActiveSub =
-    !!activeSub &&
-    (!endDateStr ||
-      new Date(endDateStr) > now)
+  
+  // Determine if they effectively have an active sub (active + not expired OR pending)
+  const isPending = subStatus === "pending"
+  const isActiveAndNotExpired = subStatus === "active" && (!endDateStr || new Date(endDateStr) > now)
+  const hasActiveSub = !!activeSub && (isPending || isActiveAndNotExpired)
 
-  // 3. If user has an active subscription, return days left in that subscription period
+  // 3. If user has an active/pending subscription, return its status
   if (hasActiveSub) {
-    if (!endDateStr) {
+    if (!endDateStr || isPending) {
       return NextResponse.json(
         {
           trialDaysLeft: 9999,
           isTrialExpired: false,
           hasActiveSub: true,
           isReadOnly: false,
+          subscriptionStatus: subStatus,
           daysSinceSignup: Math.floor((now.getTime() - new Date(user.created_at).getTime()) / msPerDay),
         },
         { headers: { "Cache-Control": "no-store" } }
@@ -78,13 +80,29 @@ export async function GET(request: NextRequest) {
         isTrialExpired: false,        // never expired while subscribed
         hasActiveSub: true,
         isReadOnly: false,
+        subscriptionStatus: subStatus,
         daysSinceSignup: Math.floor((now.getTime() - new Date(user.created_at).getTime()) / msPerDay),
       },
       { headers: { "Cache-Control": "no-store" } }
     )
   }
 
-  // 4. No active subscription — calculate free trial status from signup date
+  // 4. If they have a halted subscription, they are restricted
+  if (subStatus === "halted") {
+    return NextResponse.json(
+      {
+        trialDaysLeft: 0,
+        isTrialExpired: true,
+        hasActiveSub: false,
+        isReadOnly: true,
+        subscriptionStatus: "halted",
+        daysSinceSignup: Math.floor((now.getTime() - new Date(user.created_at).getTime()) / msPerDay),
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    )
+  }
+
+  // 5. No active/pending/halted subscription — calculate free trial status from signup date
   const createdAt = new Date(user.created_at)
   const daysSinceSignup = Math.floor((now.getTime() - createdAt.getTime()) / msPerDay)
   const trialDaysLeft = Math.max(0, FREE_TRIAL_DAYS - daysSinceSignup)
@@ -96,6 +114,7 @@ export async function GET(request: NextRequest) {
       isTrialExpired,
       hasActiveSub: false,
       isReadOnly: isTrialExpired,
+      subscriptionStatus: "none",
       daysSinceSignup,
     },
     { headers: { "Cache-Control": "no-store" } }

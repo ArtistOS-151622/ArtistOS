@@ -6,10 +6,13 @@ import { Button } from "@/components/ui/button"
 
 type Props = {
   onClose: () => void
+  subscriptionStatus?: string
 }
 
-export function TrialExpiredModal({ onClose }: Props) {
+export function TrialExpiredModal({ onClose, subscriptionStatus = "none" }: Props) {
   const router = useRouter()
+
+  const isHalted = subscriptionStatus === "halted"
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
@@ -22,7 +25,7 @@ export function TrialExpiredModal({ onClose }: Props) {
       {/* Modal card */}
       <div className="relative w-full max-w-md overflow-hidden rounded-3xl shadow-2xl">
         {/* Gradient header */}
-        <div className="relative bg-gradient-to-br from-[#7c3aed] via-[#6d28d9] to-[#4c1d95] px-8 pt-10 pb-8 text-white text-center overflow-hidden">
+        <div className={`relative px-8 pt-10 pb-8 text-white text-center overflow-hidden ${isHalted ? 'bg-gradient-to-br from-red-600 via-rose-600 to-red-800' : 'bg-gradient-to-br from-[#7c3aed] via-[#6d28d9] to-[#4c1d95]'}`}>
           {/* Decorative orbs */}
           <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
           <div className="pointer-events-none absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
@@ -43,14 +46,16 @@ export function TrialExpiredModal({ onClose }: Props) {
 
           {/* Badge */}
           <div className="relative inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-widest mb-4">
-            <Sparkles className="size-3" /> Free Trial Ended
+            <Sparkles className="size-3" /> {isHalted ? "Payment Failed" : "Free Trial Ended"}
           </div>
 
           <h2 className="relative text-2xl font-bold leading-tight mb-2">
-            Your Free Trial Has Expired
+            {isHalted ? "Your Subscription is Paused" : "Your Free Trial Has Expired"}
           </h2>
-          <p className="relative text-sm text-white/70 leading-relaxed">
-            Your 30-day free trial is over. Upgrade to a plan to continue using all features of ArtistOS.
+          <p className="relative text-sm text-white/90 font-medium leading-relaxed">
+            {isHalted 
+              ? "Your payment has failed three times. Please update your payment details or contact us to continue using this service."
+              : "Your 30-day free trial is over. Upgrade to a plan to continue using all features of ArtistOS."}
           </p>
         </div>
 

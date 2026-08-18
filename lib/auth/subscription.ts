@@ -21,20 +21,32 @@ export async function checkIsReadOnly(supabase: SupabaseClient, userId: number):
 
   const { data: activeSub } = await supabase
     .from("user_subscriptions")
-    .select("current_period_end, next_billing_at")
+    .select("status, current_period_end, next_billing_at")
     .eq("user_id", userId)
-    .eq("status", "active")
-    .order("current_period_end", { ascending: false })
+    .in("status", ["active", "pending", "halted"])
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  const endDateStr = activeSub?.next_billing_at
+  if (activeSub) {
+    if (activeSub.status === "pending") {
+      // Pending means payment failed but Razorpay is retrying. Give full access.
+      return false
+    }
 
-  const hasActiveSub =
-    !!activeSub &&
-    (!endDateStr || new Date(endDateStr) > now)
+    if (activeSub.status === "halted") {
+      // Halted means retries failed. Immediately restrict access.
+      return true
+    }
 
-  if (hasActiveSub) return false // Active sub = not read only
+    if (activeSub.status === "active") {
+      // If active, check if the billing period has expired
+      const endDateStr = activeSub.next_billing_at
+      if (!endDateStr || new Date(endDateStr) > now) {
+        return false // Active and not expired
+      }
+    }
+  }
 
   const createdAt = new Date(user.created_at)
   const daysSinceSignup = Math.floor((now.getTime() - createdAt.getTime()) / msPerDay)
