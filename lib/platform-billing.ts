@@ -263,7 +263,7 @@ export async function completePlatformPayment(
       .from("user_subscriptions")
       .select("*")
       .eq("user_id", payment.user_id)
-      .eq("status", "active")
+      .in("status", ["active", "pending", "halted"])
       .order("current_period_end", { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -365,7 +365,7 @@ export async function extendPlatformSubscriptionToDate(
       .from("user_subscriptions")
       .select("*")
       .eq("user_id", userId)
-      .eq("status", "active")
+      .in("status", ["active", "pending", "halted"])
       .order("current_period_end", { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -378,6 +378,7 @@ export async function extendPlatformSubscriptionToDate(
   await supabase
     .from("user_subscriptions")
     .update({
+      status: "active",
       ...(currentStartUnix ? { current_period_start: unixSecondsToIso(currentStartUnix) } : {}),
       current_period_end: unixSecondsToIso(currentEndUnix),
       next_billing_at: unixSecondsToIso(chargeAtUnix) ?? unixSecondsToIso(currentEndUnix),
