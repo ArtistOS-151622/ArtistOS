@@ -6,14 +6,25 @@ on:
     - cron: '*/2 * * * *' # dispatch
     - cron: '0 3 * * *'   # expire-shares
   workflow_dispatch:
+    inputs:
+      job:
+        description: Cron job to run manually
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - scan-bookings
+          - dispatch
+          - expire-shares
 
 jobs:
   scan-bookings:
     name: Scan Bookings
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
+    if: github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'scan-bookings') || github.event.schedule == '*/5 * * * *'
     runs-on: ubuntu-latest
     env:
-      APP_URL: ${{ secrets.APP_URL }}
+      APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
     steps:
       - name: Trigger Scan Bookings API
@@ -29,10 +40,10 @@ jobs:
 
   dispatch:
     name: Dispatch Notifications
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/2 * * * *'
+    if: github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'dispatch') || github.event.schedule == '*/2 * * * *'
     runs-on: ubuntu-latest
     env:
-      APP_URL: ${{ secrets.APP_URL }}
+      APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
     steps:
       - name: Trigger Dispatch API
@@ -48,10 +59,10 @@ jobs:
 
   expire-shares:
     name: Expire Shares
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 3 * * *'
+    if: github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'expire-shares') || github.event.schedule == '0 3 * * *'
     runs-on: ubuntu-latest
     env:
-      APP_URL: ${{ secrets.APP_URL }}
+      APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
     steps:
       - name: Trigger Expire Shares API
