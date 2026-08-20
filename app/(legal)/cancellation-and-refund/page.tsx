@@ -22,7 +22,7 @@ export default function CancellationAndRefundPage() {
 
         <h2 className="text-xl font-semibold text-[#15172e] mt-10 mb-4 border-b border-[#edf0fa] pb-2">1. Subscription Cancellations</h2>
         <p>
-          You can request to cancel your ArtistOS subscription at any time. To cancel your subscription, please contact our support team at <a href="mailto:support@artistos.in" className="font-medium text-[#7c3aed] hover:underline">support@artistos.in</a> from your registered email address.
+          You can request to cancel your ArtistOS subscription at any time. To cancel your subscription, please contact our support team at <a href="mailto:artistoscrm@gmail.com" className="font-medium text-[#7c3aed] hover:underline">artistoscrm@gmail.com</a> from your registered email address.
         </p>
         <p>
           Upon cancellation, your subscription will remain active until the end of your current billing cycle. You will not be charged for the subsequent billing cycle. We do not delete your data immediately upon cancellation, allowing you to reactivate your account later if you choose.
@@ -57,8 +57,8 @@ export default function CancellationAndRefundPage() {
         <p>
           If you have any questions or need assistance with cancellations or refunds, please reach out to us:
           <br />
-          <a href="mailto:support@artistos.in" className="font-medium text-[#7c3aed] hover:underline mt-2 inline-block">
-            support@artistos.in
+          <a href="mailto:artistoscrm@gmail.com" className="font-medium text-[#7c3aed] hover:underline mt-2 inline-block">
+            artistoscrm@gmail.com
           </a>
         </p>
       </section>

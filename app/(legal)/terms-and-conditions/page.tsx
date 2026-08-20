@@ -75,8 +75,8 @@ export default function TermsAndConditionsPage() {
         <p>
           If you have any questions about these Terms, please contact us at:
           <br />
-          <a href="mailto:support@artistos.in" className="font-medium text-[#7c3aed] hover:underline mt-2 inline-block">
-            support@artistos.in
+          <a href="mailto:artistoscrm@gmail.com" className="font-medium text-[#7c3aed] hover:underline mt-2 inline-block">
+            artistoscrm@gmail.com
           </a>
         </p>
       </section>

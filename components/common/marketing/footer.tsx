@@ -31,8 +31,8 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
   {
     title: "Support",
     links: [
-      { label: "Contact us", href: "/#cta" },
-      { label: "Help & support", href: "/#cta" },
+      { label: "Contact us", href: "/contact" },
+      { label: "Help & support", href: "/help-and-support" },
     ],
   },
 ];
