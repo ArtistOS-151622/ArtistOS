@@ -35,6 +35,7 @@ import { OutlineButton } from "@/components/common/shared/outline-button"
 import { CheckItem } from "@/components/common/shared/check-item"
 import { TestimonialCard } from "@/components/common/landing/testimonial-card"
 import { FloatingClientChip } from "@/components/common/landing/floating-client-chip"
+import { Footer } from "@/components/common/marketing/footer"
 
 const productFeatures = [
   {
@@ -180,61 +181,7 @@ type PricingPlan = {
   is_featured?: boolean
 }
 
-/**
- * Which tier a plan belongs to, derived from its name / billing period.
- * Used to resolve the hardcoded comparison matrix against live API plans.
- */
-type PlanTier = "monthly" | "yearly" | "custom"
 
-function resolvePlanTier(plan: PricingPlan): PlanTier {
-  const name = plan.name.toLowerCase()
-  if (name.includes("custom") || name.includes("white")) return "custom"
-  const period = (plan.billing_period ?? plan.period ?? "").toLowerCase()
-  if (name.includes("year") || period.includes("year")) return "yearly"
-  return "monthly"
-}
-
-/**
- * Per-tier feature matrix driving each paid plan card's feature list.
- * Values: true = included, false = omitted from the card,
- * string = included with a qualifier appended (e.g. "Cloud storage · 5 GB").
- */
-const pricingComparison: {
-  group: string
-  rows: { label: string; monthly: boolean | string; yearly: boolean | string; custom: boolean | string }[]
-}[] = [
-  {
-    group: "Core workspace",
-    rows: [
-      { label: "Booking calendar & scheduling", monthly: true, yearly: true, custom: true },
-      { label: "Client CRM & booking history", monthly: true, yearly: true, custom: true },
-      { label: "Service & pricing management", monthly: true, yearly: true, custom: true },
-      { label: "Payment & invoice tracking", monthly: true, yearly: true, custom: true },
-      { label: "Business reports & analytics", monthly: true, yearly: true, custom: true },
-    ],
-  },
-  {
-    group: "Portfolio & marketing",
-    rows: [
-      { label: "Portfolio gallery", monthly: true, yearly: true, custom: true },
-      { label: "Cloud storage", monthly: "1 GB", yearly: "5 GB", custom: "Custom" },
-      { label: "Shareable client links", monthly: true, yearly: true, custom: true },
-      { label: "WhatsApp broadcast campaigns", monthly: true, yearly: true, custom: true },
-      { label: "Automated birthday & festival offers", monthly: false, yearly: true, custom: true },
-    ],
-  },
-  {
-    group: "Support & scale",
-    rows: [
-      { label: "Email support", monthly: true, yearly: true, custom: true },
-      { label: "Priority customer support", monthly: false, yearly: true, custom: true },
-      { label: "Personal onboarding session", monthly: false, yearly: true, custom: true },
-      { label: "Early access to new features", monthly: false, yearly: true, custom: true },
-      { label: "Team / multi-artist access", monthly: false, yearly: false, custom: true },
-      { label: "Custom branding & domain", monthly: false, yearly: false, custom: true },
-    ],
-  },
-]
 
 /**
  * Marketing-only free trial card shown first in the pricing section.
@@ -249,8 +196,12 @@ const freeTrialPlan: PricingPlan = {
     "Booking calendar & scheduling",
     "Client CRM & booking history",
     "Service & pricing management",
+    "inquiry Management",
+    "Payment & invoice tracking",
+    "Business reports & analytics",
     "Portfolio gallery",
-    "Payment tracking",
+    "Shareable Portfolio links",
+    "WhatsApp broadcast campaigns"
   ],
   cta: "Start free",
 }
@@ -355,14 +306,14 @@ function Header() {
 }
 
 const heroProfessions = [
-  { label: "Makeup Artist",  emoji: "💄", delay: "0ms"   },
-  { label: "Nail Artist",    emoji: "💅", delay: "60ms"  },
-  { label: "Bridal Artist",  emoji: "👰", delay: "120ms" },
+  { label: "Makeup Artist", emoji: "💄", delay: "0ms" },
+  { label: "Nail Artist", emoji: "💅", delay: "60ms" },
+  { label: "Bridal Artist", emoji: "👰", delay: "120ms" },
   { label: "Mehendi Artist", emoji: "🌿", delay: "180ms" },
-  { label: "Salon Owner",    emoji: "✂️",  delay: "240ms" },
-  { label: "Beauty Studio",  emoji: "🪞", delay: "300ms" },
-  { label: "Hair Stylist",   emoji: "💇", delay: "360ms" },
-  { label: "Lash Artist",    emoji: "👁️",  delay: "420ms" },
+  { label: "Salon Owner", emoji: "✂️", delay: "240ms" },
+  { label: "Beauty Studio", emoji: "🪞", delay: "300ms" },
+  { label: "Hair Stylist", emoji: "💇", delay: "360ms" },
+  { label: "Lash Artist", emoji: "👁️", delay: "420ms" },
 ]
 
 const rotatingHeroPhrases = [
@@ -391,19 +342,17 @@ function RotatingHeroText() {
   return (
     <span className="relative inline-block px-1">
       <span
-        className={`inline-block font-serif italic font-normal tracking-normal text-transparent bg-clip-text bg-gradient-to-r from-[#7c3aed] via-[#9333ea] to-[#a855f7] transition-all duration-350 ease-out transform min-h-[1.2em] ${
-          animating
+        className={`inline-block font-serif italic font-normal tracking-normal text-transparent bg-clip-text bg-gradient-to-r from-[#7c3aed] via-[#9333ea] to-[#a855f7] transition-all duration-350 ease-out transform min-h-[1.2em] ${animating
             ? "opacity-0 -translate-y-2 blur-[1px]"
             : "opacity-100 translate-y-0 blur-0"
-        }`}
+          }`}
       >
         {rotatingHeroPhrases[index]}
       </span>
       {/* Hand-drawn curved swoosh underline */}
       <svg
-        className={`pointer-events-none absolute -bottom-1 sm:-bottom-2 left-0 w-full h-[10px] sm:h-[13px] overflow-visible transition-all duration-300 ${
-          animating ? "opacity-25 scale-x-90" : "opacity-100 scale-x-100"
-        }`}
+        className={`pointer-events-none absolute -bottom-1 sm:-bottom-2 left-0 w-full h-[10px] sm:h-[13px] overflow-visible transition-all duration-300 ${animating ? "opacity-25 scale-x-90" : "opacity-100 scale-x-100"
+          }`}
         viewBox="0 0 280 14"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
@@ -475,7 +424,7 @@ function Hero() {
       >
         {/* Real hero photo */}
         <Image
-        src="/hero-artist.jpg"
+          src="/hero-artist.jpg"
           alt="Artist professional working at laptop in a warm studio"
           fill
           priority
@@ -646,9 +595,8 @@ function Features() {
               key={f.key}
               onClick={() => scrollToIndex(i)}
               aria-label={`Go to ${f.tag}`}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === activeIndex ? "w-8 bg-[#7c3aed]" : "w-1.5 bg-[#d9d5f5] hover:bg-[#b9aef0]"
-              }`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? "w-8 bg-[#7c3aed]" : "w-1.5 bg-[#d9d5f5] hover:bg-[#b9aef0]"
+                }`}
             />
           ))}
         </div>
@@ -699,9 +647,8 @@ function MobileFeatureCarousel() {
             key={f.key}
             onClick={() => scrollToIndex(i)}
             aria-label={`Go to ${f.tag}`}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              i === activeIndex ? "w-8 bg-[#7c3aed]" : "w-1.5 bg-[#d9d5f5]"
-            }`}
+            className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? "w-8 bg-[#7c3aed]" : "w-1.5 bg-[#d9d5f5]"
+              }`}
           />
         ))}
       </div>
@@ -781,9 +728,8 @@ function FeatureSlide({
       <div className="grid w-full max-w-full items-center gap-8 overflow-hidden lg:grid-cols-[0.85fr_1.15fr] lg:gap-14">
         {/* Left: content */}
         <div
-          className={`order-2 transition-opacity duration-500 ease-out lg:order-1 ${
-            active ? "opacity-100" : "opacity-40"
-          }`}
+          className={`order-2 transition-opacity duration-500 ease-out lg:order-1 ${active ? "opacity-100" : "opacity-40"
+            }`}
         >
           <span
             className="inline-flex size-11 items-center justify-center rounded-2xl"
@@ -813,9 +759,8 @@ function FeatureSlide({
 
         {/* Right: real product screenshot */}
         <div
-          className={`order-1 min-w-0 transition-opacity duration-500 ease-out lg:order-2 ${
-            active ? "opacity-100" : "opacity-40"
-          }`}
+          className={`order-1 min-w-0 transition-opacity duration-500 ease-out lg:order-2 ${active ? "opacity-100" : "opacity-40"
+            }`}
         >
           <div
             className="relative w-full max-w-full overflow-hidden rounded-[1.5rem] border border-[#eaecf5] bg-[#f7f8ff] shadow-2xl shadow-[#9ba0b8]/25 sm:rounded-[1.75rem]"
@@ -1229,15 +1174,14 @@ function PricingSection() {
 
           {/* Desktop: card grid */}
           <div
-            className={`hidden gap-6 lg:grid ${
-              cardPlans.length === 1
+            className={`hidden gap-6 lg:grid ${cardPlans.length === 1
                 ? "lg:mx-auto lg:max-w-sm lg:grid-cols-1"
                 : cardPlans.length === 2
                   ? "lg:mx-auto lg:max-w-3xl lg:grid-cols-2"
                   : cardPlans.length === 4
                     ? "lg:grid-cols-4"
                     : "lg:grid-cols-3"
-            }`}
+              }`}
           >
             {cardPlans.map((plan, i) => (
               <div
@@ -1257,7 +1201,6 @@ function PricingSection() {
 }
 
 function PricingCard({ plan }: { plan: PricingPlan }) {
-  const tier = resolvePlanTier(plan)
   const isFeatured = plan.is_featured ?? plan.featured ?? false
   const isFree = plan.amount_inr === 0 || plan.price === "\u20b90"
 
@@ -1266,13 +1209,7 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
   const gstText = !isFree && plan.gst_percentage ? `+ ${plan.gst_percentage}% GST` : ""
   const periodText = plan.billing_period || plan.period
 
-  // Free card lists its own copy; paid cards read the shared comparison matrix.
-  const features = isFree
-    ? (plan.features ?? [])
-    : pricingComparison
-        .flatMap((group) => group.rows)
-        .filter((row) => row[tier] !== false)
-        .map((row) => (typeof row[tier] === "string" ? `${row.label} \u00b7 ${row[tier]}` : row.label))
+  const features = plan.features ?? []
 
   const href = isFree
     ? "/signup"
@@ -1282,11 +1219,10 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
 
   return (
     <article
-      className={`relative flex h-full flex-col overflow-hidden rounded-[1.75rem] p-7 transition duration-300 hover:-translate-y-1.5 ${
-        isFeatured
+      className={`relative flex h-full flex-col overflow-hidden rounded-[1.75rem] p-7 transition duration-300 hover:-translate-y-1.5 ${isFeatured
           ? "bg-[#1c1435] text-white shadow-2xl shadow-[#7c3aed]/25 ring-1 ring-[#7c3aed]/40"
           : "border border-[#eaedf8] bg-white text-[#232542] shadow-sm shadow-[#b8bdd8]/20 hover:shadow-xl hover:shadow-[#b8bdd8]/25"
-      }`}
+        }`}
     >
       {isFeatured && (
         <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-[#7c3aed]/30 blur-3xl" />
@@ -1295,9 +1231,8 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
       <div className="relative">
         <div className="flex items-center justify-between gap-3">
           <p
-            className={`text-xs font-bold uppercase tracking-[0.18em] ${
-              isFeatured ? "text-[#c4b5fd]" : isFree ? "text-[#23a982]" : "text-[#9096b5]"
-            }`}
+            className={`text-xs font-bold uppercase tracking-[0.18em] ${isFeatured ? "text-[#c4b5fd]" : isFree ? "text-[#23a982]" : "text-[#9096b5]"
+              }`}
           >
             {plan.name}
           </p>
@@ -1317,18 +1252,16 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
           <div className="mt-4 flex min-h-6 flex-wrap items-center gap-2">
             {compareAtPrice && (
               <span
-                className={`text-sm font-semibold line-through ${
-                  isFeatured ? "text-white/40" : "text-[#9aa0bd]"
-                }`}
+                className={`text-sm font-semibold line-through ${isFeatured ? "text-white/40" : "text-[#9aa0bd]"
+                  }`}
               >
                 {compareAtPrice}
               </span>
             )}
             {plan.discount_percentage ? (
               <span
-                className={`rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider ${
-                  isFeatured ? "bg-white/15 text-white" : "bg-emerald-50 text-emerald-700"
-                }`}
+                className={`rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider ${isFeatured ? "bg-white/15 text-white" : "bg-emerald-50 text-emerald-700"
+                  }`}
               >
                 {plan.discount_percentage}% off
               </span>
@@ -1338,9 +1271,8 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
 
         <div className={`flex flex-wrap items-end gap-1.5 ${compareAtPrice || plan.discount_percentage ? "mt-1" : "mt-4"}`}>
           <span
-            className={`text-[2.75rem] font-bold leading-none tracking-tight ${
-              isFeatured ? "text-white" : "text-[#1a1d3a]"
-            }`}
+            className={`text-[2.75rem] font-bold leading-none tracking-tight ${isFeatured ? "text-white" : "text-[#1a1d3a]"
+              }`}
           >
             {price}
           </span>
@@ -1350,12 +1282,12 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
             </span>
           )}
           {gstText && (
-          <p className={`mb-1 text-sm font-medium ${isFeatured ? "text-white/60" : "text-[#606684]"}`}>
-            {gstText}
-          </p>
-        )}
+            <p className={`mb-1 text-sm font-medium ${isFeatured ? "text-white/60" : "text-[#606684]"}`}>
+              {gstText}
+            </p>
+          )}
         </div>
-        
+
 
         {/* {plan.description && (
           <p className={`mt-3 text-sm leading-6 ${isFeatured ? "text-white/65" : "text-[#6b6f8e]"}`}>
@@ -1370,9 +1302,8 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
         {features.map((feature) => (
           <div key={feature} className="flex items-start gap-3">
             <span
-              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
-                isFeatured ? "bg-white/15" : isFree ? "bg-[#eafaf4]" : "bg-[#f3e8ff]"
-              }`}
+              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${isFeatured ? "bg-white/15" : isFree ? "bg-[#eafaf4]" : "bg-[#f3e8ff]"
+                }`}
             >
               <Check
                 className={`size-3 ${isFeatured ? "text-white" : isFree ? "text-[#23a982]" : "text-[#7c3aed]"}`}
@@ -1388,13 +1319,12 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
 
       <a
         href={href}
-        className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold tracking-wide transition-all duration-200 ${
-          isFeatured
+        className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold tracking-wide transition-all duration-200 ${isFeatured
             ? "bg-white text-[#1c1435] shadow-lg shadow-black/20 hover:bg-[#f3e8ff]"
             : isFree
               ? "bg-[#23a982] text-white shadow-lg shadow-[#23a982]/25 hover:bg-[#1c8f6f]"
               : "bg-[#7c3aed] text-white shadow-lg shadow-[#7c3aed]/25 hover:bg-[#6d28d9]"
-        }`}
+          }`}
         suppressHydrationWarning
       >
         {plan.cta || "Get Started"}
@@ -1483,9 +1413,8 @@ function Testimonials() {
                 key={t.name}
                 onClick={() => scrollToIndex(i)}
                 aria-label={`Go to testimonial from ${t.name}`}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === activeIndex ? "w-8 bg-[#7c3aed]" : "w-1.5 bg-[#d9d5f5] hover:bg-[#b9aef0]"
-                }`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? "w-8 bg-[#7c3aed]" : "w-1.5 bg-[#d9d5f5] hover:bg-[#b9aef0]"
+                  }`}
               />
             ))}
           </div>
@@ -1702,92 +1631,4 @@ function FinalCta() {
   )
 }
 
-const footerColumns: { title: string; links: { label: string; href: string }[] }[] = [
-  {
-    title: "Product",
-    links: [
-      { label: "Features", href: "#features" },
-      { label: "Client CRM", href: "#solutions" },
-      { label: "WhatsApp Campaigns", href: "#pricing" },
-      { label: "Pricing", href: "#pricing" },
-      { label: "FAQ", href: "#faq" },
-    ],
-  },
-  {
-    title: "Get started",
-    links: [
-      { label: "Create free account", href: "/signup" },
-      { label: "Log in", href: "/login" },
-      { label: "Start free trial", href: "/signup" },
-    ],
-  },
-  {
-    title: "Support",
-    links: [
-      { label: "Contact us", href: "#cta" },
-      { label: "Help & support", href: "#cta" },
-    ],
-  },
-]
 
-function Footer() {
-  return (
-    <footer className="px-6 pb-8 sm:px-12 lg:px-20">
-      <div className="grid gap-12 border-t border-[#edf0fa] py-14 lg:grid-cols-[1.15fr_1.85fr] lg:gap-20">
-        <div data-reveal="slide-left">
-          <BrandLogo imageClassName="h-14" />
-          <p className="mt-6 max-w-sm leading-7 text-[#666a82]">
-            India&apos;s all-in-one business platform for beauty artists — bookings, client CRM,
-            portfolio, payments, and WhatsApp campaigns in one place.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2">
-            {["Made in India 🇮🇳", "₹ INR pricing", "GST invoicing"].map((chip) => (
-              <span
-                key={chip}
-                className="rounded-full border border-[#e8e4ff] bg-white px-3 py-1.5 text-xs font-semibold text-[#5a5f80]"
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-8 text-sm sm:grid-cols-3">
-          {footerColumns.map((column, i) => (
-            <div
-              key={column.title}
-              data-reveal="rise"
-              style={{ animationDelay: `${i * 90}ms` }}
-            >
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9096b5]">
-                {column.title}
-              </p>
-              <ul className="mt-5 space-y-3">
-                {column.links.map((link) => (
-                  <li key={link.label}>
-                    <a
-                      href={link.href}
-                      className="text-[#5d6078] transition-colors hover:text-[#7c3aed]"
-                      suppressHydrationWarning
-                    >
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#202344] px-6 py-5 text-xs text-white/70">
-        <span suppressHydrationWarning>
-          © {new Date().getFullYear()} ArtistOS (artistos.in). All rights reserved.
-        </span>
-        <span className="text-white/40">
-          Built in India for nail, mehendi, bridal & beauty artists.
-        </span>
-      </div>
-    </footer>
-  )
-}
