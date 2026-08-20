@@ -123,8 +123,10 @@ export const metadata: Metadata = {
   },
 
   icons: {
-    icon: "/icons/icon-192x192.png",
-    shortcut: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-192x192.png", type: "image/png", sizes: "192x192" },
+    ],
     apple: "/icons/icon-180x180.png",
   },
 
