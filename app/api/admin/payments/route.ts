@@ -12,7 +12,6 @@ export async function GET() {
         user_id,
         plan_name,
         base_amount,
-        gst_amount,
         amount,
         status,
         invoice_number,

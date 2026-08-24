@@ -19,7 +19,6 @@ type StoragePlan = {
 }
 
 type PlatformSettings = {
-  global_gst_rate?: string
   maintenance_mode?: string
 }
 

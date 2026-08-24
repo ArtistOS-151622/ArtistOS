@@ -5,7 +5,7 @@ import {
   buildPlatformSubscriptionDates,
   resolveCompletedPlatformPaymentDates,
   unixSecondsToIso,
-} from "../lib/platform-billing-dates.ts"
+} from "../lib/platform-billing-dates"
 
 const unix = (iso: string) => Date.parse(iso) / 1000
 

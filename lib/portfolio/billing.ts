@@ -33,27 +33,16 @@ export async function getActivePlans(supabase: SupabaseClient): Promise<StorageP
   return (data ?? []) as StoragePlanRow[]
 }
 
-export async function getGlobalGstRate(supabase: SupabaseClient): Promise<number> {
-  const { data } = await supabase
-    .from("platform_settings")
-    .select("value")
-    .eq("key", "global_gst_rate")
-    .maybeSingle()
-  
-  return data?.value ? parseFloat(data.value) : 0.18
-}
+
 
 export async function calculatePurchaseAmounts(
   supabase: SupabaseClient,
   priceInr: number,
-  quantity: number,
-  gstRateOverride?: number
+  quantity: number
 ) {
-  const gstRate = gstRateOverride ?? await getGlobalGstRate(supabase)
   const baseAmount = Math.round(priceInr * quantity * 100) / 100
-  const gstAmount = Math.round(baseAmount * gstRate * 100) / 100
-  const amount = Math.round((baseAmount + gstAmount) * 100) / 100
-  return { baseAmount, gstAmount, amount }
+  const amount = baseAmount
+  return { baseAmount, amount }
 }
 
 export async function computeMinimumQuantity(
@@ -111,7 +100,7 @@ export async function createStoragePurchase(
   )
 
   const storageBytes = plan.storage_bytes * finalQuantity
-  const { baseAmount, gstAmount, amount } = await calculatePurchaseAmounts(
+  const { baseAmount, amount } = await calculatePurchaseAmounts(
     supabase,
     Number(plan.price_inr),
     finalQuantity
@@ -123,7 +112,6 @@ export async function createStoragePurchase(
       user_id: userId,
       storage_bytes: storageBytes,
       base_amount: baseAmount,
-      gst_amount: gstAmount,
       amount,
       quantity: finalQuantity,
       plan_id: plan.id,

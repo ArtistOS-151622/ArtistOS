@@ -116,7 +116,7 @@ Copy into `.env` (gitignored). Everything except the push block already existed.
 | `JWT_SECRET` / `AUTH_SECRET` | Signs the custom `artist_session` token |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | Portfolio file storage |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_WEBHOOK_SECRET` | Storage plan payments |
-| `STORAGE_*` | Free tier size, share expiry, GST rate, max upload size |
+| `STORAGE_*` | Free tier size, share expiry, max upload size |
 | `CRON_SECRET` | Bearer token guarding every `/api/cron/**` route |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` | Web push |
 | `BOOKING_REMINDER_MINUTES_BEFORE` | How far ahead of a booking to remind (default 60) |

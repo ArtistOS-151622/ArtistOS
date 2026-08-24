@@ -39,7 +39,6 @@ export default function PortfolioPage() {
   const folders: PortfolioFolderWithStats[] = foldersJson?.status ? foldersJson.data.folders : [];
   const quota: QuotaInfo | null = storageJson?.status ? storageJson.data.quota : null;
   const plans: StoragePlanRow[] = storageJson?.status ? (storageJson.data.plans ?? []) : [];
-  const gstRate: number = storageJson?.status && storageJson.data.gstRate !== undefined ? storageJson.data.gstRate : 0.18;
   const loading = isLoadingFolders || isLoadingStorage;
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [storageDrawerOpen, setStorageDrawerOpen] = useState(false);
@@ -451,8 +450,7 @@ export default function PortfolioPage() {
       <StoragePlansModal
         open={plansOpen}
         onClose={() => setPlansOpen(false)}
-        plans={plans}
-        gstRate={gstRate}
+        plans={storageJson?.data?.plans ?? []}
         onSuccess={() => { void mutateFolders(); void mutateStorage(); }}
       />
     </>

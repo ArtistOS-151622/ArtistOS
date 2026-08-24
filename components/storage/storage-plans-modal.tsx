@@ -27,7 +27,6 @@ type StoragePlansModalProps = {
   open: boolean
   onClose: () => void
   plans: StoragePlanRow[]
-  gstRate?: number
   onSuccess?: () => void
 }
 
@@ -35,7 +34,6 @@ export function StoragePlansModal({
   open,
   onClose,
   plans,
-  gstRate = 0.18,
   onSuccess,
 }: StoragePlansModalProps) {
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
@@ -45,9 +43,7 @@ export function StoragePlansModal({
 
   const effectiveSelectedPlanId = selectedPlanId ?? plans[0]?.id ?? null
   const selectedPlan = plans.find((p) => p.id === effectiveSelectedPlanId)
-  const baseAmount = selectedPlan ? Number(selectedPlan.price_inr) * quantity : 0
-  const gstAmount = Math.round(baseAmount * gstRate * 100) / 100
-  const totalAmount = Math.round((baseAmount + gstAmount) * 100) / 100
+  const amount = selectedPlan ? Number(selectedPlan.price_inr) * quantity : 0
 
   async function loadRazorpayScript() {
     if (window.Razorpay) return
@@ -174,7 +170,7 @@ export function StoragePlansModal({
       icon={<HardDrive className="size-5" />}
       onClose={onClose}
       title="Upgrade Storage"
-      description={`Choose a one-time storage plan. GST (${gstRate * 100}%) applies.`}
+      description="Choose a one-time storage plan."
       footer={
         <Button
           className="w-full h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10"
@@ -205,15 +201,13 @@ export function StoragePlansModal({
               }`}
             >
               <div className="font-semibold text-slate-800">{plan.name.replace(' / month', '')}</div>
-              <div className="text-sm text-slate-500">₹{plan.price_inr} + GST</div>
+              <div className="text-sm text-slate-500">₹{plan.price_inr}</div>
             </button>
           ))}
         </div>
 
         <div className="rounded-2xl border border-slate-100 p-4 text-sm space-y-1">
-          <div className="flex justify-between"><span>Base</span><span>₹{baseAmount.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span>GST ({gstRate * 100}%)</span><span>₹{gstAmount.toFixed(2)}</span></div>
-          <div className="flex justify-between font-semibold pt-2 border-t border-slate-100"><span>Total</span><span>₹{totalAmount.toFixed(2)}</span></div>
+          <div className="flex justify-between font-medium"><span>Total</span><span>₹{amount.toFixed(2)}</span></div>
         </div>
       </div>
     </AppModal>

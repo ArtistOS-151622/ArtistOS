@@ -51,12 +51,10 @@ export async function createPlatformPurchase(
   }
 
   // 2. Calculate amounts
-  const planGstRate = plan.gst_percentage == null ? undefined : Number(plan.gst_percentage) / 100
-  const { baseAmount, gstAmount, amount } = await calculatePurchaseAmounts(
+  const { baseAmount, amount } = await calculatePurchaseAmounts(
     supabase,
     Number(plan.amount_inr),
-    1, // quantity is always 1 for platform subscriptions
-    planGstRate
+    1 // quantity is always 1 for platform subscriptions
   )
 
   // 3. Create a pending or completed payment record
@@ -67,7 +65,6 @@ export async function createPlatformPurchase(
       plan_id: plan.id,
       plan_name: plan.name,
       base_amount: baseAmount,
-      gst_amount: gstAmount,
       amount,
       status: amount === 0 ? "completed" : "pending",
     })
@@ -492,7 +489,6 @@ export async function processPlatformRenewal(
       plan_id: plan.id,
       plan_name: originalPayment.plan_name,
       base_amount: originalPayment.base_amount,
-      gst_amount: originalPayment.gst_amount,
       amount: originalPayment.amount,
       status: "completed",
       rp_payment_id: paymentMeta.rp_payment_id,

@@ -16,7 +16,6 @@ export type PlatformSubscription = {
   amount_inr: number
   compare_at_amount_inr?: number | null
   discount_percentage?: number | null
-  gst_percentage?: number | null
   billing_period: string
   features: string[]
   is_active: boolean
@@ -43,7 +42,6 @@ export function PlatformSubscriptionsTab() {
       amount_inr: 0,
       compare_at_amount_inr: null,
       discount_percentage: null,
-      gst_percentage: 18,
       billing_period: "/month",
       features: ["One Month Free to Use", "Client CRM", "Portfolio gallery", "Booking calendar"],
       is_active: true,
@@ -237,8 +235,7 @@ export function PlatformSubscriptionsTab() {
                       {plan.compare_at_amount_inr ? (
                         <span className="mr-2 text-slate-400 line-through">₹{plan.compare_at_amount_inr}</span>
                       ) : null}
-                      {plan.amount_inr === 0 ? "Custom Price" : `₹${plan.amount_inr}`}
-                      {!isFreeTier && plan.gst_percentage ? ` + ${plan.gst_percentage}% GST` : ""} {periodText}
+                      {plan.amount_inr === 0 ? "Custom Price" : `₹${plan.amount_inr}`} {periodText}
                       {plan.discount_percentage ? (
                         <span className="ml-2 text-emerald-600">{plan.discount_percentage}% off</span>
                       ) : null}
@@ -364,15 +361,7 @@ export function PlatformSubscriptionsTab() {
                       discount_percentage: e.target.value === "" ? null : Number(e.target.value),
                     })}
                   />
-                  <FloatingInput 
-                    label="GST (%)" 
-                    type="number"
-                    value={editingPlan.gst_percentage ?? 18}
-                    onChange={(e) => setEditingPlan({
-                      ...editingPlan,
-                      gst_percentage: e.target.value === "" ? null : Number(e.target.value),
-                    })}
-                  />
+
 
                   <FloatingInput 
                     label="Display Order (Lowest First)" 

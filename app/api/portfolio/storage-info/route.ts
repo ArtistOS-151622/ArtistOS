@@ -1,7 +1,7 @@
 import { type NextRequest } from "next/server"
 
 import { getArtistSession } from "@/lib/auth/session"
-import { getActivePlans, getGlobalGstRate } from "@/lib/portfolio/billing"
+import { getActivePlans } from "@/lib/portfolio/billing"
 import { getOrCreateQuota, QuotaService } from "@/lib/portfolio/quota"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
 import { createClient } from "@/lib/supabase/server"
@@ -24,12 +24,9 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(10)
 
-    const gstRate = await getGlobalGstRate(supabase)
-
     return portfolioSuccess("Storage info loaded", {
       quota: quota.getQuotaInfo(),
       plans,
-      gstRate,
       purchases: subscriptions ?? [],
     })
   } catch (err) {

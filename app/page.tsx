@@ -172,7 +172,6 @@ type PricingPlan = {
   amount_inr?: number
   compare_at_amount_inr?: number | null
   discount_percentage?: number | null
-  gst_percentage?: number | null
   billing_period?: string
   description: string
   features: string[]
@@ -212,8 +211,7 @@ const pricingPlans: PricingPlan[] = [
     price: "₹249",
     compare_at_amount_inr: 500,
     discount_percentage: 50,
-    gst_percentage: 18,
-    period: "/month",
+    billing_period: "monthly",
     description: "Best for solo artists who want to organize bookings and payments.",
     features: [
       "Booking Calendar & Scheduling",
@@ -231,8 +229,7 @@ const pricingPlans: PricingPlan[] = [
     price: "₹2799",
     compare_at_amount_inr: 5000,
     discount_percentage: 44,
-    gst_percentage: 18,
-    period: "/year",
+    billing_period: "yearly",
     description: "Save more with a full year of business management tools.",
     features: [
       "All Monthly Features",
@@ -918,25 +915,12 @@ function BusinessSection() {
         </div>
       </div>
 
-      {/* <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {businessStats.map((stat) => (
-          <div
-            key={stat.value}
-            className="animate-fade-up rounded-2xl border border-[#edf0fa] bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#aeb5d2]/15"
-          >
-            <p className="text-2xl font-semibold text-[#7c3aed]">{stat.value}</p>
-            <p className="mt-2 text-sm leading-6 text-[#656982]">{stat.label}</p>
-          </div>
-        ))}
-      </div> */}
-
       <div data-reveal="rise" className="mt-10 flex flex-col items-center gap-6 text-center">
         <div className="flex flex-wrap justify-center gap-x-8 gap-y-3">
           {["See every client's full booking & payment history", "Know exactly who owes what, at a glance", "Never miss a repeat-booking follow-up"].map((item) => (
             <CheckItem key={item} text={item} />
           ))}
         </div>
-        {/* <PrimaryButton href="#cta">Try for Free</PrimaryButton> */}
       </div>
     </section>
   )
@@ -1206,7 +1190,6 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
 
   const price = plan.amount_inr !== undefined ? `\u20b9${plan.amount_inr}` : plan.price ?? ""
   const compareAtPrice = plan.compare_at_amount_inr ? `\u20b9${plan.compare_at_amount_inr}` : null
-  const gstText = !isFree && plan.gst_percentage ? `+ ${plan.gst_percentage}% GST` : ""
   const periodText = plan.billing_period || plan.period
 
   const features = plan.features ?? []
@@ -1281,11 +1264,7 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
               {periodText}
             </span>
           )}
-          {gstText && (
-            <p className={`mb-1 text-sm font-medium ${isFeatured ? "text-white/60" : "text-[#606684]"}`}>
-              {gstText}
-            </p>
-          )}
+
         </div>
 
 
@@ -1459,7 +1438,7 @@ function FaqSection() {
     },
     {
       q: "Is ArtistOS available in India?",
-      a: "Yes. ArtistOS (artistos.in) is made in India and built for Indian artists. It supports ₹ INR pricing, GST-inclusive invoicing, and is optimised for the Indian beauty and salon market.",
+      a: "Yes. ArtistOS (artistos.in) is made in India and built for Indian artists. It supports ₹ INR pricing, and is optimised for the Indian beauty and salon market.",
     },
   ]
 

@@ -18,7 +18,6 @@ type PurchaseHistory = {
   id: number
   storage_bytes: number
   base_amount: number
-  gst_amount: number
   amount: number
   rp_order_id: string | null
   rp_payment_id: string | null

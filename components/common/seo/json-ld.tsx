@@ -200,7 +200,7 @@ export function JsonLd() {
         name: "Is ArtistOS available in India?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. ArtistOS is made in India and available at artistos.in. It supports Indian Rupee (₹) pricing, GST-inclusive invoicing, and is built for the Indian artist market.",
+          text: "Yes. ArtistOS is made in India and available at artistos.in. It supports Indian Rupee (₹) pricing and is built for the Indian artist market.",
         },
       },
     ],

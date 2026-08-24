@@ -52,7 +52,7 @@ export function Footer({ disableAnimations = false }: { disableAnimations?: bool
             portfolio, payments, and WhatsApp campaigns in one place.
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
-            {["Made in India 🇮🇳", "₹ INR pricing", "GST invoicing"].map((chip) => (
+            {["Made in India 🇮🇳", "₹ INR pricing"].map((chip) => (
               <span
                 key={chip}
                 className="rounded-full border border-[#e8e4ff] bg-white px-3 py-1.5 text-xs font-semibold text-[#5a5f80]"

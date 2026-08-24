@@ -11,7 +11,7 @@ export async function GET() {
         id, artist_name, studio_name, phone, email,
         portfolio_storage_quotas (free_storage_bytes, purchase_storage_bytes, used_storage_bytes),
         portfolio_storage_purchases (
-          id, storage_bytes, base_amount, gst_amount, amount, status, created_at, payment_method, quantity,
+          id, storage_bytes, base_amount, amount, status, created_at, payment_method, quantity,
           rp_order_id, rp_payment_id, rp_subscription_id,
           storage_plans (name)
         )

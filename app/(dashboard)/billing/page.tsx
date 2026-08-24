@@ -71,7 +71,6 @@ type Plan = {
   amount_inr: number
   compare_at_amount_inr?: number | null
   discount_percentage?: number | null
-  gst_percentage?: number | null
   billing_period: string
   features: string[]
   is_featured: boolean
@@ -307,9 +306,6 @@ export default function BillingPage() {
                     ) : null}
                     <span className="text-4xl font-bold">₹{currentPlan.amount_inr}</span>
                   </div>
-                  {!isFreeTierPlan(currentPlan) && currentPlan.gst_percentage ? (
-                    <span className="text-white/70 text-sm mb-1">+ {currentPlan.gst_percentage}% GST</span>
-                  ) : null}
                   {isFreeTierPlan(currentPlan) ? (
                     <span className="text-white/60 text-sm mb-1">First Month</span>
                   ) : currentPlan.billing_period ? (
@@ -415,11 +411,6 @@ export default function BillingPage() {
                         <span className={`text-3xl font-bold leading-none ${isFeatured ? "text-white" : "text-slate-900"}`}>
                           ₹{plan.amount_inr}
                         </span>
-                        {!isFreeTier && plan.gst_percentage ? (
-                          <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/70" : "text-slate-500"}`}>
-                            + {plan.gst_percentage}% GST
-                          </span>
-                        ) : null}
                         {isFreeTier ? (
                           <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>First Month</span>
                         ) : plan.billing_period ? (

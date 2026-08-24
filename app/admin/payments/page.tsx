@@ -11,7 +11,6 @@ type PlatformPayment = {
   user_id: number
   plan_name: string
   base_amount: number
-  gst_amount: number
   amount: number
   status: string
   invoice_number: string | null
@@ -124,9 +123,6 @@ export default function AdminPaymentsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-semibold text-slate-900">₹{Number(p.amount).toLocaleString("en-IN")}</div>
-                      {p.gst_amount > 0 && (
-                        <div className="text-xs text-slate-400">incl. ₹{Number(p.gst_amount).toLocaleString("en-IN")} GST</div>
-                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 text-slate-500 text-xs">
