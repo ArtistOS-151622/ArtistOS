@@ -11,6 +11,7 @@ import {
   Phone,
   TrendingUp,
   UsersRound,
+  ArrowRight,
 } from "lucide-react";
 import {
   Bar,
@@ -131,6 +132,21 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <PageHeader title="Dashboard" />
+
+        {/* Banner Skeleton */}
+        <Card className="rounded-[1.75rem] border-slate-100 bg-white shadow-md shadow-purple-950/5 h-auto md:h-[156px] w-full">
+          <CardContent className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 h-full">
+            <div className="space-y-4 w-full max-w-[500px]">
+              <Skeleton className="h-9 w-3/4 rounded-xl bg-slate-100" />
+              <Skeleton className="h-6 w-full rounded-lg bg-slate-100" />
+              <div className="flex gap-3 pt-1">
+                <Skeleton className="h-6 w-24 rounded-md bg-slate-100" />
+                <Skeleton className="h-6 w-28 rounded-md bg-slate-100" />
+              </div>
+            </div>
+            <Skeleton className="h-12 w-full md:w-[230px] rounded-2xl bg-slate-100 shrink-0" />
+          </CardContent>
+        </Card>
 
         {/* Metric Cards Skeleton */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -487,9 +503,74 @@ export default function DashboardPage() {
       email: b.customer?.email || "",
     }));
 
+  // Today's bookings
+  const todayBookings = bookings.filter(
+    (b: any) =>
+      b.booking_date === todayStr &&
+      b.status !== "cancelled"
+  );
+  
+  const pendingToday = todayBookings.filter((b: any) => b.status === "pending").length;
+  const confirmedToday = todayBookings.filter((b: any) => b.status === "confirmed").length;
+  const completedToday = todayBookings.filter((b: any) => b.status === "completed").length;
+
+  const currentHour = now.getHours();
+  const greeting =
+    currentHour < 12
+      ? "Good morning"
+      : currentHour < 18
+        ? "Good afternoon"
+        : "Good evening";
+
   return (
     <>
       <PageHeader title="Dashboard" />
+
+      {/* Greeting and Today's Events Banner */}
+      <Card className="mb-5 rounded-[1.75rem] border-0 bg-gradient-to-br from-purple-600 via-indigo-600 to-indigo-700 text-white shadow-lg shadow-purple-950/10 relative overflow-hidden">
+        {/* Abstract background elements */}
+        <div className="absolute right-0 top-0 h-full w-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent opacity-60"></div>
+        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10 blur-3xl"></div>
+        <div className="absolute -bottom-16 right-32 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
+
+        <CardContent className="p-6 md:p-8 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              {greeting}, {profile?.artist_name?.split(" ")[0] || "Artist"}! <span className="animate-wave origin-bottom-right inline-block">👋</span>
+            </h2>
+            <p className="text-purple-100 text-lg">
+              You have <strong className="text-white font-semibold text-xl mx-1">{todayBookings.length}</strong> {todayBookings.length === 1 ? 'appointment' : 'appointments'} scheduled for today.
+            </p>
+            {todayBookings.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                {pendingToday > 0 && (
+                  <Badge variant="secondary" className="bg-amber-500/20 text-amber-100 border border-amber-500/30 hover:bg-amber-500/30 font-medium">
+                    {pendingToday} Pending
+                  </Badge>
+                )}
+                {confirmedToday > 0 && (
+                  <Badge variant="secondary" className="bg-sky-500/20 text-sky-100 border border-sky-500/30 hover:bg-sky-500/30 font-medium">
+                    {confirmedToday} Confirmed
+                  </Badge>
+                )}
+                {completedToday > 0 && (
+                  <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-100 border border-emerald-500/30 hover:bg-emerald-500/30 font-medium">
+                    {completedToday} Completed
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <Link href={`/bookings?date=${todayStr}`}>
+            <Button className="h-12 rounded-2xl bg-white text-[#6d28d9] hover:bg-slate-50 font-semibold px-6 shadow-md shadow-black/5 hover:scale-105 transition-all duration-300 w-full md:w-auto flex items-center gap-2">
+              View Today's Bookings
+              <ArrowRight className="size-4" />
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric, index) => (
           <Card

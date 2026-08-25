@@ -347,7 +347,9 @@ export function BookingDateFilter({ selectedDate, status = "all", onChange }: Bo
 }
 
 function parseSelectedDate(value: string) {
-  return value ? new Date(`${value}T00:00:00`) : startOfToday()
+  if (!value) return startOfToday()
+  const date = new Date(`${value}T00:00:00`)
+  return isNaN(date.getTime()) ? startOfToday() : date
 }
 
 function bookingsCountLabel(count: number) {
