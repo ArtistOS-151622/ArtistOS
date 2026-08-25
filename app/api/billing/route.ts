@@ -30,16 +30,54 @@ export async function GET(request: NextRequest) {
   try {
     const userId = session.id
 
-    // Get user's active/pending/halted/cancelled subscription (if any)
-    const { data: subscriptionRow } = await supabase
-      .from("user_subscriptions")
-      .select("*, platform_subscriptions(*)")
-      .eq("user_id", userId)
-      .in("status", ["active", "pending", "halted", "cancelled"])
-      .order("created_at", { ascending: false, nullsFirst: true })
-      .limit(1)
-      .maybeSingle()
-    const endDateStr = subscriptionRow?.next_billing_at
+    // Check if test user
+    const { data: user } = await supabase
+      .from("users")
+      .select("is_test_user")
+      .eq("id", userId)
+      .single()
+
+    const isTestUser = user?.is_test_user || false
+
+    let subscriptionRow = null;
+    let endDateStr = null;
+
+    if (isTestUser) {
+      // Mock subscription for test user
+      subscriptionRow = {
+        id: -1,
+        status: "active",
+        current_period_end: null,
+        next_billing_at: null,
+        platform_subscriptions: {
+          id: -1,
+          name: "ArtistOS Lifetime (Test)",
+          description: "Complimentary platform access for test accounts.",
+          amount_inr: 0,
+          compare_at_amount_inr: null,
+          discount_percentage: null,
+          billing_period: "",
+          features: ["Unlimited Platform Access", "Test Account Privileges"],
+          is_featured: true,
+          is_active: true
+        }
+      }
+      endDateStr = subscriptionRow.next_billing_at
+    } else {
+      // Get user's active/pending/halted/cancelled subscription (if any)
+      const { data: realSubscriptionRow } = await supabase
+        .from("user_subscriptions")
+        .select("*, platform_subscriptions(*)")
+        .eq("user_id", userId)
+        .in("status", ["active", "pending", "halted", "cancelled"])
+        .order("created_at", { ascending: false, nullsFirst: true })
+        .limit(1)
+        .maybeSingle()
+      
+      subscriptionRow = realSubscriptionRow;
+      endDateStr = subscriptionRow?.next_billing_at
+    }
+
     const subscription =
       subscriptionRow &&
       (subscriptionRow.status === "pending" || subscriptionRow.status === "halted" || !endDateStr || new Date(endDateStr) > new Date())
