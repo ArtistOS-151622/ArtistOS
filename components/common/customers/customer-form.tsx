@@ -1,10 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Mail, MapPin, Phone, User, Users } from "lucide-react";
 
 import type { CustomerFormValues } from "@/components/common/customers/customer-types";
 import { FloatingInput } from "@/components/common/shared/floating-input";
-import { Button } from "@/components/ui/button";
 
 type CustomerFormProps = {
   values: CustomerFormValues;
@@ -25,17 +25,35 @@ export function CustomerForm({
   onCancel,
   formId = "customer-form",
 }: CustomerFormProps) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const set = <K extends keyof CustomerFormValues>(
     key: K,
     val: CustomerFormValues[K],
-  ) => onChange({ ...values, [key]: val });
+  ) => {
+    if (errors[key]) {
+      setErrors((prev) => ({ ...prev, [key]: "" }));
+    }
+    onChange({ ...values, [key]: val });
+  };
 
   return (
     <form
       id={formId}
+      noValidate
       className="grid gap-4 md:grid-cols-2"
       onSubmit={(e) => {
         e.preventDefault();
+        const newErrors: Record<string, string> = {};
+        if (!values.customer_name?.trim()) newErrors.customer_name = "Please fill out this field.";
+        if (!values.phone?.trim()) newErrors.phone = "Please fill out this field.";
+        if (!values.email?.trim()) newErrors.email = "Please fill out this field.";
+        if (!values.address?.trim()) newErrors.address = "Please fill out this field.";
+
+        if (Object.keys(newErrors).length > 0) {
+          setErrors(newErrors);
+          return;
+        }
         onSubmit();
       }}
     >
@@ -48,6 +66,7 @@ export function CustomerForm({
         containerClassName="md:col-span-2"
         disabled={loading}
         maxLength={50}
+        error={errors.customer_name}
         required
       />
 
@@ -66,6 +85,7 @@ export function CustomerForm({
           if (!allowed.includes(e.key) && !/^\d$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault()
         }}
         disabled={loading}
+        error={errors.phone}
         required
       />
 
@@ -84,6 +104,7 @@ export function CustomerForm({
           if (!allowed.includes(e.key) && !/^\d$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault()
         }}
         disabled={loading}
+        error={errors.alt_phone}
       />
 
       <FloatingInput
@@ -95,6 +116,7 @@ export function CustomerForm({
         onChange={(e) => set("email", e.target.value)}
         containerClassName="md:col-span-2"
         disabled={loading}
+        error={errors.email}
         required
       />
 
@@ -107,6 +129,7 @@ export function CustomerForm({
         maxLength={200}
         containerClassName="md:col-span-2"
         disabled={loading}
+        error={errors.address}
         required
       />
 

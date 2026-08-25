@@ -44,6 +44,7 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState("")
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [step, setStep] = useState<"details" | "services">("details")
 
   useEffect(() => {
@@ -86,6 +87,7 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
     key: K,
     value: PublicInquiryFormValues[K],
   ) {
+    if (formErrors[key]) setFormErrors((prev) => ({ ...prev, [key]: "" }))
     setValues((current) => ({ ...current, [key]: value }))
   }
 
@@ -102,9 +104,19 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
   function goToServices() {
     setError("")
 
-    if (!canContinueDetails) {
+    const newErrors: Record<string, string> = {};
+    if (!values.customer_name.trim()) newErrors.customer_name = "Please fill out this field.";
+    if (!values.phone.trim()) newErrors.phone = "Please fill out this field.";
+    if (!values.email.trim()) newErrors.email = "Please fill out this field.";
+    if (!values.address.trim()) newErrors.address = "Please fill out this field.";
+    if (!values.booking_date) newErrors.booking_date = "Please fill out this field.";
+    if (!values.start_time) newErrors.start_time = "Please fill out this field.";
+    if (!values.end_time) newErrors.end_time = "Please fill out this field.";
+
+    if (Object.keys(newErrors).length > 0) {
+      setFormErrors(newErrors);
       setError("Please complete your name, phone, email, address, date, and time.")
-      return
+      return;
     }
 
     setStep("services")
@@ -236,7 +248,7 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
           </div>
         </section>
 
-        <form onSubmit={submitInquiry} className="mt-5">
+        <form onSubmit={submitInquiry} className="mt-5" noValidate>
           {step === "details" ? (
             <div className="mx-auto max-w-3xl space-y-5">
               <Card className="rounded-xl border-white bg-white shadow-lg shadow-slate-950/6">
@@ -251,16 +263,21 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                       icon={<UserRound className="size-4" />}
                       value={values.customer_name}
                       maxLength={50}
+                      error={formErrors.customer_name}
+                      required
                       onChange={(event) => updateValue("customer_name", event.target.value.slice(0, 50))}
                     />
                     <FloatingPhoneInput
                       label="Phone number"
                       value={values.phone}
+                      error={formErrors.phone}
+                      required
                       onChange={(event) => updateValue("phone", event.target.value)}
                     />
                     <FloatingPhoneInput
                       label="Alternate phone"
                       value={values.alt_phone}
+                      error={formErrors.alt_phone}
                       onChange={(event) => updateValue("alt_phone", event.target.value)}
                     />
                     <FloatingInput
@@ -268,6 +285,8 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                       label="Email"
                       icon={<Mail className="size-4" />}
                       value={values.email}
+                      error={formErrors.email}
+                      required
                       onChange={(event) => updateValue("email", event.target.value)}
                     />
                   </div>
@@ -277,6 +296,8 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                     value={values.address}
                     rows={3}
                     maxLength={200}
+                    error={formErrors.address}
+                    required
                     onChange={(event) => updateValue("address", event.target.value.slice(0, 200))}
                   />
                 </CardContent>
@@ -289,21 +310,30 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                     <p className="mt-1 text-sm text-slate-500">Choose your preferred date, start time, and end time.</p>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-3">
-                    <DatePicker
-                      label="Booking date"
-                      value={values.booking_date}
-                      onChange={(value) => updateValue("booking_date", value)}
-                    />
-                    <TimePicker
-                      label="Start time"
-                      value={values.start_time}
-                      onChange={(value) => updateValue("start_time", value)}
-                    />
-                    <TimePicker
-                      label="End time"
-                      value={values.end_time}
-                      onChange={(value) => updateValue("end_time", value)}
-                    />
+                    <div>
+                      <DatePicker
+                        label="Booking date"
+                        value={values.booking_date}
+                        onChange={(value) => updateValue("booking_date", value)}
+                      />
+                      {formErrors.booking_date && <p className="mt-1.5 text-xs text-red-500 pl-1">{formErrors.booking_date}</p>}
+                    </div>
+                    <div>
+                      <TimePicker
+                        label="Start time"
+                        value={values.start_time}
+                        onChange={(value) => updateValue("start_time", value)}
+                      />
+                      {formErrors.start_time && <p className="mt-1.5 text-xs text-red-500 pl-1">{formErrors.start_time}</p>}
+                    </div>
+                    <div>
+                      <TimePicker
+                        label="End time"
+                        value={values.end_time}
+                        onChange={(value) => updateValue("end_time", value)}
+                      />
+                      {formErrors.end_time && <p className="mt-1.5 text-xs text-red-500 pl-1">{formErrors.end_time}</p>}
+                    </div>
                   </div>
                   <FloatingTextarea
                     label="Additional request"
@@ -324,7 +354,6 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
               <div className="flex justify-end">
                 <Button
                   type="button"
-                  disabled={!canContinueDetails}
                   onClick={goToServices}
                   className="h-12 w-full rounded-xl bg-[#7c3aed] text-sm font-bold text-white hover:bg-[#6d28d9] sm:w-auto sm:px-6"
                 >
@@ -451,7 +480,7 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={submitting || !canSubmit}
+                  disabled={submitting}
                   className="h-12 w-full rounded-xl bg-[#7c3aed] text-sm font-bold text-white hover:bg-[#6d28d9]"
                 >
                   {submitting ? "Submitting..." : "Submit inquiry"}

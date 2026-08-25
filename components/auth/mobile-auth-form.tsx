@@ -25,6 +25,7 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState("")
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
 
   // Form states
@@ -47,21 +48,31 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
 
   function handlePhoneChange(value: string) {
     setError("")
+    if (formErrors.phone) setFormErrors((prev) => ({ ...prev, phone: "" }))
     setPhone(value.replace(/\D/g, "").slice(0, 10))
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
+    setFormErrors({})
     setLoading(true)
 
     try {
       if (isSignup) {
-        if (!artistName || !studioName || !address || !phone || !password) {
-          setError("Please fill out all required fields.")
+        const newErrors: Record<string, string> = {}
+        if (!artistName.trim()) newErrors.artistName = "Please fill out this field."
+        if (!studioName.trim()) newErrors.studioName = "Please fill out this field."
+        if (!address.trim()) newErrors.address = "Please fill out this field."
+        if (!phone.trim()) newErrors.phone = "Please fill out this field."
+        if (!password) newErrors.password = "Please fill out this field."
+
+        if (Object.keys(newErrors).length > 0) {
+          setFormErrors(newErrors)
           setLoading(false)
           return
         }
+
         if (phone.length !== 10) {
           setError("Please enter a valid 10-digit mobile number.")
           setLoading(false)
@@ -95,11 +106,16 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
           return
         }
       } else {
-        if (!phone || !password) {
-          setError("Please enter both phone number and password.")
+        const newErrors: Record<string, string> = {}
+        if (!phone.trim()) newErrors.phone = "Please fill out this field."
+        if (!password) newErrors.password = "Please fill out this field."
+
+        if (Object.keys(newErrors).length > 0) {
+          setFormErrors(newErrors)
           setLoading(false)
           return
         }
+
         if (phone.length !== 10) {
           setError("Please enter a valid 10-digit mobile number.")
           setLoading(false)
@@ -193,7 +209,7 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
             </CardHeader>
 
             <CardContent className="px-6 pb-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                 {isSignup ? (
                   <>
                     <FloatingInput
@@ -203,8 +219,12 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
                       type="text"
                       required
                       disabled={loading}
+                      error={formErrors.artistName}
                       value={artistName}
-                      onChange={(e) => setArtistName(e.target.value)}
+                      onChange={(e) => {
+                        if (formErrors.artistName) setFormErrors((prev) => ({ ...prev, artistName: "" }))
+                        setArtistName(e.target.value)
+                      }}
                     />
 
                     <FloatingInput
@@ -214,8 +234,12 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
                       type="text"
                       required
                       disabled={loading}
+                      error={formErrors.studioName}
                       value={studioName}
-                      onChange={(e) => setStudioName(e.target.value)}
+                      onChange={(e) => {
+                        if (formErrors.studioName) setFormErrors((prev) => ({ ...prev, studioName: "" }))
+                        setStudioName(e.target.value)
+                      }}
                     />
 
                     <FloatingInput
@@ -226,8 +250,12 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
                       required
                       disabled={loading}
                       maxLength={200}
+                      error={formErrors.address}
                       value={address}
-                      onChange={(e) => setAddress(e.target.value.slice(0, 200))}
+                      onChange={(e) => {
+                        if (formErrors.address) setFormErrors((prev) => ({ ...prev, address: "" }))
+                        setAddress(e.target.value.slice(0, 200))
+                      }}
                     />
 
                     <FloatingInput
@@ -274,6 +302,7 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
                     label="Phone number *"
                     required
                     disabled={loading}
+                    error={formErrors.phone}
                     value={phone}
                     onChange={(e) => handlePhoneChange(e.target.value)}
                   />
@@ -287,8 +316,12 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
                   type="password"
                   required
                   disabled={loading}
+                  error={formErrors.password}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    if (formErrors.password) setFormErrors((prev) => ({ ...prev, password: "" }))
+                    setPassword(e.target.value)
+                  }}
                 />
 
                 {error ? (

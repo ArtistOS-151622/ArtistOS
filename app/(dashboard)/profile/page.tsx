@@ -60,6 +60,7 @@ export default function ProfilePage() {
   const [canInstall, setCanInstall] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
   const [logoUploading, setLogoUploading] = useState(false)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const logoInputRef = useRef<HTMLInputElement>(null)
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -160,6 +161,18 @@ export default function ProfilePage() {
     setSaving(true)
     setError("")
     setSuccess("")
+    setFormErrors({})
+
+    const newErrors: Record<string, string> = {}
+    if (!profile.artist_name?.trim()) newErrors.artist_name = "Please fill out this field."
+    if (!profile.studio_name?.trim()) newErrors.studio_name = "Please fill out this field."
+    if (!profile.address?.trim()) newErrors.address = "Please fill out this field."
+
+    if (Object.keys(newErrors).length > 0) {
+      setFormErrors(newErrors)
+      setSaving(false)
+      return
+    }
 
     try {
       const res = await fetch("/api/profile", {
@@ -389,14 +402,18 @@ export default function ProfilePage() {
               </div>
             )}
 
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4" noValidate>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <FloatingInput
                   id="artist_name"
                   label="Artist Name"
                   icon={<User className="size-4" />}
                   value={profile?.artist_name || ""}
-                  onChange={(e) => setProfile(prev => prev ? { ...prev, artist_name: e.target.value } : null)}
+                  error={formErrors.artist_name}
+                  onChange={(e) => {
+                    if (formErrors.artist_name) setFormErrors((prev) => ({ ...prev, artist_name: "" }))
+                    setProfile(prev => prev ? { ...prev, artist_name: e.target.value } : null)
+                  }}
                   maxLength={50}
                   required
                 />
@@ -405,7 +422,11 @@ export default function ProfilePage() {
                   label="Studio Name"
                   icon={<Building2 className="size-4" />}
                   value={profile?.studio_name || ""}
-                  onChange={(e) => setProfile(prev => prev ? { ...prev, studio_name: e.target.value } : null)}
+                  error={formErrors.studio_name}
+                  onChange={(e) => {
+                    if (formErrors.studio_name) setFormErrors((prev) => ({ ...prev, studio_name: "" }))
+                    setProfile(prev => prev ? { ...prev, studio_name: e.target.value } : null)
+                  }}
                   maxLength={50}
                   required
                 />
@@ -429,7 +450,11 @@ export default function ProfilePage() {
                   label="Studio / Default Booking Address"
                   icon={<MapPin className="size-4" />}
                   value={profile?.address || ""}
-                  onChange={(e) => setProfile(prev => prev ? { ...prev, address: e.target.value.slice(0, 200) } : null)}
+                  error={formErrors.address}
+                  onChange={(e) => {
+                    if (formErrors.address) setFormErrors((prev) => ({ ...prev, address: "" }))
+                    setProfile(prev => prev ? { ...prev, address: e.target.value.slice(0, 200) } : null)
+                  }}
                   maxLength={200}
                   containerClassName="sm:col-span-2"
                   className="min-h-20"
@@ -440,7 +465,7 @@ export default function ProfilePage() {
               <div className="flex justify-end pt-1">
                 <Button
                   type="submit"
-                  disabled={saving || !profile?.artist_name || !profile?.studio_name || !profile?.address}
+                  disabled={saving}
                   className="h-10 rounded-xl bg-[#7c3aed] text-white px-7 shadow-md shadow-purple-950/15 hover:bg-[#6d28d9] transition-all"
                 >
                   {saving ? (

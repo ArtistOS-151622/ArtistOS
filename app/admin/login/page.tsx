@@ -15,6 +15,7 @@ import { ShieldAlert, Loader2 } from "lucide-react"
 export default function AdminLogin() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -22,6 +23,13 @@ export default function AdminLogin() {
     e.preventDefault()
     setLoading(true)
     setError("")
+    setFormErrors({})
+
+    if (!password) {
+      setFormErrors({ password: "Please fill out this field." })
+      setLoading(false)
+      return
+    }
 
     try {
       const res = await fetch("/api/admin/login", {
@@ -58,13 +66,17 @@ export default function AdminLogin() {
           </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-6" noValidate>
           <FloatingInput
             id="password"
             label="Password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            error={formErrors.password}
+            onChange={(e) => {
+              if (formErrors.password) setFormErrors({})
+              setPassword(e.target.value)
+            }}
             required
           />
 

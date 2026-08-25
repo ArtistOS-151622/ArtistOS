@@ -69,6 +69,7 @@ export function BookingForm({
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Autocomplete / Select Dropdown state
   const [isFocused, setIsFocused] = useState(false);
@@ -195,6 +196,9 @@ export function BookingForm({
   // Select customer callback
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
+    if (errors.customer_id) {
+      setErrors((prev) => ({ ...prev, customer_id: "" }));
+    }
     onChange({
       ...values,
       customer_id: String(customer.id),
@@ -325,55 +329,70 @@ export function BookingForm({
     <div className="relative">
       <form
         id={formId}
+        noValidate
         className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
+          const newErrors: Record<string, string> = {};
+          if (!values.customer_id) newErrors.customer_id = "Please fill out this field.";
+          if (!values.booking_address?.trim()) newErrors.booking_address = "Please fill out this field.";
+          if (!values.booking_date) newErrors.booking_date = "Please fill out this field.";
+          if (!values.start_time) newErrors.start_time = "Please fill out this field.";
+          if (!values.end_time) newErrors.end_time = "Please fill out this field.";
+
+          if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return;
+          }
           onSubmit();
         }}
       >
         {/* Customer select field with dropdown search & quick-add */}
         <div className="flex gap-2">
-          <div ref={customerContainerRef} className="relative flex-1 group">
-            <input
-              type="text"
-              id="customer_id"
-              disabled={loading}
-              value={
-                isFocused
-                  ? dropdownSearch
-                  : selectedCustomer
-                    ? `${selectedCustomer.phone} - ${selectedCustomer.customer_name}`
-                    : ""
-              }
-              onChange={(e) => {
-                setDropdownSearch(e.target.value);
-                if (!isFocused) setIsFocused(true);
-              }}
-              onFocus={() => {
-                setIsFocused(true);
-                setDropdownSearch("");
-              }}
-              placeholder={isFocused ? "Search or select customer by name/phone..." : ""}
-              className="peer flex h-[46px] w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-[#15172e] shadow-sm shadow-slate-200/40 outline-none transition-all focus:border-[#7c3aed] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.10)] disabled:opacity-50 placeholder:text-slate-400 pr-10"
-              autoComplete="off"
-              spellCheck={false}
-              required
-            />
-            <label
-              htmlFor="customer_id"
-              className={cn(
-                "pointer-events-none absolute select-none text-slate-400 bg-white px-1",
-                "transition-all duration-200 ease-out",
-                (isFocused || dropdownSearch || selectedCustomer)
-                  ? "top-0 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 peer-focus:text-[#7c3aed]"
-                  : "top-1/2 -translate-y-1/2 text-sm",
-                "left-3"
-              )}
-            >
-              Select Customer
-            </label>
-            <User className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400 pointer-events-none transition-colors peer-focus:text-[#7c3aed]" />
-
+          <div ref={customerContainerRef} className="flex-1 group">
+            <div className="relative w-full">
+              <input
+                type="text"
+                id="customer_id"
+                disabled={loading}
+                value={
+                  selectedCustomer
+                    ? `${selectedCustomer.customer_name} (${selectedCustomer.phone})`
+                    : dropdownSearch
+                }
+                onChange={(e) => {
+                  setDropdownSearch(e.target.value);
+                  if (errors.customer_id) setErrors((prev) => ({ ...prev, customer_id: "" }));
+                  if (!isFocused) setIsFocused(true);
+                }}
+                onFocus={() => {
+                  setIsFocused(true);
+                  setDropdownSearch("");
+                }}
+                placeholder={isFocused ? "Search or select customer by name/phone..." : ""}
+                className={cn(
+                  "peer flex h-[46px] w-full rounded-lg border bg-white px-4 text-sm text-[#15172e] shadow-sm shadow-slate-200/40 outline-none transition-all focus:border-[#7c3aed] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.10)] disabled:opacity-50 placeholder:text-slate-400 pr-10",
+                  errors.customer_id ? "border-red-400 focus:border-red-500 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.10)]" : "border-slate-200"
+                )}
+                autoComplete="off"
+                spellCheck={false}
+                required
+              />
+              <label
+                htmlFor="customer_id"
+                className={cn(
+                  "pointer-events-none absolute select-none text-slate-400 bg-white px-1",
+                  "transition-all duration-200 ease-out",
+                  (isFocused || dropdownSearch || selectedCustomer)
+                    ? "top-0 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 peer-focus:text-[#7c3aed]"
+                    : "top-1/2 -translate-y-1/2 text-sm",
+                  "left-3"
+                )}
+              >
+                Select Customer
+              </label>
+              <User className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400 pointer-events-none transition-colors peer-focus:text-[#7c3aed]" />
+              
               {/* Autocomplete Search Dropdown List (No internal search bar) */}
               {isFocused ? (
                 <div className="absolute left-0 right-0 z-50 mt-2 max-h-60 overflow-y-auto rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl shadow-purple-950/15">
@@ -403,6 +422,11 @@ export function BookingForm({
                 </div>
               ) : null}
             </div>
+
+            {errors.customer_id && (
+              <p className="mt-1.5 text-xs text-red-500 pl-1">{errors.customer_id}</p>
+            )}
+          </div>
 
             <Button
               type="button"
@@ -454,11 +478,13 @@ export function BookingForm({
           id="booking_address"
           disabled={loading}
           value={values.booking_address}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-            onChange({ ...values, booking_address: e.target.value.slice(0, 200) })
-          }
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+            if (errors.booking_address) setErrors((prev) => ({ ...prev, booking_address: "" }));
+            onChange({ ...values, booking_address: e.target.value.slice(0, 200) });
+          }}
           maxLength={200}
           className="min-h-20"
+          error={errors.booking_address}
           required
         />
 
@@ -567,29 +593,47 @@ export function BookingForm({
 
         {/* Date and Time Fields */}
         <div className="grid gap-4 md:grid-cols-3">
-          <DatePicker
-            id="booking_date"
-            label="Date"
-            disabled={loading}
-            value={values.booking_date}
-            onChange={(val) => onChange({ ...values, booking_date: val })}
-          />
+          <div>
+            <DatePicker
+              id="booking_date"
+              label="Date"
+              disabled={loading}
+              value={values.booking_date}
+              onChange={(val) => {
+                if (errors.booking_date) setErrors((prev) => ({ ...prev, booking_date: "" }));
+                onChange({ ...values, booking_date: val });
+              }}
+            />
+            {errors.booking_date && <p className="mt-1.5 text-xs text-red-500 pl-1">{errors.booking_date}</p>}
+          </div>
 
-          <TimePicker
-            id="start_time"
-            label="Start Time"
-            disabled={loading}
-            value={values.start_time}
-            onChange={(val) => onChange({ ...values, start_time: val })}
-          />
+          <div>
+            <TimePicker
+              id="start_time"
+              label="Start Time"
+              disabled={loading}
+              value={values.start_time}
+              onChange={(val) => {
+                if (errors.start_time) setErrors((prev) => ({ ...prev, start_time: "" }));
+                onChange({ ...values, start_time: val });
+              }}
+            />
+            {errors.start_time && <p className="mt-1.5 text-xs text-red-500 pl-1">{errors.start_time}</p>}
+          </div>
 
-          <TimePicker
-            id="end_time"
-            label="End Time"
-            disabled={loading}
-            value={values.end_time}
-            onChange={(val) => onChange({ ...values, end_time: val })}
-          />
+          <div>
+            <TimePicker
+              id="end_time"
+              label="End Time"
+              disabled={loading}
+              value={values.end_time}
+              onChange={(val) => {
+                if (errors.end_time) setErrors((prev) => ({ ...prev, end_time: "" }));
+                onChange({ ...values, end_time: val });
+              }}
+            />
+            {errors.end_time && <p className="mt-1.5 text-xs text-red-500 pl-1">{errors.end_time}</p>}
+          </div>
         </div>
 
         {/* Status selection and Additional Request */}

@@ -7,12 +7,17 @@ import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/common/brand/brand-logo";
 import { useHeaderContext } from "@/components/common/dashboard/dashboard-header-context";
 import { UserMenu } from "@/components/common/dashboard/user-menu";
-import { buttonVariants } from "@/components/ui/button";
+import { QuickAddModals } from "@/components/common/dashboard/quick-add-modals";
+import { buttonVariants, Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 export function DashboardTopbar() {
   const { searchSlot, actionsSlot, title, description, backLink } = useHeaderContext();
   const pathname = usePathname() || "";
+
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   // Infer active state from URL
   const active = pathname.includes("/bookings")
@@ -90,9 +95,8 @@ export function DashboardTopbar() {
             actionsSlot
           ) : active === "dashboard" ? (
             <div className="flex gap-2">
-              <Link
-                suppressHydrationWarning
-                href="/customers?add=true"
+              <Button
+                onClick={() => setCustomerModalOpen(true)}
                 className={cn(
                   buttonVariants({ variant: "default" }),
                   "h-11 rounded-2xl bg-[#7c3aed] text-white shadow-md shadow-purple-950/10 hover:bg-[#6d28d9]",
@@ -100,10 +104,9 @@ export function DashboardTopbar() {
               >
                 <Plus className="size-4" />
                 Add customer
-              </Link>
-              <Link
-                suppressHydrationWarning
-                href="/bookings?add=true"
+              </Button>
+              <Button
+                onClick={() => setBookingModalOpen(true)}
                 className={cn(
                   buttonVariants({ variant: "default" }),
                   "h-11 rounded-2xl bg-[#7c3aed] text-white shadow-md shadow-purple-950/10 hover:bg-[#6d28d9]",
@@ -111,12 +114,11 @@ export function DashboardTopbar() {
               >
                 <Plus className="size-4" />
                 New booking
-              </Link>
+              </Button>
             </div>
           ) : active === "calendar" ? (
-            <Link
-              suppressHydrationWarning
-              href="/bookings?add=true"
+            <Button
+              onClick={() => setBookingModalOpen(true)}
               className={cn(
                 buttonVariants({ variant: "default" }),
                 "h-11 rounded-2xl bg-[#7c3aed] text-white shadow-md shadow-purple-950/10 hover:bg-[#6d28d9]",
@@ -124,7 +126,7 @@ export function DashboardTopbar() {
             >
               <Plus className="size-4" />
               New booking
-            </Link>
+            </Button>
           ) : null}
 
           <UserMenu />
@@ -138,6 +140,13 @@ export function DashboardTopbar() {
           {actionsSlot && <div className="shrink-0 flex items-center gap-2">{actionsSlot}</div>}
         </div>
       )}
+
+      <QuickAddModals
+        customerModalOpen={customerModalOpen}
+        setCustomerModalOpen={setCustomerModalOpen}
+        bookingModalOpen={bookingModalOpen}
+        setBookingModalOpen={setBookingModalOpen}
+      />
     </header>
   );
 }
