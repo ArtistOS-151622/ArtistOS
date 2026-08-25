@@ -41,6 +41,8 @@ export default function ContactPage() {
         <h2 className="text-xl font-semibold text-[#15172e] mt-10 mb-4 border-b border-[#edf0fa] pb-2">Registered Office</h2>
         <p>
           <strong>ArtistOS</strong><br />
+          504, RK Empire, 150 Feet Ring Road, Rajkot, Gujarat 360004<br />
+          Phone: +91 8320620125<br /><br />
           Built with ❤️ in India for nail, mehendi, bridal & beauty artists.
         </p>
       </section>

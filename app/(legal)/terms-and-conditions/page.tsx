@@ -25,7 +25,7 @@ export default function TermsAndConditionsPage() {
 
         <h2 className="text-xl font-semibold text-[#15172e] mt-10 mb-4 border-b border-[#edf0fa] pb-2">1. License and Access</h2>
         <p>
-          Subject to your compliance with these Terms, ArtistOS grants you a limited, non-exclusive, non-transferable, non-sublicensable license to access and make use of the ArtistOS platform for your professional beauty or artist business. 
+          Subject to your compliance with these Terms, ArtistOS grants you a limited, non-exclusive, non-transferable, non-sublicensable license to access and make use of the ArtistOS platform for your professional beauty or artist business.
         </p>
         <p>You must not:</p>
         <ul className="list-disc pl-6 space-y-2 mt-4">
@@ -55,7 +55,7 @@ export default function TermsAndConditionsPage() {
 
         <h2 className="text-xl font-semibold text-[#15172e] mt-10 mb-4 border-b border-[#edf0fa] pb-2">4. Subscriptions and Payments</h2>
         <p>
-          Access to premium features of ArtistOS requires an active subscription. By selecting a subscription plan, you agree to pay the applicable recurring fees. Payments are processed securely via our third-party payment provider (Razorpay). 
+          Access to premium features of ArtistOS requires an active subscription. By selecting a subscription plan, you agree to pay the applicable recurring fees. Payments are processed securely via our third-party payment provider (Razorpay).
         </p>
         <p>
           For details regarding cancellations and refunds, please refer to our <a href="/cancellation-and-refund">Cancellation and Refund Policy</a>.
@@ -75,9 +75,9 @@ export default function TermsAndConditionsPage() {
         <p>
           If you have any questions about these Terms, please contact us at:
           <br />
-          <a href="mailto:artistoscrm@gmail.com" className="font-medium text-[#7c3aed] hover:underline mt-2 inline-block">
-            artistoscrm@gmail.com
-          </a>
+          <strong>Email:</strong> <a href="mailto:artistoscrm@gmail.com" className="font-medium text-[#7c3aed] hover:underline mt-2 inline-block">artistoscrm@gmail.com</a><br />
+          <strong>Phone:</strong> +91 8320620125<br />
+          <strong>Address:</strong> 504, RK Empire, 150 Feet Ring Road, Rajkot, Gujarat 360004
         </p>
       </section>
     </article>

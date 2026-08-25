@@ -34,7 +34,7 @@ export default function HelpSupportPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0284c7] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#0284c7]"></span>
               </span>
-              +91 6354870709
+              +91 8320620125
             </div>
           </div>
         </div>

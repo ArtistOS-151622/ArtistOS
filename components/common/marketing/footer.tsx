@@ -1,40 +1,27 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/common/brand/brand-logo";
+import { FaInstagram, FaFacebook, FaLinkedin, FaYoutube } from "react-icons/fa";
 
 const footerColumns: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: "Product",
     links: [
       { label: "Features", href: "/#features" },
-      { label: "Client CRM", href: "/#solutions" },
-      { label: "WhatsApp Campaigns", href: "/#pricing" },
       { label: "Pricing", href: "/#pricing" },
       { label: "FAQ", href: "/#faq" },
-    ],
-  },
-  {
-    title: "Get started",
-    links: [
-      { label: "Create free account", href: "/signup" },
       { label: "Log in", href: "/login" },
       { label: "Start free trial", href: "/signup" },
     ],
   },
   {
-    title: "Legal",
+    title: "Legal & Support",
     links: [
       { label: "Privacy Policy", href: "/privacy-policy" },
       { label: "Terms & Conditions", href: "/terms-and-conditions" },
       { label: "Cancellation & Refund", href: "/cancellation-and-refund" },
-    ],
-  },
-  {
-    title: "Support",
-    links: [
-      { label: "Contact us", href: "/contact" },
       { label: "Help & support", href: "/help-and-support" },
     ],
-  },
+  }
 ];
 
 export function Footer({ disableAnimations = false }: { disableAnimations?: boolean }) {
@@ -63,7 +50,7 @@ export function Footer({ disableAnimations = false }: { disableAnimations?: bool
           </div>
         </div>
 
-        <div className="grid gap-8 text-sm sm:grid-cols-4">
+        <div className="grid gap-8 text-sm sm:grid-cols-3">
           {footerColumns.map((column, i) => (
             <div
               key={column.title}
@@ -88,6 +75,43 @@ export function Footer({ disableAnimations = false }: { disableAnimations?: bool
               </ul>
             </div>
           ))}
+
+          <div {...getRevealProps("rise")} style={{ animationDelay: `180ms` }}>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9096b5]">
+              Contact Us
+            </p>
+            <div className="mt-5 space-y-3 text-sm text-[#5d6078] leading-relaxed">
+              <p>
+                <strong className="text-[#15172e] font-semibold">Address:</strong><br />
+                504, RK Empire, 150 Feet Ring Road, <br />
+                Rajkot, Gujarat 360004
+              </p>
+              <p>
+                <strong className="text-[#15172e] font-semibold">Email:</strong><br />
+                <a href="mailto:artistoscrm@gmail.com" className="hover:text-[#7c3aed] transition-colors">
+                  artistoscrm@gmail.com
+                </a>
+              </p>
+              <p>
+                <strong className="text-[#15172e] font-semibold">Phone:</strong><br />
+                +91 8320620125
+              </p>
+              <div className="pt-2 flex items-center gap-5">
+                <a href="#" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-[#E1306C] hover:opacity-80 transition-all hover:-translate-y-0.5">
+                  <FaInstagram className="size-7" />
+                </a>
+                <a href="#" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-[#1877F2] hover:opacity-80 transition-all hover:-translate-y-0.5">
+                  <FaFacebook className="size-7" />
+                </a>
+                <a href="#" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-[#0A66C2] hover:opacity-80 transition-all hover:-translate-y-0.5">
+                  <FaLinkedin className="size-7" />
+                </a>
+                <a href="#" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="text-[#FF0000] hover:opacity-80 transition-all hover:-translate-y-0.5">
+                  <FaYoutube className="size-7" />
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

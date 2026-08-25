@@ -284,8 +284,8 @@ function Header() {
         <NavLink href="#features">Product</NavLink>
         <NavLink href="#solutions">Features</NavLink>
         <NavLink href="#pricing">Pricing</NavLink>
-        <NavLink href="#resources">Resources</NavLink>
-        <NavLink href="#company">About</NavLink>
+        <NavLink href="#faq">FAQ</NavLink>
+        <NavLink href="/contact">Contact</NavLink>
       </nav>
 
       <div className="flex items-center gap-3">

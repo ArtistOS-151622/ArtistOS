@@ -21,7 +21,7 @@ export default function PrivacyPolicyPage() {
         </p>
 
         <h2 className="text-xl font-semibold text-[#15172e] mt-10 mb-4 border-b border-[#edf0fa] pb-2">1. Information We Collect</h2>
-        
+
         <h3 className="text-lg font-medium text-[#232542] mt-6 mb-2">a. Information you provide to us</h3>
         <p>
           When you register for an ArtistOS account, we collect personal information such as your name, business name, email address, phone number, and billing details. If you use our platform to manage your business, you may also upload information about your services, portfolio, and pricing.
@@ -70,9 +70,9 @@ export default function PrivacyPolicyPage() {
         <p>
           If you have questions or comments about this Privacy Policy, please contact us at:
           <br />
-          <a href="mailto:artistoscrm@gmail.com" className="font-medium text-[#7c3aed] hover:underline mt-2 inline-block">
-            artistoscrm@gmail.com
-          </a>
+          <strong>Email:</strong> <a href="mailto:artistoscrm@gmail.com" className="font-medium text-[#7c3aed] hover:underline mt-2 inline-block">artistoscrm@gmail.com</a><br />
+          <strong>Phone:</strong> +91 8320620125<br />
+          <strong>Address:</strong> 504, RK Empire, 150 Feet Ring Road, Rajkot, Gujarat 360004
         </p>
       </section>
     </article>

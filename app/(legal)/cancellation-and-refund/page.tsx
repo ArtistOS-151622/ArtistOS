@@ -29,7 +29,7 @@ export default function CancellationAndRefundPage() {
         </p>
 
         <h2 className="text-xl font-semibold text-[#15172e] mt-10 mb-4 border-b border-[#edf0fa] pb-2">2. Refund Eligibility</h2>
-        
+
         <h3 className="text-lg font-medium text-[#232542] mt-6 mb-2">a. Monthly Subscriptions</h3>
         <p>
           Payments for monthly subscription plans are generally non-refundable. If you cancel your monthly subscription, you will retain access to your premium features until the end of the paid month.
@@ -37,7 +37,7 @@ export default function CancellationAndRefundPage() {
 
         <h3 className="text-lg font-medium text-[#232542] mt-6 mb-2">b. Annual Subscriptions</h3>
         <p>
-          If you are on an annual subscription plan and decide to cancel within the first <strong>7 days</strong> of your initial purchase, you are eligible for a full refund. After 7 days, annual subscriptions are non-refundable. 
+          If you are on an annual subscription plan and decide to cancel within the first <strong>7 days</strong> of your initial purchase, you are eligible for a full refund. After 7 days, annual subscriptions are non-refundable.
         </p>
 
         <h3 className="text-lg font-medium text-[#232542] mt-6 mb-2">c. Exceptions</h3>
@@ -57,9 +57,9 @@ export default function CancellationAndRefundPage() {
         <p>
           If you have any questions or need assistance with cancellations or refunds, please reach out to us:
           <br />
-          <a href="mailto:artistoscrm@gmail.com" className="font-medium text-[#7c3aed] hover:underline mt-2 inline-block">
-            artistoscrm@gmail.com
-          </a>
+          <strong>Email:</strong> <a href="mailto:artistoscrm@gmail.com" className="font-medium text-[#7c3aed] hover:underline mt-2 inline-block">artistoscrm@gmail.com</a><br />
+          <strong>Phone:</strong> +91 8320620125<br />
+          <strong>Address:</strong> 504, RK Empire, 150 Feet Ring Road, Rajkot, Gujarat 360004
         </p>
       </section>
     </article>
