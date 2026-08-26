@@ -1,15 +1,26 @@
 "use client"
 
 import { useState } from "react"
-import { BarChart3, Users, Flower2, CreditCard, CalendarDays, X } from "lucide-react"
-import { PageHeader, HeaderPortal } from "@/components/common/dashboard/dashboard-header-context"
+import {
+  Users,
+  Flower2,
+  CreditCard,
+  CalendarDays,
+  X,
+} from "lucide-react"
+import {
+  PageHeader,
+} from "@/components/common/dashboard/dashboard-header-context"
 import { Button } from "@/components/ui/button"
 import { ReportCustomerTab } from "@/components/common/reports/report-customer-tab"
 import { ReportServiceTab } from "@/components/common/reports/report-service-tab"
 import { ReportPaymentTab } from "@/components/common/reports/report-payment-tab"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup,
-  DropdownMenuRadioItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
@@ -17,42 +28,62 @@ type Tab = "customers" | "services" | "payments"
 type DateRange = { start: string; end: string } | null
 
 const QUICK_RANGES = [
-  { label: "This Month", getValue: () => {
-    const now = new Date()
-    return {
-      start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10),
-      end: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10),
-    }
-  }},
-  { label: "Last Month", getValue: () => {
-    const now = new Date()
-    return {
-      start: new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10),
-      end: new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10),
-    }
-  }},
-  { label: "Last 3 Months", getValue: () => {
-    const now = new Date()
-    const start = new Date(now)
-    start.setMonth(start.getMonth() - 3)
-    return {
-      start: start.toISOString().slice(0, 10),
-      end: now.toISOString().slice(0, 10),
-    }
-  }},
-  { label: "This Year", getValue: () => {
-    const now = new Date()
-    return {
-      start: new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10),
-      end: now.toISOString().slice(0, 10),
-    }
-  }},
+  {
+    label: "This Month",
+    getValue: () => {
+      const now = new Date()
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1)
+          .toISOString()
+          .slice(0, 10),
+        end: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+          .toISOString()
+          .slice(0, 10),
+      }
+    },
+  },
+  {
+    label: "Last Month",
+    getValue: () => {
+      const now = new Date()
+      return {
+        start: new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          .toISOString()
+          .slice(0, 10),
+        end: new Date(now.getFullYear(), now.getMonth(), 0)
+          .toISOString()
+          .slice(0, 10),
+      }
+    },
+  },
+  {
+    label: "Last 3 Months",
+    getValue: () => {
+      const now = new Date()
+      const start = new Date(now)
+      start.setMonth(start.getMonth() - 3)
+      return {
+        start: start.toISOString().slice(0, 10),
+        end: now.toISOString().slice(0, 10),
+      }
+    },
+  },
+  {
+    label: "This Year",
+    getValue: () => {
+      const now = new Date()
+      return {
+        start: new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10),
+        end: now.toISOString().slice(0, 10),
+      }
+    },
+  },
 ]
 
-const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "customers", label: "Customers", icon: <Users className="size-4" /> },
-  { id: "services",  label: "Services",  icon: <Flower2 className="size-4" /> },
-  { id: "payments",  label: "Payments",  icon: <CreditCard className="size-4" /> },
+const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "customers", label: "Customers", icon: Users },
+  { id: "services", label: "Services", icon: Flower2 },
+  { id: "payments", label: "Payments", icon: CreditCard },
 ]
 
 export default function ReportsPage() {
@@ -60,88 +91,98 @@ export default function ReportsPage() {
   const [dateRange, setDateRange] = useState<DateRange>(null)
   const [activeQuickRange, setActiveQuickRange] = useState<string | null>(null)
 
-  function applyQuickRange(label: string, range: DateRange) {
-    if (activeQuickRange === label) {
-      setDateRange(null)
-      setActiveQuickRange(null)
-    } else {
-      setDateRange(range)
-      setActiveQuickRange(label)
-    }
+  function applyQuickRange(label: string | null, range: DateRange) {
+    setDateRange(range)
+    setActiveQuickRange(label)
   }
 
   return (
     <>
       <PageHeader
-        title="Reports"
-        description="Analytics and insights across your customers, services, and payments."
+        title="Reports & Analytics"
+        description="Comprehensive insights across your client base, popular services, and payment collections."
       />
 
-      <HeaderPortal
-        actions={
-          <div className="flex items-center gap-2">
-            <BarChart3 className="size-5 text-[#7c3aed]" />
-          </div>
-        }
-      />
-
-      <div className="space-y-6 pb-12">
-        {/* Unified Sub-Header */}
-        <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
-          {/* Tab switcher */}
-          <div className="flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm self-start">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all",
-                  activeTab === tab.id
-                    ? "bg-[#7c3aed] text-white shadow-md shadow-purple-500/25"
-                    : "text-slate-500 hover:text-slate-800"
-                )}
-              >
-                {tab.icon}
-                <span className="hidden sm:inline">{tab.label}</span>
-                <span className="sm:hidden">{tab.label}</span>
-              </button>
-            ))}
+      <div className="space-y-5 pb-12 w-full max-w-full min-w-0 overflow-x-hidden">
+        {/* Navigation & Global Filters Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60 p-1.5 sm:p-2 rounded-2xl border border-slate-200/80 shadow-xs w-full min-w-0">
+          {/* Segmented Tab Switcher */}
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl shadow-xs border border-slate-200/60 w-full sm:w-auto min-w-0">
+            {TABS.map((tab) => {
+              const Icon = tab.icon
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg px-2.5 sm:px-4 py-2 text-xs sm:text-sm font-bold transition-all duration-150 min-w-0",
+                    isActive
+                      ? "bg-[#7c3aed] text-white shadow-sm shadow-purple-500/25"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  )}
+                >
+                  <Icon className={cn("size-3.5 sm:size-4 shrink-0", isActive ? "text-white" : "text-slate-400")} />
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              )
+            })}
           </div>
 
-          {/* Global Date Filter */}
-          <div className="flex items-center gap-2">
+          {/* Date Filter & Presets */}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end min-w-0">
             {dateRange && (
-              <button
-                onClick={() => { setDateRange(null); setActiveQuickRange(null) }}
-                className="flex items-center gap-1 rounded-2xl bg-white border border-slate-200 px-3 h-11 text-sm font-semibold text-slate-500 hover:text-slate-800 shadow-sm transition shrink-0"
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => applyQuickRange(null, null)}
+                className="h-10 rounded-xl px-2.5 text-xs font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition shrink-0"
               >
-                <X className="size-4" /> Clear
-              </button>
+                <X className="size-3.5 mr-1" />
+                Clear
+              </Button>
             )}
+
             <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition shrink-0">
-                <CalendarDays className={cn("size-4", activeQuickRange ? "text-[#7c3aed]" : "text-slate-400")} />
-                {activeQuickRange || "All Time"}
+              <DropdownMenuTrigger className="inline-flex h-10 items-center justify-between sm:justify-start gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-sm font-bold text-slate-700 shadow-xs hover:bg-slate-50 transition flex-1 sm:flex-initial min-w-0">
+                <div className="flex items-center gap-2 min-w-0 truncate">
+                  <CalendarDays
+                    className={cn(
+                      "size-4 shrink-0",
+                      activeQuickRange ? "text-[#7c3aed]" : "text-slate-400"
+                    )}
+                  />
+                  <span className="truncate">
+                    {activeQuickRange ? `Period: ${activeQuickRange}` : "Date: All Time"}
+                  </span>
+                </div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="rounded-2xl w-48">
+              <DropdownMenuContent align="end" className="rounded-2xl w-52 p-1.5">
                 <DropdownMenuRadioGroup
                   value={activeQuickRange || "all"}
                   onValueChange={(val) => {
                     if (val === "all") {
-                      setDateRange(null)
-                      setActiveQuickRange(null)
+                      applyQuickRange(null, null)
                     } else {
-                      const r = QUICK_RANGES.find(x => x.label === val)
+                      const r = QUICK_RANGES.find((x) => x.label === val)
                       if (r) {
-                        setDateRange(r.getValue())
-                        setActiveQuickRange(r.label)
+                        applyQuickRange(r.label, r.getValue())
                       }
                     }
                   }}
                 >
-                  <DropdownMenuRadioItem value="all" className="rounded-xl cursor-pointer">All Time</DropdownMenuRadioItem>
-                  {QUICK_RANGES.map(r => (
-                    <DropdownMenuRadioItem key={r.label} value={r.label} className="rounded-xl cursor-pointer">
+                  <DropdownMenuRadioItem
+                    value="all"
+                    className="rounded-xl cursor-pointer font-medium text-xs py-2"
+                  >
+                    All Time
+                  </DropdownMenuRadioItem>
+                  {QUICK_RANGES.map((r) => (
+                    <DropdownMenuRadioItem
+                      key={r.label}
+                      value={r.label}
+                      className="rounded-xl cursor-pointer font-medium text-xs py-2"
+                    >
                       {r.label}
                     </DropdownMenuRadioItem>
                   ))}
@@ -152,9 +193,17 @@ export default function ReportsPage() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === "customers" && <ReportCustomerTab dateRange={dateRange} />}
-        {activeTab === "services"  && <ReportServiceTab  dateRange={dateRange} />}
-        {activeTab === "payments"  && <ReportPaymentTab  dateRange={dateRange} />}
+        <div className="w-full min-w-0 max-w-full overflow-x-hidden">
+          {activeTab === "customers" && (
+            <ReportCustomerTab dateRange={dateRange} />
+          )}
+          {activeTab === "services" && (
+            <ReportServiceTab dateRange={dateRange} />
+          )}
+          {activeTab === "payments" && (
+            <ReportPaymentTab dateRange={dateRange} />
+          )}
+        </div>
       </div>
     </>
   )
