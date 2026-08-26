@@ -30,11 +30,7 @@ const onboardingSteps = [
 
 export function SeoContentSection() {
   return (
-    <section
-      className="bg-[#faf9ff] px-6 py-20 sm:px-12 lg:px-20"
-      itemScope
-      itemType="https://schema.org/SoftwareApplication"
-    >
+    <section className="bg-[#faf9ff] px-6 py-20 sm:px-12 lg:px-20">
       <div className="mx-auto max-w-4xl">
         {/* ── About ArtistOS editorial block ── */}
         <div className="text-center mb-14">
@@ -47,10 +43,10 @@ export function SeoContentSection() {
         {/* ── What is ArtistOS? — AEO definition block ── */}
         <article className="prose prose-slate max-w-none">
           <h3 className="text-xl font-semibold text-[#232542] mb-4">What is ArtistOS?</h3>
-          <p className="text-[#5d6078] leading-7" itemProp="description">
-            <strong itemProp="name">ArtistOS</strong> (also known as <em>Artist OS</em>) is an all-in-one business management
+          <p className="text-[#5d6078] leading-7">
+            <strong>ArtistOS</strong> (also known as <em>Artist OS</em>) is an all-in-one business management
             platform built specifically for Indian beauty professionals. Available at{" "}
-            <a href="https://artistos.in" className="font-semibold text-[#7c3aed] hover:underline" itemProp="url">
+            <a href="https://artistos.in" className="font-semibold text-[#7c3aed] hover:underline">
               artistos.in
             </a>
             , it combines appointment booking, client CRM, portfolio gallery, payment tracking, WhatsApp marketing campaigns,
