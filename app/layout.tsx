@@ -69,6 +69,12 @@ export const metadata: Metadata = {
     "henna artist booking app",
     "artist CRM",
     "artist os india",
+    "CRM for artists",
+    "CRM for makeup artists India",
+    "best booking app for nail artists",
+    "beauty professional software India",
+    "salon booking system India",
+    "artist management platform",
   ],
 
   authors: [{ name: "ArtistOS", url: APP_URL }],
@@ -78,6 +84,9 @@ export const metadata: Metadata = {
 
   alternates: {
     canonical: APP_URL,
+    languages: {
+      "en-IN": APP_URL,
+    },
   },
 
   robots: {
@@ -152,11 +161,13 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="en-IN"
       className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <JsonLd />
       </head>
       <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/common/brand/brand-logo";
-import { FaInstagram, FaFacebook, FaLinkedin, FaYoutube } from "react-icons/fa";
+import { FaInstagram, FaFacebook, FaYoutube } from "react-icons/fa";
 
 const footerColumns: { title: string; links: { label: string; href: string }[] }[] = [
   {
@@ -97,16 +97,14 @@ export function Footer({ disableAnimations = false }: { disableAnimations?: bool
                 +91 8320620125
               </p>
               <div className="pt-2 flex items-center gap-5">
-                <a href="#" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-[#E1306C] hover:opacity-80 transition-all hover:-translate-y-0.5">
+                <a href="https://www.instagram.com/artistoscrm/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-[#E1306C] hover:opacity-80 transition-all hover:-translate-y-0.5">
                   <FaInstagram className="size-7" />
                 </a>
-                <a href="#" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-[#1877F2] hover:opacity-80 transition-all hover:-translate-y-0.5">
+                <a href="https://www.facebook.com/profile.php?id=61593919465435" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-[#1877F2] hover:opacity-80 transition-all hover:-translate-y-0.5">
                   <FaFacebook className="size-7" />
                 </a>
-                <a href="#" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-[#0A66C2] hover:opacity-80 transition-all hover:-translate-y-0.5">
-                  <FaLinkedin className="size-7" />
-                </a>
-                <a href="#" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="text-[#FF0000] hover:opacity-80 transition-all hover:-translate-y-0.5">
+
+                <a href="https://www.youtube.com/channel/UCTmnBHWzQdpNR5CMoQwKcoQ" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="text-[#FF0000] hover:opacity-80 transition-all hover:-translate-y-0.5">
                   <FaYoutube className="size-7" />
                 </a>
               </div>

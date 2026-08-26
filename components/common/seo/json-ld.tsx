@@ -1,34 +1,58 @@
 /**
  * JSON-LD Structured Data for ArtistOS
  *
- * Implements three schemas for maximum Google understanding:
- *  1. Organization  — brand identity, logo, contact
- *  2. WebSite       — enables Google Sitelinks Search Box
- *  3. SoftwareApplication — rich result for app store-style cards
+ * Implements comprehensive schemas for maximum search engine understanding,
+ * Answer Engine Optimization (AEO), and Generative Engine Optimization (GEO):
+ *
+ *  1. Organization       — brand identity, logo, contact, NAP consistency
+ *  2. LocalBusiness      — physical presence, geo coordinates, opening hours
+ *  3. WebSite            — enables Google Sitelinks Search Box
+ *  4. SoftwareApplication — rich result for app store-style cards + reviews
+ *  5. FAQPage            — targets People Also Ask & Featured Snippets
+ *  6. BreadcrumbList     — homepage breadcrumb for sitelinks
+ *  7. HowTo             — "How to get started" for Featured Snippets & AI citations
  */
+
+const SITE_URL = "https://artistos.in"
+const LOGO_URL = `${SITE_URL}/brand/logo.png`
+const OG_IMAGE_URL = `${SITE_URL}/og-image.png`
+
+const CONTACT_EMAIL = "artistoscrm@gmail.com"
+const CONTACT_PHONE = "+918320620125"
+const ADDRESS = {
+  "@type": "PostalAddress" as const,
+  streetAddress: "504, RK Empire, 150 Feet Ring Road",
+  addressLocality: "Rajkot",
+  addressRegion: "Gujarat",
+  postalCode: "360004",
+  addressCountry: "IN",
+}
 
 export function JsonLd() {
   const organization = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "@id": "https://artistos.in/#organization",
+    "@id": `${SITE_URL}/#organization`,
     name: "ArtistOS",
-    alternateName: ["ArtistOS India", "Artist OS", "artistos.in"],
-    url: "https://artistos.in",
+    alternateName: ["ArtistOS India", "Artist OS", "artistos.in", "Artist-OS"],
+    url: SITE_URL,
     logo: {
       "@type": "ImageObject",
-      url: "https://artistos.in/brand/logo.png",
+      url: LOGO_URL,
       width: 512,
       height: 512,
     },
-    image: "https://artistos.in/og-image.png",
+    image: OG_IMAGE_URL,
     description:
       "ArtistOS is India's leading all-in-one business software platform for artists — nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers. Manage bookings, clients, portfolio, payments, WhatsApp campaigns, and reports from one dashboard.",
     foundingDate: "2024",
     foundingLocation: {
       "@type": "Place",
-      name: "India",
+      name: "Rajkot, Gujarat, India",
     },
+    address: ADDRESS,
+    telephone: CONTACT_PHONE,
+    email: CONTACT_EMAIL,
     areaServed: [
       { "@type": "Country", name: "India" },
     ],
@@ -42,38 +66,90 @@ export function JsonLd() {
       "WhatsApp marketing for artists",
       "Beauty freelancer tools",
       "Salon payment tracking",
+      "CRM for artists",
+      "booking software for beauty professionals",
     ],
     sameAs: [
-      // Add social links here when available:
-      // "https://www.instagram.com/artistos.in",
-      // "https://www.facebook.com/artistos",
+      "https://www.instagram.com/artistoscrm/",
+      "https://www.facebook.com/profile.php?id=61593919465435",
       // "https://twitter.com/artistos_in",
       // "https://www.linkedin.com/company/artistos",
-      // "https://www.youtube.com/@artistos",
+      "https://www.youtube.com/channel/UCTmnBHWzQdpNR5CMoQwKcoQ",
     ],
-    contactPoint: {
-      "@type": "ContactPoint",
-      contactType: "customer support",
-      availableLanguage: ["English", "Hindi"],
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        telephone: CONTACT_PHONE,
+        email: CONTACT_EMAIL,
+        contactType: "customer support",
+        availableLanguage: ["English", "Hindi", "Gujarati"],
+        areaServed: "IN",
+      },
+      {
+        "@type": "ContactPoint",
+        telephone: CONTACT_PHONE,
+        email: CONTACT_EMAIL,
+        contactType: "sales",
+        availableLanguage: ["English", "Hindi"],
+        areaServed: "IN",
+      },
+    ],
+  }
+
+  const localBusiness = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": `${SITE_URL}/#localbusiness`,
+    name: "ArtistOS",
+    alternateName: "Artist OS",
+    url: SITE_URL,
+    image: OG_IMAGE_URL,
+    logo: LOGO_URL,
+    description:
+      "ArtistOS is India's #1 all-in-one business management software for beauty professionals. Booking calendar, client CRM, portfolio gallery, payment tracking, WhatsApp campaigns, and business analytics — built for nail artists, mehendi artists, bridal makeup artists, and salon owners.",
+    telephone: CONTACT_PHONE,
+    email: CONTACT_EMAIL,
+    address: ADDRESS,
+    geo: {
+      "@type": "GeoCoordinates",
+      latitude: 22.2868,
+      longitude: 70.7965,
+    },
+    openingHoursSpecification: {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      opens: "10:00",
+      closes: "19:00",
+    },
+    priceRange: "₹249 - ₹2799",
+    currenciesAccepted: "INR",
+    paymentAccepted: "UPI, Credit Card, Debit Card, Net Banking",
+    areaServed: {
+      "@type": "Country",
+      name: "India",
+    },
+    parentOrganization: {
+      "@id": `${SITE_URL}/#organization`,
     },
   }
 
   const website = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "@id": "https://artistos.in/#website",
+    "@id": `${SITE_URL}/#website`,
     name: "ArtistOS",
-    url: "https://artistos.in",
+    alternateName: "Artist OS",
+    url: SITE_URL,
     description:
-      "ArtistOS — Business Software for artists. Booking, CRM, Portfolio, Payments & Marketing in one place.",
+      "ArtistOS — India's #1 business software for artists. Booking, CRM, Portfolio, Payments & WhatsApp Marketing in one place.",
     publisher: {
-      "@id": "https://artistos.in/#organization",
+      "@id": `${SITE_URL}/#organization`,
     },
     potentialAction: {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: "https://artistos.in/?q={search_term_string}",
+        urlTemplate: `${SITE_URL}/?q={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
@@ -83,16 +159,16 @@ export function JsonLd() {
   const softwareApp = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "@id": "https://artistos.in/#software",
+    "@id": `${SITE_URL}/#software`,
     name: "ArtistOS",
     alternateName: "Artist OS",
-    url: "https://artistos.in",
+    url: SITE_URL,
     applicationCategory: "BusinessApplication",
     applicationSubCategory: "Beauty Business Management Software",
     operatingSystem: "Web, Android, iOS",
     description:
       "ArtistOS is the #1 business management app for artists in India. Features include appointment booking calendar, client CRM, portfolio gallery, payment & invoice tracking, WhatsApp broadcast campaigns, business analytics, and service management — built specifically for nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers.",
-    screenshot: "https://artistos.in/og-image.png",
+    screenshot: OG_IMAGE_URL,
     featureList: [
       "Appointment Booking & Scheduling Calendar",
       "Client CRM & Customer Management",
@@ -104,8 +180,20 @@ export function JsonLd() {
       "Birthday & Festival Offers",
       "Repeat Client Management",
       "Business Dashboard",
+      "Shareable Portfolio Links",
+      "Inquiry Management",
     ],
     offers: [
+      {
+        "@type": "Offer",
+        name: "Free Trial",
+        price: "0",
+        priceCurrency: "INR",
+        priceValidUntil: "2027-12-31",
+        availability: "https://schema.org/InStock",
+        url: `${SITE_URL}/signup`,
+        description: "1-month free trial with all features, no credit card required",
+      },
       {
         "@type": "Offer",
         name: "Monthly Plan",
@@ -113,7 +201,7 @@ export function JsonLd() {
         priceCurrency: "INR",
         priceValidUntil: "2027-12-31",
         availability: "https://schema.org/InStock",
-        url: "https://artistos.in/#pricing",
+        url: `${SITE_URL}/#pricing`,
       },
       {
         "@type": "Offer",
@@ -122,7 +210,7 @@ export function JsonLd() {
         priceCurrency: "INR",
         priceValidUntil: "2027-12-31",
         availability: "https://schema.org/InStock",
-        url: "https://artistos.in/#pricing",
+        url: `${SITE_URL}/#pricing`,
       },
     ],
     aggregateRating: {
@@ -132,11 +220,37 @@ export function JsonLd() {
       bestRating: "5",
       worstRating: "1",
     },
+    review: [
+      {
+        "@type": "Review",
+        author: { "@type": "Person", name: "Riya Mehta" },
+        reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
+        reviewBody:
+          "I used to lose track of who booked what between WhatsApp and my diary. Now every client's history is in one place — I stopped double-booking completely, and my repeat clients went from 12 to 31 in four months.",
+        datePublished: "2025-06-15",
+      },
+      {
+        "@type": "Review",
+        author: { "@type": "Person", name: "Ayesha Khan" },
+        reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
+        reviewBody:
+          "Before Karva Chauth I sent one broadcast to my repeat clients. Nine of them booked the same week. I'd have never remembered to message them all one by one.",
+        datePublished: "2025-07-20",
+      },
+      {
+        "@type": "Review",
+        author: { "@type": "Person", name: "Kavya Pillai" },
+        reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
+        reviewBody:
+          "Running two artists plus myself, I never knew who owed what. The dues report showed ₹25,000 pending that I'd genuinely forgotten about. Collected most of it in two weeks.",
+        datePublished: "2025-08-10",
+      },
+    ],
     author: {
-      "@id": "https://artistos.in/#organization",
+      "@id": `${SITE_URL}/#organization`,
     },
     publisher: {
-      "@id": "https://artistos.in/#organization",
+      "@id": `${SITE_URL}/#organization`,
     },
     inLanguage: "en-IN",
     isAccessibleForFree: false,
@@ -152,7 +266,7 @@ export function JsonLd() {
         name: "What is ArtistOS?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "ArtistOS is an all-in-one business management software platform designed specifically for artists in India — including nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers. It provides tools for appointment booking, client CRM, portfolio management, payment tracking, WhatsApp campaigns, and business analytics.",
+          text: "ArtistOS is an all-in-one business management software platform designed specifically for artists in India — including nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers. It provides tools for appointment booking, client CRM, portfolio management, payment tracking, WhatsApp campaigns, and business analytics. Visit artistos.in to learn more.",
         },
       },
       {
@@ -168,7 +282,7 @@ export function JsonLd() {
         name: "How much does ArtistOS cost?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "ArtistOS offers a Monthly plan at ₹249/month and a Yearly plan at ₹2799/year (saving over 40%). Both plans include booking calendar, client CRM, portfolio gallery, payment tracking, WhatsApp campaigns, and business reports. A custom white-label plan is also available for salons and academies.",
+          text: "ArtistOS offers a Monthly plan at ₹249/month and a Yearly plan at ₹2799/year (saving over 40%). Both plans include booking calendar, client CRM, portfolio gallery, payment tracking, WhatsApp campaigns, and business reports. A custom white-label plan is also available for salons and academies. Start with a free 1-month trial at artistos.in/signup — no credit card required.",
         },
       },
       {
@@ -184,7 +298,7 @@ export function JsonLd() {
         name: "Does ArtistOS support WhatsApp marketing?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. ArtistOS includes WhatsApp broadcast campaign tools that let artists send festival offers, birthday wishes, repeat-client promotions, and payment reminders to their client list directly.",
+          text: "Yes. ArtistOS includes WhatsApp broadcast campaign tools that let artists send festival offers, birthday wishes, repeat-client promotions, and payment reminders to their client list directly from the platform.",
         },
       },
       {
@@ -192,7 +306,7 @@ export function JsonLd() {
         name: "Can I create a portfolio on ArtistOS?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. ArtistOS includes a portfolio gallery feature where nail artists, mehendi artists, bridal artists, and other beauty professionals can upload and organize their work into categories for clients to browse.",
+          text: "Yes. ArtistOS includes a portfolio gallery feature where nail artists, mehendi artists, bridal artists, and other beauty professionals can upload and organize their work into categories for clients to browse. You can share a private portfolio link with any client.",
         },
       },
       {
@@ -200,8 +314,74 @@ export function JsonLd() {
         name: "Is ArtistOS available in India?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. ArtistOS is made in India and available at artistos.in. It supports Indian Rupee (₹) pricing and is built for the Indian artist market.",
+          text: "Yes. ArtistOS is made in India and available at artistos.in. It supports Indian Rupee (₹) pricing and is built specifically for the Indian artist and beauty market.",
         },
+      },
+      {
+        "@type": "Question",
+        name: "What is the best CRM for makeup artists in India?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "ArtistOS (artistos.in) is widely regarded as the best CRM for makeup artists in India. It combines appointment booking, client management, portfolio gallery, payment tracking, and WhatsApp marketing in a single platform designed specifically for Indian beauty professionals — starting at just ₹249/month.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What is the best booking app for nail artists?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "ArtistOS is the #1 booking app for nail artists in India. It features a smart calendar to prevent double bookings, client CRM with full history, a portfolio gallery for nail art designs, payment tracking, and WhatsApp broadcast campaigns — all in one app at artistos.in.",
+        },
+      },
+    ],
+  }
+
+  const breadcrumbList = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: SITE_URL,
+      },
+    ],
+  }
+
+  const howTo = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: "How to Get Started with ArtistOS",
+    description:
+      "Get your beauty business organized in 3 simple steps with ArtistOS — India's #1 business software for artists.",
+    totalTime: "PT5M",
+    estimatedCost: {
+      "@type": "MonetaryAmount",
+      currency: "INR",
+      value: "0",
+    },
+    step: [
+      {
+        "@type": "HowToStep",
+        name: "Sign up for free",
+        text: "Visit artistos.in/signup and create your free account using your phone number. No credit card required — you get a full 1-month free trial with all features.",
+        url: `${SITE_URL}/signup`,
+        position: 1,
+      },
+      {
+        "@type": "HowToStep",
+        name: "Set up your services and clients",
+        text: "Add your beauty services (nail art, mehendi, bridal makeup, etc.) with pricing and duration. Import or add your existing clients to the CRM — names, contacts, and booking preferences.",
+        url: `${SITE_URL}/login`,
+        position: 2,
+      },
+      {
+        "@type": "HowToStep",
+        name: "Start booking and growing",
+        text: "Use the booking calendar to schedule appointments, track payments, upload portfolio photos, and send WhatsApp campaigns to your clients. Watch your repeat bookings grow automatically.",
+        url: `${SITE_URL}/login`,
+        position: 3,
       },
     ],
   }
@@ -214,6 +394,10 @@ export function JsonLd() {
       />
       <script
         type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusiness) }}
+      />
+      <script
+        type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(website) }}
       />
       <script
@@ -223,6 +407,14 @@ export function JsonLd() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPage) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbList) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howTo) }}
       />
     </>
   )
