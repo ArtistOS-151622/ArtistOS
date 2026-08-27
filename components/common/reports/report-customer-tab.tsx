@@ -41,6 +41,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { useIsMobile } from "@/lib/hooks/use-is-mobile"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,6 +138,7 @@ export function ReportCustomerTab({
   dateRange: { start: string; end: string } | null
 }) {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [data, setData] = useState<{
     customers: CustomerReport[]
     totals: any
@@ -773,7 +775,7 @@ export function ReportCustomerTab({
         </div>
       </div>
 
-      {/* Customer Detail Drawer */}
+      {/* Customer Detail Drawer / Bottom Modal */}
       <Sheet
         open={!!selected}
         onOpenChange={(o: boolean) => {
@@ -781,15 +783,26 @@ export function ReportCustomerTab({
         }}
       >
         <SheetContent
-          side="right"
-          className="w-full sm:max-w-xl overflow-y-auto p-0 border-l border-slate-200"
+          side={isMobile ? "bottom" : "right"}
+          showCloseButton={false}
+          className={cn(
+            "p-0 bg-slate-50/70 border-slate-200/80 shadow-2xl flex flex-col focus:outline-none",
+            isMobile
+              ? "w-full max-h-[88vh] rounded-t-[28px] border-t overflow-hidden"
+              : "w-full sm:max-w-xl md:max-w-2xl h-full border-l overflow-y-auto"
+          )}
         >
           {selected && (
-            <div className="flex flex-col h-full bg-slate-50/40 w-full min-w-0">
+            <div className="flex flex-col h-full w-full min-w-0 overflow-hidden">
+              {/* Mobile Drag Indicator */}
+              <div className="sm:hidden flex flex-col items-center pt-2.5 pb-1 bg-white border-b border-slate-100/60 shrink-0">
+                <div className="h-1.5 w-12 rounded-full bg-slate-300" />
+              </div>
+
               {/* Header */}
-              <SheetHeader className="px-4 sm:px-6 pt-6 pb-5 border-b border-slate-200/80 bg-white">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3.5 min-w-0">
+              <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 sm:pb-5 border-b border-slate-200/80 bg-white shrink-0 relative">
+                <div className="flex items-start justify-between gap-3 pr-8 sm:pr-10">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <Avatar className="size-12 sm:size-14 rounded-2xl shadow-sm ring-2 ring-purple-100 shrink-0">
                       <AvatarFallback
                         className={cn(
@@ -801,84 +814,121 @@ export function ReportCustomerTab({
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <SheetTitle className="text-lg sm:text-xl font-extrabold text-slate-900 truncate">
-                        {selected.customer_name}
-                      </SheetTitle>
-                      <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 font-medium truncate">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <SheetTitle className="text-base sm:text-xl font-extrabold text-slate-900 truncate">
+                          {selected.customer_name}
+                        </SheetTitle>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "font-bold text-[10px] sm:text-xs shrink-0 rounded-lg",
+                            selected.booking_count > 1
+                              ? "bg-purple-50 text-[#7c3aed] border-purple-200"
+                              : "bg-slate-50 text-slate-600 border-slate-200"
+                          )}
+                        >
+                          {selected.booking_count > 1
+                            ? `${selected.booking_count} Bookings`
+                            : "1 Booking"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5 font-medium truncate">
                         <Phone className="size-3 text-slate-400 shrink-0" />
-                        {selected.phone}
+                        <span>{selected.phone}</span>
                       </p>
                     </div>
                   </div>
                 </div>
 
+                {/* Close Button */}
+                <button
+                  onClick={() => setSelected(null)}
+                  className="absolute right-3.5 top-3.5 sm:top-5 size-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="size-4" />
+                </button>
+
                 {/* Quick Action Contact Buttons */}
-                <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100">
+                <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3 border-t border-slate-100">
                   <a
                     href={`tel:${selected.phone}`}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50/50 hover:bg-purple-100/60 py-2 sm:py-2.5 text-xs font-bold text-[#7c3aed] shadow-xs transition"
                   >
-                    <Phone className="size-3.5 text-purple-600 shrink-0" />
-                    Call
+                    <Phone className="size-3.5 shrink-0" />
+                    <span>Call</span>
                   </a>
                   <a
                     href={`https://wa.me/${selected.phone.replace(/[^0-9]/g, "")}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/50 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100/50 transition"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/70 py-2 sm:py-2.5 text-xs font-bold text-emerald-700 shadow-xs transition"
                   >
-                    <MessageCircle className="size-3.5 text-emerald-600 shrink-0" />
-                    WhatsApp
+                    <MessageCircle className="size-3.5 shrink-0" />
+                    <span>WhatsApp</span>
                   </a>
                   {selected.email ? (
                     <a
                       href={`mailto:${selected.email}`}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition truncate"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 py-2 sm:py-2.5 text-xs font-bold text-slate-700 shadow-xs transition truncate"
                     >
                       <Mail className="size-3.5 text-blue-600 shrink-0" />
-                      Email
+                      <span>Email</span>
                     </a>
                   ) : (
                     <button
                       disabled
-                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 py-2 text-xs font-bold text-slate-400 opacity-60 cursor-not-allowed"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 py-2 sm:py-2.5 text-xs font-bold text-slate-400 opacity-60 cursor-not-allowed"
                     >
                       <Mail className="size-3.5 shrink-0" />
-                      Email
+                      <span>Email</span>
                     </button>
                   )}
                 </div>
               </SheetHeader>
 
-              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 space-y-6">
+              {/* Scrollable Content Body */}
+              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 space-y-5 sm:space-y-6">
                 {/* Financial Summary */}
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                    Financial Summary
-                  </h3>
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Financial Snapshot
+                    </h3>
+                    {selected.total_billed > 0 && (
+                      <span className="text-[11px] font-bold text-slate-500">
+                        {Math.min(
+                          100,
+                          Math.round((selected.total_paid / selected.total_billed) * 100)
+                        )}
+                        % Paid
+                      </span>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-2xl bg-white border border-slate-200/80 p-3 text-center shadow-xs min-w-0">
+                    <div className="rounded-xl bg-slate-50 p-2.5 sm:p-3 text-center border border-slate-100 min-w-0">
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">
                         Billed
                       </p>
-                      <p className="text-sm sm:text-base font-extrabold text-slate-800 mt-1 truncate">
+                      <p className="text-xs sm:text-base font-extrabold text-slate-800 mt-1 truncate">
                         {formatCurrency(selected.total_billed)}
                       </p>
                     </div>
-                    <div className="rounded-2xl bg-emerald-50/70 border border-emerald-200/70 p-3 text-center shadow-xs min-w-0">
+                    <div className="rounded-xl bg-emerald-50/80 border border-emerald-100 p-2.5 sm:p-3 text-center min-w-0">
                       <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider truncate">
                         Paid
                       </p>
-                      <p className="text-sm sm:text-base font-extrabold text-emerald-700 mt-1 truncate">
+                      <p className="text-xs sm:text-base font-extrabold text-emerald-700 mt-1 truncate">
                         {formatCurrency(selected.total_paid)}
                       </p>
                     </div>
                     <div
                       className={cn(
-                        "rounded-2xl border p-3 text-center shadow-xs min-w-0",
+                        "rounded-xl p-2.5 sm:p-3 text-center border min-w-0",
                         selected.balance_due > 0
-                          ? "bg-rose-50 border-rose-200/70"
-                          : "bg-white border-slate-200/80"
+                          ? "bg-rose-50 border-rose-200/80"
+                          : "bg-slate-50 border-slate-100"
                       )}
                     >
                       <p
@@ -893,7 +943,7 @@ export function ReportCustomerTab({
                       </p>
                       <p
                         className={cn(
-                          "text-sm sm:text-base font-extrabold mt-1 truncate",
+                          "text-xs sm:text-base font-extrabold mt-1 truncate",
                           selected.balance_due > 0
                             ? "text-rose-700"
                             : "text-slate-400"
@@ -905,10 +955,30 @@ export function ReportCustomerTab({
                       </p>
                     </div>
                   </div>
+
+                  {/* Progress Meter */}
+                  {selected.total_billed > 0 && (
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-[#7c3aed] to-emerald-500 h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            Math.round(
+                              (selected.total_paid / selected.total_billed) * 100
+                            )
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Contact & Profile Info */}
-                <div className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-2.5 text-sm shadow-xs">
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-4 space-y-2.5 text-sm shadow-xs">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-100">
+                    Client Details
+                  </h3>
                   {selected.email && (
                     <div className="flex items-center gap-2.5 text-slate-600 min-w-0">
                       <Mail className="size-4 text-slate-400 shrink-0" />
@@ -933,7 +1003,7 @@ export function ReportCustomerTab({
                       <span className="truncate">Referred by {selected.reference_by}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2.5 text-slate-400 pt-1 border-t border-slate-100">
+                  <div className="flex items-center gap-2 text-slate-400 pt-1">
                     <Calendar className="size-3.5 shrink-0" />
                     <span className="text-xs truncate">
                       Client since {formatDate(selected.created_at)}
@@ -1003,7 +1073,7 @@ export function ReportCustomerTab({
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 min-w-0">
                                   <BookOpen className="size-3.5 text-purple-600 shrink-0" />
-                                  <span className="text-sm font-bold text-slate-800 truncate">
+                                  <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">
                                     {formatDate(b.booking_date)}
                                   </span>
                                   {isNavigable && (
@@ -1025,7 +1095,7 @@ export function ReportCustomerTab({
                               </div>
                               <span
                                 className={cn(
-                                  "text-[10px] font-bold px-2 py-1 rounded-lg capitalize shrink-0",
+                                  "text-[10px] font-bold px-2 py-0.5 rounded-lg capitalize shrink-0",
                                   STATUS_COLORS[b.status] ??
                                     "bg-slate-100 text-slate-500"
                                 )}
@@ -1072,7 +1142,7 @@ export function ReportCustomerTab({
                             </div>
 
                             {payments.length > 0 && (
-                              <div className="space-y-1.5 border-t border-slate-100 pt-2.5">
+                              <div className="space-y-1.5 border-t border-slate-100 pt-2">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                   Payments Recorded
                                 </p>

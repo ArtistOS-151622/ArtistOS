@@ -36,6 +36,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { useIsMobile } from "@/lib/hooks/use-is-mobile"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -130,6 +131,7 @@ export function ReportServiceTab({
   dateRange: { start: string; end: string } | null
 }) {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [data, setData] = useState<{
     services: ServiceReport[]
     totals: any
@@ -676,7 +678,7 @@ export function ReportServiceTab({
         </div>
       </div>
 
-      {/* Service Detail Drawer */}
+      {/* Service Detail Drawer / Bottom Modal */}
       <Sheet
         open={!!selected}
         onOpenChange={(o: boolean) => {
@@ -684,67 +686,97 @@ export function ReportServiceTab({
         }}
       >
         <SheetContent
-          side="right"
-          className="w-full sm:max-w-xl overflow-y-auto p-0 border-l border-slate-200"
+          side={isMobile ? "bottom" : "right"}
+          showCloseButton={false}
+          className={cn(
+            "p-0 bg-slate-50/70 border-slate-200/80 shadow-2xl flex flex-col focus:outline-none",
+            isMobile
+              ? "w-full max-h-[88vh] rounded-t-[28px] border-t overflow-hidden"
+              : "w-full sm:max-w-xl md:max-w-2xl h-full border-l overflow-y-auto"
+          )}
         >
           {selected && (
-            <div className="flex flex-col h-full bg-slate-50/40 w-full min-w-0">
-              <SheetHeader className="px-4 sm:px-6 pt-6 pb-5 border-b border-slate-200/80 bg-white">
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="flex size-12 sm:size-14 items-center justify-center rounded-2xl bg-purple-100 text-[#7c3aed] shadow-xs ring-2 ring-purple-100 shrink-0">
-                    <Flower2 className="size-6 sm:size-7" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <SheetTitle className="text-lg sm:text-xl font-extrabold text-slate-900 truncate">
-                      {selected.service_name}
-                    </SheetTitle>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <Badge
-                        variant="outline"
-                        className="bg-slate-100 text-slate-600 border-slate-200 font-semibold text-xs shrink-0"
-                      >
-                        <Clock className="size-3 mr-1 text-slate-400" />
-                        {formatDuration(selected.duration_minutes)}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="bg-purple-50 text-[#7c3aed] border-purple-200 font-bold text-xs shrink-0"
-                      >
-                        Base: {formatCurrency(Number(selected.price))}
-                      </Badge>
+            <div className="flex flex-col h-full w-full min-w-0 overflow-hidden">
+              {/* Mobile Drag Indicator */}
+              <div className="sm:hidden flex flex-col items-center pt-2.5 pb-1 bg-white border-b border-slate-100/60 shrink-0">
+                <div className="h-1.5 w-12 rounded-full bg-slate-300" />
+              </div>
+
+              {/* Header */}
+              <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 sm:pb-5 border-b border-slate-200/80 bg-white shrink-0 relative">
+                <div className="flex items-start justify-between gap-3 pr-8 sm:pr-10">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div className="flex size-12 sm:size-14 items-center justify-center rounded-2xl bg-purple-100 text-[#7c3aed] shadow-xs ring-2 ring-purple-100 shrink-0">
+                      <Flower2 className="size-6 sm:size-7" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <SheetTitle className="text-base sm:text-xl font-extrabold text-slate-900 truncate">
+                        {selected.service_name}
+                      </SheetTitle>
+                      <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-100 text-slate-600 border-slate-200 font-semibold text-[10px] sm:text-xs shrink-0 rounded-lg"
+                        >
+                          <Clock className="size-3 mr-1 text-slate-400" />
+                          {formatDuration(selected.duration_minutes)}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="bg-purple-50 text-[#7c3aed] border-purple-200 font-bold text-[10px] sm:text-xs shrink-0 rounded-lg"
+                        >
+                          Base: {formatCurrency(Number(selected.price))}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="bg-sky-50 text-sky-700 border-sky-200 font-bold text-[10px] sm:text-xs shrink-0 rounded-lg"
+                        >
+                          {selected.usage_count}× Booked
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                {/* Close Button */}
+                <button
+                  onClick={() => setSelected(null)}
+                  className="absolute right-3.5 top-3.5 sm:top-5 size-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="size-4" />
+                </button>
               </SheetHeader>
 
-              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 space-y-6">
+              {/* Scrollable Content Body */}
+              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 space-y-5 sm:space-y-6">
                 {/* Stats Grid */}
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                    Performance Overview
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-xs space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Performance Breakdown
                   </h3>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-2xl bg-white border border-slate-200/80 p-3 text-center shadow-xs min-w-0">
+                    <div className="rounded-xl bg-sky-50/70 border border-sky-100 p-2.5 sm:p-3 text-center min-w-0">
                       <p className="text-[10px] text-sky-600 font-bold uppercase tracking-wider truncate">
-                        Bookings
+                        Total Usages
                       </p>
-                      <p className="text-base sm:text-lg font-extrabold text-slate-800 mt-1 truncate">
+                      <p className="text-sm sm:text-lg font-extrabold text-slate-800 mt-1 truncate">
                         {selected.usage_count}×
                       </p>
                     </div>
-                    <div className="rounded-2xl bg-emerald-50/70 border border-emerald-200/70 p-3 text-center shadow-xs min-w-0">
+                    <div className="rounded-xl bg-emerald-50/80 border border-emerald-100 p-2.5 sm:p-3 text-center min-w-0">
                       <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider truncate">
-                        Revenue
+                        Total Revenue
                       </p>
-                      <p className="text-sm sm:text-base font-extrabold text-emerald-700 mt-1 truncate">
+                      <p className="text-xs sm:text-base font-extrabold text-emerald-700 mt-1 truncate">
                         {formatCurrency(selected.total_revenue)}
                       </p>
                     </div>
-                    <div className="rounded-2xl bg-purple-50/70 border border-purple-200/70 p-3 text-center shadow-xs min-w-0">
+                    <div className="rounded-xl bg-purple-50/80 border border-purple-100 p-2.5 sm:p-3 text-center min-w-0">
                       <p className="text-[10px] text-[#7c3aed] font-bold uppercase tracking-wider truncate">
                         Avg Price
                       </p>
-                      <p className="text-sm sm:text-base font-extrabold text-[#7c3aed] mt-1 truncate">
+                      <p className="text-xs sm:text-base font-extrabold text-[#7c3aed] mt-1 truncate">
                         {formatCurrency(selected.avg_price)}
                       </p>
                     </div>
@@ -761,10 +793,10 @@ export function ReportServiceTab({
 
                   {selected.recent_bookings.length === 0 ? (
                     <div className="rounded-2xl bg-white border border-slate-200/70 p-6 text-center text-slate-400 italic text-sm">
-                      No bookings recorded for this service.
+                      No bookings recorded for this service yet.
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5 sm:space-y-3">
                       {selected.recent_bookings.map((b, idx) => (
                         <div
                           key={`${b.booking_id}-${idx}`}
@@ -777,7 +809,7 @@ export function ReportServiceTab({
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 min-w-0">
                                 <BookOpen className="size-3.5 text-purple-600 shrink-0" />
-                                <span className="text-sm font-bold text-slate-800 group-hover:text-[#7c3aed] transition-colors truncate">
+                                <span className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-[#7c3aed] transition-colors truncate">
                                   {b.customer_name}
                                 </span>
                                 <ExternalLink className="size-3 text-slate-300 group-hover:text-[#7c3aed] transition-colors ml-1 shrink-0" />
@@ -786,7 +818,7 @@ export function ReportServiceTab({
                                 <Calendar className="size-3 text-slate-400 shrink-0" />
                                 <span>{formatDate(b.booking_date)}</span>
                                 {b.quantity > 1 && (
-                                  <span className="text-purple-600 font-bold bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100 shrink-0">
+                                  <span className="text-purple-600 font-bold bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100 shrink-0 text-[10px]">
                                     Qty: {b.quantity}
                                   </span>
                                 )}
@@ -802,7 +834,7 @@ export function ReportServiceTab({
                               >
                                 {b.status}
                               </span>
-                              <p className="text-sm font-extrabold text-emerald-600">
+                              <p className="text-xs sm:text-sm font-extrabold text-emerald-600">
                                 {formatCurrency(b.unit_price * b.quantity)}
                               </p>
                             </div>
