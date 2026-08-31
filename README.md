@@ -1,4 +1,4 @@
-# ArtistOS
+# ArtistOS Hoo
 
 Booking/CRM app for freelance artists (mehndi/makeup studios and similar) — customers, services, bookings, calendar, a client-facing portfolio with shareable links, Razorpay payments, and web push booking reminders.
 
@@ -110,18 +110,18 @@ supabase stopx
 
 Copy into `.env` (gitignored). Everything except the push block already existed.
 
-| Variable | Purpose |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Postgres client |
-| `JWT_SECRET` / `AUTH_SECRET` | Signs the custom `artist_session` token |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | Portfolio file storage |
-| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_WEBHOOK_SECRET` | Storage plan payments |
-| `STORAGE_*` | Free tier size, share expiry, max upload size |
-| `CRON_SECRET` | Bearer token guarding every `/api/cron/**` route |
-| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` | Web push |
-| `BOOKING_REMINDER_MINUTES_BEFORE` | How far ahead of a booking to remind (default 60) |
-| `NOTIFICATION_MAX_ATTEMPTS` | Dispatcher retry budget per notification (default 3) |
-| `APP_TIMEZONE` | Timezone that `booking_date` + `start_time` are written in (default `Asia/Kolkata`) |
+| Variable                                                                                           | Purpose                                                                             |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`                                        | Supabase Postgres client                                                            |
+| `JWT_SECRET` / `AUTH_SECRET`                                                                       | Signs the custom `artist_session` token                                             |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`                      | Portfolio file storage                                                              |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_WEBHOOK_SECRET` | Storage plan payments                                                               |
+| `STORAGE_*`                                                                                        | Free tier size, share expiry, max upload size                                       |
+| `CRON_SECRET`                                                                                      | Bearer token guarding every `/api/cron/**` route                                    |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`           | Web push                                                                            |
+| `BOOKING_REMINDER_MINUTES_BEFORE`                                                                  | How far ahead of a booking to remind (default 60)                                   |
+| `NOTIFICATION_MAX_ATTEMPTS`                                                                        | Dispatcher retry budget per notification (default 3)                                |
+| `APP_TIMEZONE`                                                                                     | Timezone that `booking_date` + `start_time` are written in (default `Asia/Kolkata`) |
 
 Generate VAPID keys with:
 
@@ -137,11 +137,11 @@ npx web-push generate-vapid-keys
 
 `vercel.json` defines three crons, all `GET` routes requiring `Authorization: Bearer $CRON_SECRET`:
 
-| Route | Schedule | Job |
-| --- | --- | --- |
+| Route                                   | Schedule    | Job                                                               |
+| --------------------------------------- | ----------- | ----------------------------------------------------------------- |
 | `/api/cron/notifications/scan-bookings` | every 5 min | Enqueues reminders for bookings whose reminder moment has arrived |
-| `/api/cron/notifications/dispatch` | every 2 min | Sends every pending row in `notification_events` |
-| `/api/cron/portfolio/expire-shares` | daily 03:00 | Sweeps expired portfolio share links |
+| `/api/cron/notifications/dispatch`      | every 2 min | Sends every pending row in `notification_events`                  |
+| `/api/cron/portfolio/expire-shares`     | daily 03:00 | Sweeps expired portfolio share links                              |
 
 Trigger one by hand:
 
@@ -170,4 +170,3 @@ Artists opt in per device from **Profile → Notifications**, and the "Send test
 ## Non-standard Next.js
 
 This repo pins a Next.js version where **`middleware.ts` is renamed to `proxy.ts`**, exporting `proxy()` instead of `middleware()`. Route protection lives in [proxy.ts](proxy.ts). Do not create a `middleware.ts` — it will not run. When an API behaves unexpectedly, check `node_modules/next/dist/docs/` for the pinned version's docs rather than relying on training-data behaviour.
-
