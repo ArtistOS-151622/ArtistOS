@@ -5,7 +5,7 @@ import {
   buildPlatformSubscriptionDates,
   resolveCompletedPlatformPaymentDates,
   unixSecondsToIso,
-} from "../lib/platform-billing-dates"
+} from "../lib/platform-billing-dates.ts"
 
 const unix = (iso: string) => Date.parse(iso) / 1000
 
@@ -53,16 +53,20 @@ test("paid platform completion must use Razorpay subscription dates", () => {
   assert.equal(dates.nextBillingAt, "2026-09-15T00:00:00.000Z")
 })
 
-test("paid platform completion fails when Razorpay dates are unavailable", () => {
-  assert.throws(
-    () =>
-      resolveCompletedPlatformPaymentDates({
-        amount: 236,
-        rpSubscriptionId: "sub_123",
-        razorpayDates: null,
-      }),
-    /Could not determine subscription dates from Razorpay/
-  )
+test("paid platform completion defers dates when Razorpay has none yet", () => {
+  // A subscription is still in 'created' state at checkout, so Razorpay has no
+  // period dates to report. Throwing here would fail the sale; the webhook
+  // fills these in later via extendPlatformSubscriptionToDate.
+  const dates = resolveCompletedPlatformPaymentDates({
+    amount: 236,
+    rpSubscriptionId: "sub_123",
+    razorpayDates: null,
+  })
+
+  assert.equal(dates.currentPeriodStart, null)
+  assert.equal(dates.currentPeriodEnd, null)
+  assert.equal(dates.nextBillingAt, null)
+  assert.equal(dates.subscriptionEndAt, null)
 })
 
 test("paid platform completion fails without a Razorpay subscription id", () => {

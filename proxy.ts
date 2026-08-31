@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+import { getArtistSession } from "@/lib/auth/session"
+import { checkIsReadOnly } from "@/lib/auth/subscription"
+
 // List of protected routes that require a session
 const protectedPrefixes = [
   "/dashboard",
@@ -26,22 +29,6 @@ function getJwtExpiry(token: string): number | null {
     }
     const exp = Number(decoded.exp)
     return Number.isFinite(exp) ? exp : null
-  } catch {
-    return null
-  }
-}
-
-function getJwtUserId(token: string): number | null {
-  const payload = token.split(".")[1]
-  if (!payload) return null
-
-  try {
-    const padded = payload.padEnd(payload.length + ((4 - (payload.length % 4)) % 4), "=")
-    const decoded = JSON.parse(atob(padded.replace(/-/g, "+").replace(/_/g, "/"))) as {
-      id?: unknown
-    }
-    const id = Number(decoded.id)
-    return Number.isFinite(id) ? id : null
   } catch {
     return null
   }
@@ -132,17 +119,21 @@ export async function proxy(request: NextRequest) {
     ]
     
     const isExempt = exemptApiRoutes.some(r => pathname.startsWith(r))
-    
-    if (!isExempt && session?.value && !isExpiredSession(session.value)) {
+
+    // Proxy runs on the Node.js runtime in Next 16, so this can reuse the real
+    // session reader: it accepts a Bearer header as well as the cookie, and
+    // verifies the token signature. Reading the cookie by hand let any
+    // header-only client skip the gate entirely just by not sending one.
+    const artist = isExempt ? null : getArtistSession(request)
+
+    if (artist) {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      const userId = getJwtUserId(session.value)
 
-      if (supabaseUrl && supabaseAnonKey && userId) {
+      if (supabaseUrl && supabaseAnonKey) {
         const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } })
         try {
-          const { checkIsReadOnly } = await import("@/lib/auth/subscription")
-          const isReadOnly = await checkIsReadOnly(supabase, userId)
+          const isReadOnly = await checkIsReadOnly(supabase, artist.id)
           if (isReadOnly) {
             return NextResponse.json(
               { error: "Your subscription has expired. You are in read-only mode." },
@@ -150,6 +141,9 @@ export async function proxy(request: NextRequest) {
             )
           }
         } catch (e) {
+          // Deliberately fails open. A Supabase blip should not stop paying
+          // artists from writing; the cost is that an expired subscription can
+          // slip a write through during an outage.
           console.error("Proxy Subscription Check Error:", e)
         }
       }

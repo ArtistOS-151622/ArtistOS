@@ -94,10 +94,19 @@ export async function POST(request: NextRequest) {
     return portfolioError("Invalid webhook signature", 401)
   }
 
+  // Razorpay sends the event id as a request header, never in the body, and
+  // retries delivery in exponential backoff for 24 hours on any non-2xx or
+  // 5s timeout. This header is what makes those retries idempotent, so refuse
+  // to process an event we cannot identify rather than risk double-crediting.
+  // https://razorpay.com/docs/webhooks/best-practices/
+  const eventId = request.headers.get("x-razorpay-event-id")
+
+  if (!eventId) {
+    return portfolioError("Missing x-razorpay-event-id header", 400)
+  }
+
   const payload = JSON.parse(body) as RazorpayWebhookPayload
   const eventType = payload.event as string
-  const fallbackEventId = `${eventType}:${payload.payload?.payment?.entity?.id ?? payload.payload?.subscription?.entity?.id ?? Date.now()}`
-  const eventId = payload.event_id ?? payload.id ?? fallbackEventId
 
   const supabase = createAdminClient()
 

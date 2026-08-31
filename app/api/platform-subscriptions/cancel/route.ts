@@ -28,13 +28,22 @@ export async function POST(request: NextRequest) {
         const razorpay = getRazorpayClient()
         await razorpay.subscriptions.cancel(payment.rp_subscription_id, false)
       } catch (err) {
+        // The subscription is still live at Razorpay and will keep billing, so
+        // leave the payment pending: it is the only record tying this artist to
+        // that subscription, and the webhook still needs it to reconcile.
         console.error("Failed to cancel pending Razorpay subscription:", err)
+        return NextResponse.json(
+          { status: false, message: "Could not cancel the subscription with Razorpay" },
+          { status: 502 }
+        )
       }
     }
 
+    // Mark, never delete -- ondismiss can fire while a capture is in flight, and
+    // a deleted row leaves the webhook with nothing to reconcile against.
     await supabase
       .from("platform_payments")
-      .delete()
+      .update({ status: "cancelled" })
       .eq("id", paymentId)
       .eq("user_id", session.id)
       .eq("status", "pending")

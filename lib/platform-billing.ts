@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { getRazorpayClient, isRazorpayConfigured } from "@/lib/razorpay/client"
+import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/razorpay/webhook-events"
 import { calculatePurchaseAmounts } from "@/lib/portfolio/billing"
 import { createHmac, timingSafeEqual } from "crypto"
 import {
@@ -188,22 +189,31 @@ export async function completePlatformPayment(
     payment_method?: string
   }
 ): Promise<boolean> {
-  // Prevent duplicate webhook processing
-  if (paymentMeta?.rp_event_id) {
-    const { data: existingEvent } = await supabase
-      .from("razorpay_webhook_events")
-      .select("id")
-      .eq("event_id", paymentMeta.rp_event_id)
-      .maybeSingle()
+  const eventId = paymentMeta?.rp_event_id
 
-    if (existingEvent) return false
-
-    await supabase.from("razorpay_webhook_events").insert({
-      event_id: paymentMeta.rp_event_id,
-      event_type: "platform_payment",
-    })
+  if (eventId && !(await claimWebhookEvent(supabase, eventId, "platform_payment"))) {
+    return false
   }
 
+  try {
+    return await applyCompletedPlatformPayment(supabase, paymentId, paymentMeta)
+  } catch (err) {
+    // Hand the event back so Razorpay's retry can activate the subscription.
+    if (eventId) await releaseWebhookEvent(supabase, eventId)
+    throw err
+  }
+}
+
+async function applyCompletedPlatformPayment(
+  supabase: SupabaseClient,
+  paymentId: number,
+  paymentMeta?: {
+    rp_payment_id?: string
+    rp_subscription_id?: string
+    rp_event_id?: string
+    payment_method?: string
+  }
+): Promise<boolean> {
   // Fetch the payment
   const { data: payment, error: fetchError } = await supabase
     .from("platform_payments")
@@ -251,7 +261,7 @@ export async function completePlatformPayment(
       rp_payment_id: paymentMeta?.rp_payment_id ?? payment.rp_payment_id,
       rp_subscription_id: paymentMeta?.rp_subscription_id ?? payment.rp_subscription_id,
       rp_event_id: paymentMeta?.rp_event_id ?? payment.rp_event_id,
-      payment_method: paymentMeta?.payment_method ?? null,
+      payment_method: paymentMeta?.payment_method ?? payment.payment_method,
       invoice_number: invoiceNumber,
     })
     .eq("id", paymentId)
@@ -468,88 +478,102 @@ export async function processPlatformRenewal(
     if (existingPayment) return false
   }
 
-  await supabase.from("razorpay_webhook_events").insert({
-    event_id: paymentMeta.rp_event_id,
-    event_type: "platform_renewal",
-  })
+  // The read above is only a fast path: it and this claim straddle a Razorpay
+  // API call, so two concurrent deliveries can both pass it. The claim is what
+  // actually decides which one creates the invoice.
+  const claimed = await claimWebhookEvent(
+    supabase,
+    paymentMeta.rp_event_id,
+    "platform_renewal"
+  )
 
-  const plan = originalPayment.platform_subscriptions
-  if (!plan) {
-    console.error("Renewal failed: Plan details not found")
-    return false
-  }
+  if (!claimed) return false
 
-  // 3. Create a NEW payment record for this renewal invoice
-  const invoiceNumber = `INV-PLT-RNW-${Math.floor(Date.now() / 1000)}-${Math.floor(1000 + Math.random() * 9000)}`
+  try {
+    const plan = originalPayment.platform_subscriptions
+    if (!plan) {
+      console.error("Renewal failed: Plan details not found")
+      await releaseWebhookEvent(supabase, paymentMeta.rp_event_id)
+      return false
+    }
 
-  const { data: newPayment, error: insertError } = await supabase
-    .from("platform_payments")
-    .insert({
-      user_id: originalPayment.user_id,
-      plan_id: plan.id,
-      plan_name: originalPayment.plan_name,
-      base_amount: originalPayment.base_amount,
-      amount: originalPayment.amount,
-      status: "completed",
-      rp_payment_id: paymentMeta.rp_payment_id,
-      rp_subscription_id: paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id,
-      rp_event_id: paymentMeta.rp_event_id,
-      payment_method: paymentMeta.payment_method,
-      rp_order_id: null,
-      invoice_number: invoiceNumber,
-    })
-    .select("id")
-    .single()
+    // 3. Create a NEW payment record for this renewal invoice
+    const invoiceNumber = `INV-PLT-RNW-${Math.floor(Date.now() / 1000)}-${Math.floor(1000 + Math.random() * 9000)}`
 
-  if (insertError || !newPayment) {
-    console.error("Renewal failed: Could not create new payment invoice", insertError)
-    return false
-  }
+    const { data: newPayment, error: insertError } = await supabase
+      .from("platform_payments")
+      .insert({
+        user_id: originalPayment.user_id,
+        plan_id: plan.id,
+        plan_name: originalPayment.plan_name,
+        base_amount: originalPayment.base_amount,
+        amount: originalPayment.amount,
+        status: "completed",
+        rp_payment_id: paymentMeta.rp_payment_id,
+        rp_subscription_id: paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id,
+        rp_event_id: paymentMeta.rp_event_id,
+        payment_method: paymentMeta.payment_method,
+        rp_order_id: null,
+        invoice_number: invoiceNumber,
+      })
+      .select("id")
+      .single()
 
-  // 4. Use webhook payload dates if available, otherwise fallback to fetching from API
-  let currentStartUnix = paymentMeta.current_start
-  let currentEndUnix = paymentMeta.current_end
-  let chargeAtUnix = paymentMeta.charge_at
-  let endAtUnix = paymentMeta.end_at
+    if (insertError || !newPayment) {
+      console.error("Renewal failed: Could not create new payment invoice", insertError)
+      await releaseWebhookEvent(supabase, paymentMeta.rp_event_id)
+      return false
+    }
 
-  if (!currentStartUnix || !currentEndUnix || !chargeAtUnix || !endAtUnix) {
-    const rpSubId = paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id
-    if (rpSubId) {
-      try {
-        const razorpay = getRazorpayClient()
-        const rpSub = await razorpay.subscriptions.fetch(rpSubId)
-        if (rpSub && rpSub.current_start) {
-          currentStartUnix = rpSub.current_start
+    // 4. Use webhook payload dates if available, otherwise fallback to fetching from API
+    let currentStartUnix = paymentMeta.current_start
+    let currentEndUnix = paymentMeta.current_end
+    let chargeAtUnix = paymentMeta.charge_at
+    let endAtUnix = paymentMeta.end_at
+
+    if (!currentStartUnix || !currentEndUnix || !chargeAtUnix || !endAtUnix) {
+      const rpSubId = paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id
+      if (rpSubId) {
+        try {
+          const razorpay = getRazorpayClient()
+          const rpSub = await razorpay.subscriptions.fetch(rpSubId)
+          if (rpSub && rpSub.current_start) {
+            currentStartUnix = rpSub.current_start
+          }
+          if (rpSub && rpSub.current_end) {
+            currentEndUnix = rpSub.current_end
+          }
+          if (rpSub && rpSub.charge_at) {
+            chargeAtUnix = rpSub.charge_at
+          }
+          if (rpSub && rpSub.end_at) {
+            endAtUnix = rpSub.end_at
+          }
+        } catch (err) {
+          console.error("Failed to fetch Razorpay subscription for renewal:", err)
         }
-        if (rpSub && rpSub.current_end) {
-          currentEndUnix = rpSub.current_end
-        }
-        if (rpSub && rpSub.charge_at) {
-          chargeAtUnix = rpSub.charge_at
-        }
-        if (rpSub && rpSub.end_at) {
-          endAtUnix = rpSub.end_at
-        }
-      } catch (err) {
-        console.error("Failed to fetch Razorpay subscription for renewal:", err)
       }
     }
-  }
 
-  // 5. Extend the subscription period
-  if (currentEndUnix) {
-    await extendPlatformSubscriptionToDate(
-      supabase,
-      originalPayment.user_id,
-      currentEndUnix,
-      currentStartUnix,
-      chargeAtUnix,
-      endAtUnix,
-      paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id
-    )
-  } else {
-    throw new Error("Could not determine subscription end date from Razorpay")
-  }
+    // 5. Extend the subscription period
+    if (currentEndUnix) {
+      await extendPlatformSubscriptionToDate(
+        supabase,
+        originalPayment.user_id,
+        currentEndUnix,
+        currentStartUnix,
+        chargeAtUnix,
+        endAtUnix,
+        paymentMeta.rp_subscription_id ?? originalPayment.rp_subscription_id
+      )
+    } else {
+      throw new Error("Could not determine subscription end date from Razorpay")
+    }
 
-  return true
+    return true
+  } catch (err) {
+    // Hand the event back so Razorpay's retry can record the renewal.
+    await releaseWebhookEvent(supabase, paymentMeta.rp_event_id)
+    throw err
+  }
 }

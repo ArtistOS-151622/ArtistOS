@@ -4,7 +4,7 @@ import test from "node:test"
 import {
   getRazorpayWebhookNotes,
   getRazorpayWebhookSubscriptionId,
-} from "../lib/razorpay-webhook-platform"
+} from "../lib/razorpay-webhook-platform.ts"
 
 test("keeps subscription notes when renewal payment notes are empty", () => {
   const notes = getRazorpayWebhookNotes({

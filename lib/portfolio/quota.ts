@@ -180,39 +180,6 @@ export async function adjustUsage(
   }
 }
 
-export async function applyPurchaseToQuota(
-  supabase: SupabaseClient,
-  userId: number,
-  storageBytes: number,
-  isAddon: boolean,
-  currentEndUnix?: number
-): Promise<void> {
-  const quota = await getOrCreateQuota(supabase, userId)
-  const now = new Date()
-  const newPurchaseBytes = Number(quota.purchase_storage_bytes) + storageBytes
-
-  let expiresAt: string
-  if (isAddon && quota.expires_at && new Date(quota.expires_at) > now) {
-    expiresAt = quota.expires_at
-  } else {
-    const expiry = currentEndUnix ? new Date(currentEndUnix * 1000) : new Date(now)
-    if (!currentEndUnix) {
-      expiry.setDate(expiry.getDate() + 30) // Fallback default
-    }
-    expiresAt = expiry.toISOString()
-  }
-
-  const { error } = await supabase
-    .from("portfolio_storage_quotas")
-    .update({
-      purchase_storage_bytes: newPurchaseBytes,
-      expires_at: expiresAt,
-    })
-    .eq("user_id", userId)
-
-  if (error) throw new Error(error.message)
-}
-
 export async function extendSubscriptionPeriodToDate(
   supabase: SupabaseClient,
   userId: number,

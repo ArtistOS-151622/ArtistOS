@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { createHmac, timingSafeEqual } from "crypto"
 
-// GST rate will be fetched dynamically from platform_settings
 import { getOrCreateQuota, QuotaService } from "@/lib/portfolio/quota"
 import type { StoragePlanRow } from "@/lib/portfolio/types"
 import { getRazorpayClient, isRazorpayConfigured } from "@/lib/razorpay/client"
+import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/razorpay/webhook-events"
 
 function getRazorpayKeySecret(): string {
   const secret = process.env.RAZORPAY_KEY_SECRET
@@ -248,69 +248,72 @@ export async function completePurchase(
     payment_method?: string
   }
 ): Promise<boolean> {
-  if (paymentMeta?.rp_event_id) {
-    const { data: existingEvent } = await supabase
-      .from("razorpay_webhook_events")
-      .select("id")
-      .eq("event_id", paymentMeta.rp_event_id)
-      .maybeSingle()
+  const eventId = paymentMeta?.rp_event_id
 
-    if (existingEvent) return false
-
-    await supabase.from("razorpay_webhook_events").insert({
-      event_id: paymentMeta.rp_event_id,
-      event_type: "payment",
-    })
+  if (eventId && !(await claimWebhookEvent(supabase, eventId, "payment"))) {
+    return false
   }
 
+  try {
+    return await applyCompletedPurchase(supabase, purchaseId, paymentMeta)
+  } catch (err) {
+    // Hand the event back so Razorpay's retry can complete the purchase.
+    if (eventId) await releaseWebhookEvent(supabase, eventId)
+    throw err
+  }
+}
+
+async function applyCompletedPurchase(
+  supabase: SupabaseClient,
+  purchaseId: number,
+  paymentMeta?: {
+    rp_payment_id?: string
+    rp_subscription_id?: string
+    rp_event_id?: string
+    payment_method?: string
+  }
+): Promise<boolean> {
   const { data: purchase } = await supabase
     .from("portfolio_storage_purchases")
-    .select("*, storage_plans(*)")
+    .select("user_id, status, storage_plans(id)")
     .eq("id", purchaseId)
-    .single()
+    .maybeSingle()
 
   if (!purchase || purchase.status === "completed") return false
+  if (!purchase.storage_plans) throw new Error("Plan not found for purchase")
 
-  const plan = purchase.storage_plans as StoragePlanRow | null
-  if (!plan) throw new Error("Plan not found for purchase")
-
-  await supabase
-    .from("portfolio_storage_purchases")
-    .update({
-      status: "completed",
-      rp_payment_id: paymentMeta?.rp_payment_id ?? purchase.rp_payment_id,
-      rp_subscription_id: paymentMeta?.rp_subscription_id ?? purchase.rp_subscription_id,
-      rp_event_id: paymentMeta?.rp_event_id ?? purchase.rp_event_id,
-      payment_method: paymentMeta?.payment_method ?? null,
-    })
-    .eq("id", purchaseId)
-
-  const quotaRow = await getOrCreateQuota(supabase, purchase.user_id)
-  const quota = QuotaService.fromRow(quotaRow)
-  const isAddon = quota.isActive() || quota.isInGracePeriod()
-
-  const { applyPurchaseToQuota } = await import("@/lib/portfolio/quota")
-  
-  let currentEndUnix: number | undefined
+  // Resolve the paid-through date before the transaction, since it needs a
+  // network call. Absent a subscription, the SQL side falls back to 30 days.
+  let fallbackExpiresAt: string | null = null
   if (paymentMeta?.rp_subscription_id) {
     try {
       const razorpay = getRazorpayClient()
       const rpSub = await razorpay.subscriptions.fetch(paymentMeta.rp_subscription_id)
       if (rpSub && rpSub.current_end) {
-        currentEndUnix = rpSub.current_end
+        fallbackExpiresAt = new Date(rpSub.current_end * 1000).toISOString()
       }
     } catch (err) {
       console.error("Failed to fetch Razorpay subscription for end date:", err)
     }
   }
 
-  await applyPurchaseToQuota(
-    supabase,
-    purchase.user_id,
-    Number(purchase.storage_bytes),
-    isAddon,
-    currentEndUnix
-  )
+  // The free-tier size is app config, so the quota row can't be defaulted in
+  // SQL. Create it here; complete_storage_purchase raises if it is missing.
+  await getOrCreateQuota(supabase, purchase.user_id)
 
-  return true
+  // Claims the purchase and credits the quota in one transaction, so a browser
+  // /verify racing the payment.captured webhook credits the storage exactly
+  // once and a failed credit rolls the completion back.
+  const { data: completed, error } = await supabase.rpc("complete_storage_purchase", {
+    p_purchase_id: purchaseId,
+    p_rp_payment_id: paymentMeta?.rp_payment_id ?? null,
+    p_rp_subscription_id: paymentMeta?.rp_subscription_id ?? null,
+    p_rp_event_id: paymentMeta?.rp_event_id ?? null,
+    p_payment_method: paymentMeta?.payment_method ?? null,
+    p_fallback_expires_at: fallbackExpiresAt,
+  })
+
+  if (error) throw new Error(error.message)
+
+  return completed === true
 }

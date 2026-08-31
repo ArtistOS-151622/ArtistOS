@@ -18,16 +18,19 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient()
 
-    // Ensure we only delete if it belongs to the user and is still "pending"
+    // Mark, never delete. This runs from Razorpay's ondismiss handler, which can
+    // fire while a capture is still in flight -- deleting the row would leave the
+    // webhook with no purchase to credit and the artist charged for nothing.
+    // A late capture can still complete a cancelled row, which is what we want.
     const { error } = await supabase
       .from("portfolio_storage_purchases")
-      .delete()
+      .update({ status: "cancelled" })
       .eq("id", purchase_id)
       .eq("user_id", session.id)
       .eq("status", "pending")
 
     if (error) {
-      console.error("Error deleting cancelled purchase:", error)
+      console.error("Error cancelling purchase:", error)
       return NextResponse.json({ status: false, message: "Failed to cancel purchase" }, { status: 500 })
     }
 

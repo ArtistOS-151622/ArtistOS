@@ -11,10 +11,10 @@ export type RazorpayWebhookEntity = {
   end_at?: number
 }
 
+// Razorpay does not put an event id in the webhook body -- it is sent as the
+// x-razorpay-event-id request header. See app/api/webhooks/razorpay/route.ts.
 export type RazorpayWebhookPayload = {
   event?: string
-  event_id?: string
-  id?: string
   payload?: {
     payment?: { entity?: RazorpayWebhookEntity }
     subscription?: { entity?: RazorpayWebhookEntity }

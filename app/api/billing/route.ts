@@ -84,17 +84,20 @@ export async function GET(request: NextRequest) {
         ? subscriptionRow
         : null
 
-    // Get payment history (platform subscription payments)
+    // Payment history. Cancelled rows are kept in the tables so a late capture
+    // still has something to reconcile against, but an abandoned checkout is
+    // not history worth showing the artist.
     const { data: platformPayments } = await supabase
       .from("platform_payments")
       .select("*")
       .eq("user_id", userId)
+      .neq("status", "cancelled")
 
-    // Get storage purchases
     const { data: storagePurchases } = await supabase
       .from("portfolio_storage_purchases")
       .select("*, storage_plans(name)")
       .eq("user_id", userId)
+      .neq("status", "cancelled")
 
     // Format and combine payments
     const formattedPlatformPayments = ((platformPayments || []) as PlatformPaymentRow[]).map((p) => ({
