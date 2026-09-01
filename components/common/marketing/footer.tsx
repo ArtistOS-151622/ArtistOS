@@ -97,7 +97,7 @@ export function Footer({ disableAnimations = false }: { disableAnimations?: bool
                 +91 8320620125
               </p>
               <div className="pt-2 flex items-center gap-5">
-                <a href="https://www.instagram.com/artistoscrm/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-[#E1306C] hover:opacity-80 transition-all hover:-translate-y-0.5">
+                <a href="https://www.instagram.com/artistos.in/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-[#E1306C] hover:opacity-80 transition-all hover:-translate-y-0.5">
                   <FaInstagram className="size-7" />
                 </a>
                 <a href="https://www.facebook.com/profile.php?id=61593919465435" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-[#1877F2] hover:opacity-80 transition-all hover:-translate-y-0.5">

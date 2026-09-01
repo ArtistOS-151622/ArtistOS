@@ -70,7 +70,7 @@ export function JsonLd() {
       "booking software for beauty professionals",
     ],
     sameAs: [
-      "https://www.instagram.com/artistoscrm/",
+      "https://www.instagram.com/artistos.in/",
       "https://www.facebook.com/profile.php?id=61593919465435",
       // "https://twitter.com/artistos_in",
       // "https://www.linkedin.com/company/artistos",
