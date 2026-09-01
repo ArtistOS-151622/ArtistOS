@@ -395,8 +395,8 @@ export function InquiryManager() {
         }
       />
 
-      {/* KPI Summary Stat Cards - 3 in row on mobile, 4 on desktop */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-3 lg:gap-3.5 w-full min-w-0">
+      {/* KPI Summary Stat Cards - 2x2 on mobile, 4 on desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-3 lg:gap-3.5 w-full min-w-0">
         {/* Card 1: Total Inquiries */}
         <div className="relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border border-purple-100/90 bg-white/95 p-2 sm:p-3 lg:p-3.5 shadow-xs sm:shadow-sm transition-all hover:shadow-md min-w-0">
           <div className="flex items-center justify-between gap-1">
@@ -457,8 +457,8 @@ export function InquiryManager() {
           </div>
         </div>
 
-        {/* Card 4: Public Form Link (Hidden on mobile, visible on sm and up) */}
-        <div className="relative hidden sm:flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200/90 bg-white/95 p-2 sm:p-3 lg:p-3.5 shadow-xs sm:shadow-sm transition-all hover:shadow-md min-w-0">
+        {/* Card 4: Public Form Link */}
+        <div className="relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200/90 bg-white/95 p-2 sm:p-3 lg:p-3.5 shadow-xs sm:shadow-sm transition-all hover:shadow-md min-w-0">
           <div className="flex items-center justify-between gap-1">
             <span className="text-[9px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate">
               <span className="hidden sm:inline">Form </span>Link
