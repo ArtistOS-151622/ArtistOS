@@ -209,7 +209,7 @@ const freeTrialPlan: PricingPlan = {
 const pricingPlans: PricingPlan[] = [
   {
     name: "Monthly",
-    price: "₹249",
+    price: "₹299",
     compare_at_amount_inr: 500,
     discount_percentage: 50,
     billing_period: "monthly",
@@ -342,8 +342,8 @@ function RotatingHeroText() {
     <span className="relative inline-block px-1">
       <span
         className={`inline-block font-serif italic font-normal tracking-normal text-transparent bg-clip-text bg-gradient-to-r from-[#7c3aed] via-[#9333ea] to-[#a855f7] transition-all duration-350 ease-out transform min-h-[1.2em] ${animating
-            ? "opacity-0 -translate-y-2 blur-[1px]"
-            : "opacity-100 translate-y-0 blur-0"
+          ? "opacity-0 -translate-y-2 blur-[1px]"
+          : "opacity-100 translate-y-0 blur-0"
           }`}
       >
         {rotatingHeroPhrases[index]}
@@ -1161,12 +1161,12 @@ function PricingSection() {
           {/* Desktop: card grid */}
           <div
             className={`hidden gap-6 lg:grid ${cardPlans.length === 1
-                ? "lg:mx-auto lg:max-w-sm lg:grid-cols-1"
-                : cardPlans.length === 2
-                  ? "lg:mx-auto lg:max-w-3xl lg:grid-cols-2"
-                  : cardPlans.length === 4
-                    ? "lg:grid-cols-4"
-                    : "lg:grid-cols-3"
+              ? "lg:mx-auto lg:max-w-sm lg:grid-cols-1"
+              : cardPlans.length === 2
+                ? "lg:mx-auto lg:max-w-3xl lg:grid-cols-2"
+                : cardPlans.length === 4
+                  ? "lg:grid-cols-4"
+                  : "lg:grid-cols-3"
               }`}
           >
             {cardPlans.map((plan, i) => (
@@ -1205,8 +1205,8 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
   return (
     <article
       className={`relative flex h-full flex-col overflow-hidden rounded-[1.75rem] p-7 transition duration-300 hover:-translate-y-1.5 ${isFeatured
-          ? "bg-[#1c1435] text-white shadow-2xl shadow-[#7c3aed]/25 ring-1 ring-[#7c3aed]/40"
-          : "border border-[#eaedf8] bg-white text-[#232542] shadow-sm shadow-[#b8bdd8]/20 hover:shadow-xl hover:shadow-[#b8bdd8]/25"
+        ? "bg-[#1c1435] text-white shadow-2xl shadow-[#7c3aed]/25 ring-1 ring-[#7c3aed]/40"
+        : "border border-[#eaedf8] bg-white text-[#232542] shadow-sm shadow-[#b8bdd8]/20 hover:shadow-xl hover:shadow-[#b8bdd8]/25"
         }`}
     >
       {isFeatured && (
@@ -1301,10 +1301,10 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
       <a
         href={href}
         className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold tracking-wide transition-all duration-200 ${isFeatured
-            ? "bg-white text-[#1c1435] shadow-lg shadow-black/20 hover:bg-[#f3e8ff]"
-            : isFree
-              ? "bg-[#23a982] text-white shadow-lg shadow-[#23a982]/25 hover:bg-[#1c8f6f]"
-              : "bg-[#7c3aed] text-white shadow-lg shadow-[#7c3aed]/25 hover:bg-[#6d28d9]"
+          ? "bg-white text-[#1c1435] shadow-lg shadow-black/20 hover:bg-[#f3e8ff]"
+          : isFree
+            ? "bg-[#23a982] text-white shadow-lg shadow-[#23a982]/25 hover:bg-[#1c8f6f]"
+            : "bg-[#7c3aed] text-white shadow-lg shadow-[#7c3aed]/25 hover:bg-[#6d28d9]"
           }`}
         suppressHydrationWarning
       >

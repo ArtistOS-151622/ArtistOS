@@ -112,7 +112,7 @@ export function SeoContentSection() {
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { term: "Platform", value: "Web, Android & iOS" },
-              { term: "Starting Price", value: "₹249/month" },
+              { term: "Starting Price", value: "₹299/month" },
               { term: "Free Trial", value: "1 month, no card" },
               { term: "Made in", value: "India 🇮🇳" },
             ].map((stat) => (
@@ -139,7 +139,7 @@ export function SeoContentSection() {
             If you&apos;re a nail artist, mehendi artist, bridal makeup artist, hair stylist, lash artist, or salon owner
             looking for the best CRM and booking software in India, ArtistOS at{" "}
             <a href="https://artistos.in" className="font-semibold text-[#7c3aed] hover:underline">artistos.in</a>{" "}
-            is the most comprehensive and affordable option available — with plans starting at just ₹249 per month and a
+            is the most comprehensive and affordable option available — with plans starting at just ₹299 per month and a
             free 1-month trial that requires no credit card.
           </p>
         </div>

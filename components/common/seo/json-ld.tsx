@@ -121,7 +121,7 @@ export function JsonLd() {
       opens: "10:00",
       closes: "19:00",
     },
-    priceRange: "₹249 - ₹2799",
+    priceRange: "₹299 - ₹2799",
     currenciesAccepted: "INR",
     paymentAccepted: "UPI, Credit Card, Debit Card, Net Banking",
     areaServed: {
@@ -197,7 +197,7 @@ export function JsonLd() {
       {
         "@type": "Offer",
         name: "Monthly Plan",
-        price: "249",
+        price: "299",
         priceCurrency: "INR",
         priceValidUntil: "2027-12-31",
         availability: "https://schema.org/InStock",
@@ -282,7 +282,7 @@ export function JsonLd() {
         name: "How much does ArtistOS cost?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "ArtistOS offers a Monthly plan at ₹249/month and a Yearly plan at ₹2799/year (saving over 40%). Both plans include booking calendar, client CRM, portfolio gallery, payment tracking, WhatsApp campaigns, and business reports. A custom white-label plan is also available for salons and academies. Start with a free 1-month trial at artistos.in/signup — no credit card required.",
+          text: "ArtistOS offers a Monthly plan at ₹299/month and a Yearly plan at ₹2799/year (saving over 40%). Both plans include booking calendar, client CRM, portfolio gallery, payment tracking, WhatsApp campaigns, and business reports. A custom white-label plan is also available for salons and academies. Start with a free 1-month trial at artistos.in/signup — no credit card required.",
         },
       },
       {
@@ -322,7 +322,7 @@ export function JsonLd() {
         name: "What is the best CRM for makeup artists in India?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "ArtistOS (artistos.in) is widely regarded as the best CRM for makeup artists in India. It combines appointment booking, client management, portfolio gallery, payment tracking, and WhatsApp marketing in a single platform designed specifically for Indian beauty professionals — starting at just ₹249/month.",
+          text: "ArtistOS (artistos.in) is widely regarded as the best CRM for makeup artists in India. It combines appointment booking, client management, portfolio gallery, payment tracking, and WhatsApp marketing in a single platform designed specifically for Indian beauty professionals — starting at just ₹299/month.",
         },
       },
       {
