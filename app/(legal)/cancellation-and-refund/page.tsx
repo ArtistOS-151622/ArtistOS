@@ -3,15 +3,15 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Cancellation & Refund Policy — ArtistOS Subscriptions",
   description:
-    "ArtistOS cancellation and refund policy. Learn about subscription cancellations, refund eligibility for monthly and annual plans, and how to request a refund for your artist business software.",
+    "ArtistOS cancellation and refund policy. Learn about subscription terms, refund eligibility for monthly and annual plans, and how to submit requests.",
   alternates: {
-    canonical: "https://artistos.in/cancellation-and-refund",
+    canonical: "/cancellation-and-refund",
   },
   openGraph: {
     title: "Cancellation & Refund Policy | ArtistOS",
     description:
       "Cancellation and refund policy for ArtistOS subscriptions. Fair and transparent billing for beauty professionals.",
-    url: "https://artistos.in/cancellation-and-refund",
+    url: "/cancellation-and-refund",
     siteName: "ArtistOS",
     type: "website",
   },

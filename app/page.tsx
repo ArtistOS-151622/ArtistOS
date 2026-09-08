@@ -1439,6 +1439,14 @@ function FaqSection() {
       a: "Yes. ArtistOS includes WhatsApp broadcast tools so nail artists, mehendi artists, and beauty professionals can send festival offers, birthday messages, repeat-client promotions, and payment reminders directly from the platform.",
     },
     {
+      q: "Is ArtistOS related to artistos.ai or artistos.app?",
+      a: "No. ArtistOS at artistos.in is India's dedicated business operating system and booking CRM for beauty artists, nail artists, mehendi artists, makeup artists, and salons. It is completely independent and not associated with music industry platforms such as artistos.ai or artistos.app.",
+    },
+    {
+      q: "What is the official website for ArtistOS?",
+      a: "The official website for ArtistOS is https://www.artistos.in. Indian beauty and creative artists can sign up for a free 1-month trial, access the booking calendar, manage clients, and track revenue directly at artistos.in.",
+    },
+    {
       q: "Is ArtistOS available in India?",
       a: "Yes. ArtistOS (artistos.in) is made in India and built for Indian artists. It supports ₹ INR pricing, and is optimised for the Indian beauty and salon market.",
     },
@@ -1474,9 +1482,14 @@ function FaqSection() {
 
       <p data-reveal="rise" className="mt-10 text-center text-sm text-[#8b8fa8]">
         Still have a question?{" "}
-        <a href="#cta" className="font-semibold text-[#7c3aed] hover:underline">
-          Get in touch
+        <a href="/contact" className="font-semibold text-[#7c3aed] hover:underline">
+          Contact our team
+        </a>{" "}
+        or visit our{" "}
+        <a href="/help-and-support" className="font-semibold text-[#7c3aed] hover:underline">
+          Help &amp; Support Center
         </a>
+        .
       </p>
     </section>
   )

@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ArtistOS — Business Software for artists",
+    name: "ArtistOS — Business Software for Artists (artistos.in)",
     short_name: "ArtistOS",
     description:
-      "ArtistOS is India's #1 all-in-one business app for artists. Manage bookings, clients CRM, portfolio gallery, payment tracking, and WhatsApp campaigns — built for nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers.",
+      "ArtistOS (artistos.in) is India's #1 all-in-one business app for artists. Manage bookings, clients CRM, portfolio gallery, payment tracking, and WhatsApp campaigns — built for nail artists, mehendi artists, bridal makeup artists, salon owners, and beauty freelancers.",
     start_url: "/",
     scope: "/",
     display: "standalone",

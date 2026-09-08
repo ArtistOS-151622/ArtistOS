@@ -4,12 +4,12 @@ import { MessageCircle, Mail } from "lucide-react";
 export const metadata: Metadata = {
   title: "Help & Support — ArtistOS Customer Support for Beauty Professionals",
   description:
-    "Get help with your ArtistOS account. WhatsApp support, email assistance, and FAQs for nail artists, mehendi artists, bridal makeup artists, and salon owners using ArtistOS.",
-  alternates: { canonical: "https://artistos.in/help-and-support" },
+    "Get fast help with your ArtistOS account. Access WhatsApp support, email assistance, and FAQs for beauty professionals and salon owners.",
+  alternates: { canonical: "/help-and-support" },
   openGraph: {
     title: "Help & Support | ArtistOS",
     description: "Get help with your ArtistOS beauty business platform — WhatsApp support, email help, and FAQs.",
-    url: "https://artistos.in/help-and-support",
+    url: "/help-and-support",
     siteName: "ArtistOS",
     type: "website",
   },

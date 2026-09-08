@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "Log in to ArtistOS and manage your artist business. Access your booking calendar, client CRM, portfolio, payments, and WhatsApp campaigns.",
   alternates: {
-    canonical: "https://artistos.in/login",
+    canonical: "/login",
   },
   robots: {
     index: true,

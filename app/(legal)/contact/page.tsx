@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Contact Us — ArtistOS Business Software Support",
   description:
-    "Contact the ArtistOS team for support, sales inquiries, or custom plans. We help nail artists, mehendi artists, bridal makeup artists, and salon owners grow their beauty business.",
-  alternates: { canonical: "https://artistos.in/contact" },
+    "Contact the ArtistOS team for customer support, sales inquiries, or custom salon plans. We are here to help your beauty business thrive.",
+  alternates: { canonical: "/contact" },
   openGraph: {
     title: "Contact Us | ArtistOS",
     description: "Get in touch with the ArtistOS team for support, sales, or custom plans for your beauty business.",
-    url: "https://artistos.in/contact",
+    url: "/contact",
     siteName: "ArtistOS",
     type: "website",
   },

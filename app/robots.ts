@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next"
 
 export default function robots(): MetadataRoute.Robots {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.artistos.in"
   return {
     rules: [
       {
@@ -66,7 +67,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/api/", "/(dashboard)/", "/admin/"],
       },
     ],
-    sitemap: "https://artistos.in/sitemap.xml",
-    host: "https://artistos.in",
+    sitemap: `${baseUrl}/sitemap.xml`,
+    host: baseUrl,
   }
 }

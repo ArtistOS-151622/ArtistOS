@@ -99,13 +99,16 @@ export function Footer({ disableAnimations = false }: { disableAnimations?: bool
               <div className="pt-2 flex items-center gap-5">
                 <a href="https://www.instagram.com/artistos.in/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-[#E1306C] hover:opacity-80 transition-all hover:-translate-y-0.5">
                   <FaInstagram className="size-7" />
+                  <span className="sr-only">ArtistOS on Instagram</span>
                 </a>
                 <a href="https://www.facebook.com/profile.php?id=61593919465435" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-[#1877F2] hover:opacity-80 transition-all hover:-translate-y-0.5">
                   <FaFacebook className="size-7" />
+                  <span className="sr-only">ArtistOS on Facebook</span>
                 </a>
 
                 <a href="https://www.youtube.com/channel/UCTmnBHWzQdpNR5CMoQwKcoQ" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="text-[#FF0000] hover:opacity-80 transition-all hover:-translate-y-0.5">
                   <FaYoutube className="size-7" />
+                  <span className="sr-only">ArtistOS on YouTube</span>
                 </a>
               </div>
             </div>

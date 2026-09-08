@@ -3,15 +3,15 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Terms and Conditions — ArtistOS Business Software",
   description:
-    "Terms and Conditions for using ArtistOS, India's #1 business management platform for nail artists, mehendi artists, bridal makeup artists, and beauty professionals.",
+    "Terms and Conditions for using ArtistOS, India's #1 business management software for nail artists, mehendi artists, and beauty professionals.",
   alternates: {
-    canonical: "https://artistos.in/terms-and-conditions",
+    canonical: "/terms-and-conditions",
   },
   openGraph: {
     title: "Terms and Conditions | ArtistOS",
     description:
       "Terms and Conditions for using the ArtistOS beauty business management platform.",
-    url: "https://artistos.in/terms-and-conditions",
+    url: "/terms-and-conditions",
     siteName: "ArtistOS",
     type: "website",
   },

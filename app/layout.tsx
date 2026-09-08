@@ -21,25 +21,34 @@ const playfairDisplay = Playfair_Display({
   style: ["normal", "italic"],
 });
 
-const APP_URL = "https://artistos.in";
+const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.artistos.in";
 const OG_IMAGE = `${APP_URL}/og-image.png`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
 
   title: {
-    default: "ArtistOS — Business Software for artists | artistos.in",
-    template: "%s | ArtistOS",
+    default: "ArtistOS (artistos.in) — Business Software for Artists",
+    template: "%s | ArtistOS (artistos.in)",
   },
   description:
-    "ArtistOS is India's #1 all-in-one business app for artists. Manage appointments, clients, portfolio, payments, and WhatsApp campaigns — built for nail artists, mehendi artists, bridal makeup artists & salon owners.",
+    "ArtistOS is India's #1 business software for artists. Manage appointments, clients, portfolio, payments & WhatsApp marketing. Try ArtistOS free.",
 
   keywords: [
     "ArtistOS",
+    "artistos.in",
     "Artist OS",
     "artist os",
     "artistos",
-    "artistos.in",
+    "artistos official",
+    "artistos india",
+    "artist os india",
+    "artistos website",
+    "artistos app india",
+    "artistos crm",
+    "artistos login",
+    "artistos signup",
+    "artistos vs artistos ai",
     "artist app",
     "artist software",
     "nail artist app",
@@ -68,7 +77,6 @@ export const metadata: Metadata = {
     "nail salon booking app",
     "henna artist booking app",
     "artist CRM",
-    "artist os india",
     "CRM for artists",
     "CRM for makeup artists India",
     "best booking app for nail artists",
@@ -83,10 +91,7 @@ export const metadata: Metadata = {
   category: "Business Software",
 
   alternates: {
-    canonical: APP_URL,
-    languages: {
-      "en-IN": APP_URL,
-    },
+    canonical: "/",
   },
 
   robots: {
@@ -106,8 +111,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_IN",
     url: APP_URL,
-    siteName: "ArtistOS",
-    title: "ArtistOS — Business Software for artists",
+    siteName: "ArtistOS (artistos.in)",
+    title: "ArtistOS (artistos.in) — Business Software for Artists",
     description:
       "All-in-one booking, CRM, portfolio, payments & WhatsApp campaigns for nail artists, mehendi artists, bridal artists & beauty professionals. Try ArtistOS free.",
     images: [
@@ -115,7 +120,7 @@ export const metadata: Metadata = {
         url: OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: "ArtistOS — Business Software for artists",
+        alt: "ArtistOS (artistos.in) — Business Software for Artists",
         type: "image/png",
       },
     ],
@@ -123,7 +128,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "ArtistOS — Business Software for artists",
+    title: "ArtistOS (artistos.in) — Business Software for Artists",
     description:
       "India's #1 app for nail artists, mehendi artists, bridal makeup artists & beauty professionals. Bookings, CRM, portfolio, payments & more.",
     images: [OG_IMAGE],

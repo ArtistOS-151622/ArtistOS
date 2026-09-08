@@ -13,7 +13,7 @@
  *  7. HowTo             — "How to get started" for Featured Snippets & AI citations
  */
 
-const SITE_URL = "https://artistos.in"
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.artistos.in"
 const LOGO_URL = `${SITE_URL}/brand/logo.png`
 const OG_IMAGE_URL = `${SITE_URL}/og-image.png`
 
@@ -34,7 +34,17 @@ export function JsonLd() {
     "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
     name: "ArtistOS",
-    alternateName: ["ArtistOS India", "Artist OS", "artistos.in", "Artist-OS"],
+    legalName: "ArtistOS",
+    alternateName: [
+      "ArtistOS India",
+      "Artist OS",
+      "artistos.in",
+      "Artist-OS",
+      "ArtistOS CRM",
+      "artistos.in official",
+    ],
+    disambiguatingDescription:
+      "ArtistOS (artistos.in) is India's dedicated business management and booking CRM platform for beauty artists, nail technicians, mehendi artists, bridal makeup artists, and salon professionals. It is independent and not affiliated with music industry software platforms like artistos.ai or artistos.app.",
     url: SITE_URL,
     logo: {
       "@type": "ImageObject",
@@ -101,7 +111,7 @@ export function JsonLd() {
     "@type": "LocalBusiness",
     "@id": `${SITE_URL}/#localbusiness`,
     name: "ArtistOS",
-    alternateName: "Artist OS",
+    alternateName: ["Artist OS", "artistos.in", "ArtistOS India"],
     url: SITE_URL,
     image: OG_IMAGE_URL,
     logo: LOGO_URL,
@@ -138,7 +148,9 @@ export function JsonLd() {
     "@type": "WebSite",
     "@id": `${SITE_URL}/#website`,
     name: "ArtistOS",
-    alternateName: "Artist OS",
+    alternateName: ["Artist OS", "artistos.in", "ArtistOS India", "artistos.in official"],
+    disambiguatingDescription:
+      "Official website of ArtistOS (artistos.in) — India's #1 business software for artists. Booking, CRM, Portfolio, Payments & WhatsApp Marketing in one place.",
     url: SITE_URL,
     description:
       "ArtistOS — India's #1 business software for artists. Booking, CRM, Portfolio, Payments & WhatsApp Marketing in one place.",
@@ -161,7 +173,9 @@ export function JsonLd() {
     "@type": "SoftwareApplication",
     "@id": `${SITE_URL}/#software`,
     name: "ArtistOS",
-    alternateName: "Artist OS",
+    alternateName: ["Artist OS", "artistos.in", "ArtistOS India"],
+    disambiguatingDescription:
+      "Official business management software and booking application at artistos.in for beauty professionals and freelance artists in India. Distinct from music platforms artistos.ai and artistos.app.",
     url: SITE_URL,
     applicationCategory: "BusinessApplication",
     applicationSubCategory: "Beauty Business Management Software",
@@ -331,6 +345,22 @@ export function JsonLd() {
         acceptedAnswer: {
           "@type": "Answer",
           text: "ArtistOS is the #1 booking app for nail artists in India. It features a smart calendar to prevent double bookings, client CRM with full history, a portfolio gallery for nail art designs, payment tracking, and WhatsApp broadcast campaigns — all in one app at artistos.in.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is ArtistOS related to artistos.ai or artistos.app?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "No. ArtistOS at artistos.in is the official business operating system and booking CRM built exclusively for beauty artists, nail artists, mehendi artists, bridal makeup artists, and salon owners in India. It is completely independent and not associated with music industry platforms such as artistos.ai or artistos.app.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What is the official website for ArtistOS?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "The official website for ArtistOS is https://www.artistos.in. Indian beauty and creative artists can register for a free 1-month trial, access the booking calendar, manage clients, and track revenue directly at artistos.in.",
         },
       },
     ],

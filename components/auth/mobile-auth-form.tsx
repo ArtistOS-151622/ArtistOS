@@ -203,8 +203,9 @@ export function MobileAuthForm({ mode }: MobileAuthFormProps) {
                 {isSignup ? <User className="size-6" /> : <Lock className="size-6" />}
               </div>
               <div>
-                <CardTitle className="text-2xl font-semibold tracking-tight">{title}</CardTitle>
-                <CardDescription className="mt-2 leading-6">{description}</CardDescription>
+                <h1 className="text-2xl font-semibold tracking-tight text-[#15172e] lg:hidden">{title}</h1>
+                <CardTitle className="hidden text-2xl font-semibold tracking-tight lg:block">{title}</CardTitle>
+                <p className="mt-2 text-sm text-[#666a82] leading-6">{description}</p>
               </div>
             </CardHeader>
 

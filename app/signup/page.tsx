@@ -4,9 +4,9 @@ import { MobileAuthForm } from "@/components/auth/mobile-auth-form"
 export const metadata: Metadata = {
   title: "Sign Up Free — ArtistOS artist Business Platform",
   description:
-    "Create your free ArtistOS account. Start managing bookings, clients, portfolio, payments, and WhatsApp campaigns for your nail, mehendi, bridal, or artist business.",
+    "Create your free ArtistOS account. Manage bookings, client CRM, portfolio, payments & WhatsApp campaigns for your beauty business. Start free today.",
   alternates: {
-    canonical: "https://artistos.in/signup",
+    canonical: "/signup",
   },
   robots: {
     index: true,

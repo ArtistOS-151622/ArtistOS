@@ -3,15 +3,15 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy — How ArtistOS Protects Your Beauty Business Data",
   description:
-    "Read the ArtistOS privacy policy. Learn how we protect your data, client CRM records, portfolio uploads, and payment information. ArtistOS never sells or shares your beauty business data.",
+    "Read the ArtistOS privacy policy. Learn how we protect your business data, client CRM records, portfolio uploads, and payment information securely.",
   alternates: {
-    canonical: "https://artistos.in/privacy-policy",
+    canonical: "/privacy-policy",
   },
   openGraph: {
     title: "Privacy Policy | ArtistOS",
     description:
       "How ArtistOS protects your beauty business data, client records, and payment information. Your data stays yours.",
-    url: "https://artistos.in/privacy-policy",
+    url: "/privacy-policy",
     siteName: "ArtistOS",
     type: "website",
   },

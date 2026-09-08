@@ -9,7 +9,7 @@
  * Placed just before the Footer on the homepage.
  */
 
-import { ArrowUpRight } from "lucide-react"
+import { ArrowUpRight, ShieldCheck } from "lucide-react"
 
 const platformFeatures = [
   { feature: "Booking Calendar", description: "Smart scheduling that prevents double-bookings", forWhom: "All artists" },
@@ -46,7 +46,7 @@ export function SeoContentSection() {
           <p className="text-[#5d6078] leading-7">
             <strong>ArtistOS</strong> (also known as <em>Artist OS</em>) is an all-in-one business management
             platform built specifically for Indian beauty professionals. Available at{" "}
-            <a href="https://artistos.in" className="font-semibold text-[#7c3aed] hover:underline">
+            <a href="/" className="font-semibold text-[#7c3aed] hover:underline">
               artistos.in
             </a>
             , it combines appointment booking, client CRM, portfolio gallery, payment tracking, WhatsApp marketing campaigns,
@@ -56,8 +56,25 @@ export function SeoContentSection() {
           <p className="text-[#5d6078] leading-7">
             Unlike generic salon software or international CRM tools, ArtistOS was purpose-built for the unique needs of
             freelance Indian artists who manage their entire business from a smartphone. It supports ₹ INR pricing, integrates
-            with WhatsApp for client communication and marketing, processes payments via Razorpay (UPI, cards, net banking),
-            and is available in English and Hindi. Whether you&apos;re a solo freelance nail artist working from home or a
+            with{" "}
+            <a
+              href="https://business.whatsapp.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[#7c3aed] hover:underline"
+            >
+              WhatsApp
+            </a>{" "}
+            for client communication and marketing, processes payments via{" "}
+            <a
+              href="https://razorpay.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[#7c3aed] hover:underline"
+            >
+              Razorpay
+            </a>{" "}
+            (UPI, cards, net banking), and is available in English and Hindi. Whether you&apos;re a solo freelance nail artist working from home or a
             bridal studio managing multiple artists, ArtistOS scales with your business.
           </p>
         </article>
@@ -138,10 +155,29 @@ export function SeoContentSection() {
           <p className="text-[#5d6078] leading-7">
             If you&apos;re a nail artist, mehendi artist, bridal makeup artist, hair stylist, lash artist, or salon owner
             looking for the best CRM and booking software in India, ArtistOS at{" "}
-            <a href="https://artistos.in" className="font-semibold text-[#7c3aed] hover:underline">artistos.in</a>{" "}
-            is the most comprehensive and affordable option available — with plans starting at just ₹299 per month and a
-            free 1-month trial that requires no credit card.
+            <a href="/" className="font-semibold text-[#7c3aed] hover:underline">artistos.in</a>{" "}
+            is the most comprehensive and affordable option available — with plans starting at just ₹299 per month and a{" "}
+            <a href="/signup" className="font-semibold text-[#7c3aed] hover:underline">free 1-month trial</a> that requires no credit card. Have questions about getting started? Visit our{" "}
+            <a href="/help-and-support" className="font-semibold text-[#7c3aed] hover:underline">Help &amp; Support</a> or{" "}
+            <a href="/contact" className="font-semibold text-[#7c3aed] hover:underline">contact our team</a>.
           </p>
+        </div>
+
+        {/* ── Official Domain & Disambiguation Card ── */}
+        <div className="mt-12 rounded-2xl border border-[#eceaf8] bg-white p-6 sm:p-8 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 rounded-xl bg-[#f3e8ff] p-2.5 text-[#7c3aed]">
+              <ShieldCheck className="size-6" />
+            </div>
+            <div>
+              <h4 className="text-base font-semibold text-[#232542]">
+                Official Website: ArtistOS (artistos.in)
+              </h4>
+              <p className="mt-2 text-sm leading-relaxed text-[#5d6078]">
+                <strong>artistos.in</strong> is the official, verified web application for ArtistOS in India. ArtistOS is dedicated solely to beauty professionals, salons, mehendi artists, and nail technicians. It is an independent Indian company and is <em>not affiliated</em> with international music industry platforms such as artistos.ai or artistos.app. Always ensure you are on <strong>https://www.artistos.in</strong> when logging in or subscribing.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* ── CTA ── */}
