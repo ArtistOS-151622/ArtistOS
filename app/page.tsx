@@ -427,8 +427,9 @@ function Hero() {
           alt="Artist professional working at laptop in a warm studio"
           fill
           priority
+          quality={100}
           className="object-cover object-center"
-          sizes="(max-width: 1100px) 100vw, 1100px"
+          sizes="100vw"
         />
 
         {/* Left-side gradient overlay — keeps text legible over bokeh */}
