@@ -249,7 +249,6 @@ export async function toggleShare(
   } else {
     update.is_shared = false
     update.shared_expires_at = null
-    update.uuid = randomUUID()
   }
 
   const { data, error } = await supabase

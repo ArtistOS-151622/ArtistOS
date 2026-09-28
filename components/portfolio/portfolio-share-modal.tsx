@@ -106,7 +106,7 @@ export function PortfolioShareModal({
                 </Button>
               </div>
               <p className="text-xs text-slate-500">
-                Disabling sharing rotates the link — old URLs stop working.
+                Enabling sharing generates a new link each time.
               </p>
             </div>
           )}
