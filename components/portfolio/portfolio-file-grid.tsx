@@ -28,6 +28,47 @@ import type { PortfolioFileWithUrl } from "@/lib/portfolio/types"
 import { cn } from "@/lib/utils"
 
 import { formatBytes } from "@/lib/portfolio/response"
+import { toast } from "sonner"
+
+export async function downloadPortfolioFile(file: PortfolioFileWithUrl) {
+  try {
+    const res = await fetch(`/api/portfolio/files/${file.id}/download`)
+    const json = await res.json()
+    if (!json.status || !json.data?.download_url) {
+      toast.error(json.message || "Failed to download file")
+      return
+    }
+
+    const downloadUrl = json.data.download_url
+
+    try {
+      const fileRes = await fetch(downloadUrl)
+      if (fileRes.ok) {
+        const blob = await fileRes.blob()
+        const blobUrl = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = blobUrl
+        a.download = file.original_name
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(blobUrl)
+        return
+      }
+    } catch {
+      // Presigned URL has attachment disposition fallback
+    }
+
+    const a = document.createElement("a")
+    a.href = downloadUrl
+    a.download = file.original_name
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  } catch {
+    toast.error("Failed to download file")
+  }
+}
 
 type PortfolioFileGridProps = {
   files: PortfolioFileWithUrl[]
@@ -189,12 +230,8 @@ export function PortfolioFileGrid({
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="size-8 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                  onClick={async () => {
-                    const res = await fetch(`/api/portfolio/files/${file.id}/download`)
-                    const json = await res.json()
-                    if (json.status) window.open(json.data.download_url, "_blank")
-                  }}
+                  className="size-8 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+                  onClick={() => void downloadPortfolioFile(file)}
                   title="Download file"
                 >
                   <Download className="size-4" />
@@ -262,11 +299,7 @@ export function PortfolioFileGrid({
                     Preview
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={async () => {
-                      const res = await fetch(`/api/portfolio/files/${file.id}/download`)
-                      const json = await res.json()
-                      if (json.status) window.open(json.data.download_url, "_blank")
-                    }}
+                    onClick={() => void downloadPortfolioFile(file)}
                     className="rounded-xl flex items-center gap-2 text-xs font-semibold cursor-pointer py-2 focus:bg-purple-50 focus:text-[#7c3aed]"
                   >
                     <Download className="size-3.5 text-[#7c3aed]" />

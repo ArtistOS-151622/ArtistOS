@@ -98,11 +98,21 @@ export async function createPresignedUploadUrl(
   })
 }
 
-export async function createPresignedDownloadUrl(storagePath: string): Promise<string> {
+export async function createPresignedDownloadUrl(
+  storagePath: string,
+  filename?: string
+): Promise<string> {
   const client = getR2Client()
   const command = new GetObjectCommand({
     Bucket: getR2BucketName(),
     Key: storagePath,
+    ...(filename
+      ? {
+          ResponseContentDisposition: `attachment; filename="${encodeURIComponent(
+            filename.replace(/["\r\n]/g, "_")
+          )}"`,
+        }
+      : {}),
   })
 
   return getSignedUrl(client, command, { expiresIn: 3600 })

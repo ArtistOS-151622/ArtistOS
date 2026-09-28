@@ -115,13 +115,35 @@ export default function PublicPortfolioSharePage() {
                       )}
                     </button>
                     {/* Download icon — always visible on mobile, hover-only on desktop */}
-                    <a
-                      href={downloadHref}
-                      download={file.original_name}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="absolute bottom-2 right-2 z-10 flex size-8 items-center justify-center rounded-xl bg-black/60 text-white opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/80 backdrop-blur-sm"
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        try {
+                          const fileRes = await fetch(file.public_url)
+                          if (fileRes.ok) {
+                            const blob = await fileRes.blob()
+                            const blobUrl = URL.createObjectURL(blob)
+                            const a = document.createElement("a")
+                            a.href = blobUrl
+                            a.download = file.original_name
+                            document.body.appendChild(a)
+                            a.click()
+                            document.body.removeChild(a)
+                            URL.revokeObjectURL(blobUrl)
+                            return
+                          }
+                        } catch {
+                          // fallback
+                        }
+                        const a = document.createElement("a")
+                        a.href = downloadHref
+                        a.download = file.original_name
+                        document.body.appendChild(a)
+                        a.click()
+                        document.body.removeChild(a)
+                      }}
+                      className="absolute bottom-2 right-2 z-10 flex size-8 items-center justify-center rounded-xl bg-black/60 text-white opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/80 backdrop-blur-sm cursor-pointer"
                       title="Download"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -129,7 +151,7 @@ export default function PublicPortfolioSharePage() {
                         <polyline points="7 10 12 15 17 10" />
                         <line x1="12" y1="15" x2="12" y2="3" />
                       </svg>
-                    </a>
+                    </button>
                   </div>
                 )
             })}

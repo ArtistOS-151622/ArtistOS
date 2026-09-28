@@ -1,7 +1,10 @@
 "use client"
 
+import { Download } from "lucide-react"
+
 import { AppModal } from "@/components/common/shared/app-modal"
 import { Button } from "@/components/ui/button"
+import { downloadPortfolioFile } from "@/components/portfolio/portfolio-file-grid"
 import type { PortfolioFileWithUrl } from "@/lib/portfolio/types"
 
 type PortfolioLightboxProps = {
@@ -23,9 +26,19 @@ export function PortfolioLightbox({ open, onClose, file }: PortfolioLightboxProp
       title={file.original_name}
       description=""
       footer={
-        <Button variant="outline" className="h-10 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700" onClick={onClose}>
-          Close
-        </Button>
+        <div className="flex items-center justify-between w-full">
+          <Button
+            type="button"
+            className="h-10 rounded-xl bg-[#7c3aed] text-white hover:bg-[#6d28d9] flex items-center gap-2 cursor-pointer shadow-xs"
+            onClick={() => void downloadPortfolioFile(file)}
+          >
+            <Download className="size-4" />
+            Download
+          </Button>
+          <Button variant="outline" className="h-10 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 cursor-pointer" onClick={onClose}>
+            Close
+          </Button>
+        </div>
       }
     >
       <div className="relative flex max-h-[60vh] items-center justify-center overflow-hidden rounded-2xl bg-slate-950">

@@ -25,7 +25,7 @@ export async function GET(
   if (error || !file) return portfolioError("File not found", 404)
 
   try {
-    const downloadUrl = await createPresignedDownloadUrl(file.storage_path)
+    const downloadUrl = await createPresignedDownloadUrl(file.storage_path, file.original_name)
     return portfolioSuccess("Download URL generated", {
       download_url: downloadUrl,
       file,
