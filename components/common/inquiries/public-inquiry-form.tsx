@@ -219,11 +219,11 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
             <Calendar className="size-6" />
           </div>
           <h1 className="mt-4 text-lg font-extrabold text-slate-900">
-            Inquiry Link Expired
+            Inquiry Link Unavailable
           </h1>
           <p className="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">
             {error ||
-              "This inquiry form link has expired or is no longer available. Please contact the artist directly for a fresh link."}
+              "This inquiry form link is not available. Please contact the artist directly for assistance."}
           </p>
         </div>
       </main>

@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 
 import { checkIsReadOnly } from "@/lib/auth/subscription"
-import { INQUIRY_FORM_ACTIVE_HOURS, isInquiryFormActive } from "@/lib/inquiries/form-link"
 import { INQUIRY_SELECT_FIELDS, formatInquiry } from "@/lib/inquiries/queries"
 import { createClient } from "@/lib/supabase/server"
 
@@ -55,31 +54,18 @@ function validateInquiry(input: PublicInquiryInput) {
   }
 }
 
-function getActiveWindowStart(activeUntil: string) {
-  return new Date(
-    new Date(activeUntil).getTime() - INQUIRY_FORM_ACTIVE_HOURS * 60 * 60 * 1000,
-  ).toISOString()
-}
-
 async function findActiveArtistByCode(code: string) {
   const supabase = await createClient()
   const normalizedCode = code.trim().toUpperCase()
 
   const { data: artist, error } = await supabase
     .from("users")
-    .select("id, artist_name, studio_name, address, inquiry_form_active_until")
+    .select("id, artist_name, studio_name, address")
     .eq("inquiry_form_code", normalizedCode)
     .maybeSingle()
 
   if (error) return { supabase, error: error.message }
   if (!artist) return { supabase, error: "Inquiry link not found.", status: 404 }
-  if (!isInquiryFormActive(artist.inquiry_form_active_until)) {
-    return {
-      supabase,
-      error: "This inquiry link has expired. Please ask the artist to activate it again.",
-      status: 410,
-    }
-  }
 
   return { supabase, artist }
 }
@@ -109,11 +95,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
   if (servicesError) return NextResponse.json({ error: servicesError.message }, { status: 400 })
 
-  const { inquiry_form_active_until, ...publicArtist } = artist
-
   return NextResponse.json({
-    artist: publicArtist,
-    active_until: inquiry_form_active_until,
+    artist,
     services: services ?? [],
   })
 }
@@ -168,14 +151,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
   let customerId = existingCustomer?.id
 
   if (customerId) {
-    const activeWindowStart = getActiveWindowStart(artist.inquiry_form_active_until)
+    const recentWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const { data: duplicateInquiry, error: duplicateError } = await supabase
       .from("inquiries")
       .select("id")
       .eq("user_id", artist.id)
       .eq("customer_id", customerId)
       .eq("status", "new")
-      .gte("created_at", activeWindowStart)
+      .gte("created_at", recentWindowStart)
       .limit(1)
       .maybeSingle()
 

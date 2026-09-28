@@ -15,7 +15,6 @@ import {
   Phone,
   Search,
   Sparkles,
-  TimerReset,
   TrendingUp,
   Users,
   X,
@@ -118,14 +117,13 @@ export function InquiryManager() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [actingId, setActingId] = useState<number | null>(null)
   const [formLink, setFormLink] = useState<FormLinkResponse | null>(null)
-  const [activatingLink, setActivatingLink] = useState(false)
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null)
 
   const inquiryLink =
     formLink?.code && typeof window !== "undefined"
       ? `${window.location.origin}/inquiry/f/${formLink.code}`
       : ""
-  const isFormLinkActive = Boolean(formLink?.is_active)
+  const isFormLinkActive = Boolean(formLink?.code)
 
   useEffect(() => {
     async function loadFormLink() {
@@ -195,10 +193,6 @@ export function InquiryManager() {
       toast.error("Your subscription has expired. Please upgrade to share inquiry links.")
       return
     }
-    if (!isFormLinkActive) {
-      toast.error("Activate the form link before sharing it.")
-      return
-    }
 
     try {
       await navigator.clipboard.writeText(inquiryLink)
@@ -206,40 +200,6 @@ export function InquiryManager() {
     } catch {
       toast.error("Unable to copy link.")
     }
-  }
-
-  async function activateFormLink() {
-    if (isReadOnly) {
-      toast.error("Your subscription has expired. Please upgrade to activate inquiry links.")
-      return
-    }
-
-    setActivatingLink(true)
-    try {
-      const res = await fetch("/api/inquiries/form-link", { method: "POST" })
-      const data = (await res.json()) as FormLinkResponse
-      if (!res.ok) {
-        toast.error(data.error ?? "Unable to activate inquiry link.")
-        return
-      }
-
-      setFormLink(data)
-      toast.success("Inquiry form link activated for 10 hours")
-    } catch {
-      toast.error("Unable to activate inquiry link.")
-    } finally {
-      setActivatingLink(false)
-    }
-  }
-
-  function formatExpiry(value?: string | null) {
-    if (!value) return "Not active"
-    return new Intl.DateTimeFormat("en-IN", {
-      day: "2-digit",
-      month: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(new Date(value))
   }
 
   async function convertInquiry(inquiry: Inquiry) {
@@ -385,7 +345,7 @@ export function InquiryManager() {
             <Button
               type="button"
               className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#7c3aed] px-0 text-white shadow-md shadow-purple-950/10 hover:bg-[#6d28d9] md:w-auto md:px-4 shrink-0"
-              disabled={!inquiryLink || !isFormLinkActive || isReadOnly}
+              disabled={!inquiryLink || isReadOnly}
               onClick={copyInquiryLink}
             >
               <Copy className="size-5 md:size-4" />
@@ -464,50 +424,29 @@ export function InquiryManager() {
               <span className="hidden sm:inline">Form </span>Link
             </span>
             {/* Quick Action Button */}
-            {isFormLinkActive ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-5 sm:h-6 rounded-md sm:rounded-lg border-purple-200 bg-purple-50 text-[#7c3aed] hover:bg-[#7c3aed] hover:text-white px-1 sm:px-2 text-[9px] sm:text-xs font-bold transition shadow-2xs shrink-0"
-                onClick={copyInquiryLink}
-                disabled={isReadOnly}
-                title="Copy inquiry link"
-              >
-                <Copy className="size-2.5 sm:size-3 mr-0.5 sm:mr-1" />
-                <span>Copy</span>
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                size="sm"
-                className="h-5 sm:h-6 rounded-md sm:rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-1 sm:px-2 text-[9px] sm:text-xs font-bold transition shadow-2xs shrink-0"
-                onClick={activateFormLink}
-                disabled={activatingLink || isReadOnly}
-                title="Activate inquiry link"
-              >
-                <TimerReset className="size-2.5 sm:size-3 mr-0.5 sm:mr-1" />
-                <span>Act</span>
-              </Button>
-            )}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-5 sm:h-6 rounded-md sm:rounded-lg border-purple-200 bg-purple-50 text-[#7c3aed] hover:bg-[#7c3aed] hover:text-white px-1 sm:px-2 text-[9px] sm:text-xs font-bold transition shadow-2xs shrink-0"
+              onClick={copyInquiryLink}
+              disabled={!inquiryLink || isReadOnly}
+              title="Copy inquiry link"
+            >
+              <Copy className="size-2.5 sm:size-3 mr-0.5 sm:mr-1" />
+              <span>Copy</span>
+            </Button>
           </div>
 
           <div className="mt-1 sm:mt-1.5 flex items-center justify-between gap-1 min-w-0">
             <div className="flex items-center gap-1 min-w-0">
-              <span
-                className={cn(
-                  "size-1.5 sm:size-2 rounded-full shrink-0",
-                  isFormLinkActive ? "bg-emerald-500 animate-pulse" : "bg-amber-400"
-                )}
-              />
+              <span className="size-1.5 sm:size-2 rounded-full shrink-0 bg-emerald-500" />
               <p className="text-xs sm:text-base lg:text-lg font-black text-slate-900 tracking-tight truncate leading-none">
-                {isFormLinkActive ? "Active" : "Inactive"}
+                Active
               </p>
             </div>
             <p className="text-[9px] sm:text-[11px] text-slate-400 truncate font-medium shrink-0">
-              {isFormLinkActive
-                ? `Exp ${formatExpiry(formLink?.active_until)}`
-                : "10h auto"}
+              No time limit
             </p>
           </div>
         </div>
@@ -558,7 +497,7 @@ export function InquiryManager() {
             </div>
             <h3 className="mt-4 text-lg font-semibold text-slate-900">No inquiries yet</h3>
             <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-              Activate your secure form link for 10 hours, then share it to collect booking details while you are busy.
+              Share your inquiry form link to collect booking details directly from clients.
             </p>
           </CardContent>
         </Card>

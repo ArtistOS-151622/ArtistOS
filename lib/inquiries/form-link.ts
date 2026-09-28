@@ -2,7 +2,6 @@ import { randomBytes } from "crypto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 const FORM_CODE_BYTES = 5
-export const INQUIRY_FORM_ACTIVE_HOURS = 10
 
 function createInquiryFormCode() {
   return randomBytes(FORM_CODE_BYTES).toString("hex").toUpperCase()
@@ -11,7 +10,7 @@ function createInquiryFormCode() {
 export async function ensureInquiryFormLink(supabase: SupabaseClient, userId: number) {
   const { data: user, error } = await supabase
     .from("users")
-    .select("id, inquiry_form_code, inquiry_form_active_until")
+    .select("id, inquiry_form_code")
     .eq("id", userId)
     .single()
 
@@ -19,7 +18,7 @@ export async function ensureInquiryFormLink(supabase: SupabaseClient, userId: nu
   if (user.inquiry_form_code) {
     return {
       code: user.inquiry_form_code as string,
-      active_until: user.inquiry_form_active_until as string | null,
+      is_active: true,
     }
   }
 
@@ -29,13 +28,13 @@ export async function ensureInquiryFormLink(supabase: SupabaseClient, userId: nu
       .from("users")
       .update({ inquiry_form_code: code })
       .eq("id", userId)
-      .select("inquiry_form_code, inquiry_form_active_until")
+      .select("inquiry_form_code")
       .single()
 
     if (!updateError) {
       return {
         code: updated.inquiry_form_code as string,
-        active_until: updated.inquiry_form_active_until as string | null,
+        is_active: true,
       }
     }
 
@@ -49,23 +48,12 @@ export async function activateInquiryFormLink(supabase: SupabaseClient, userId: 
   const ensured = await ensureInquiryFormLink(supabase, userId)
   if ("error" in ensured) return ensured
 
-  const activeUntil = new Date(Date.now() + INQUIRY_FORM_ACTIVE_HOURS * 60 * 60 * 1000).toISOString()
-
-  const { data, error } = await supabase
-    .from("users")
-    .update({ inquiry_form_active_until: activeUntil })
-    .eq("id", userId)
-    .select("inquiry_form_code, inquiry_form_active_until")
-    .single()
-
-  if (error) return { error: error.message }
-
   return {
-    code: data.inquiry_form_code as string,
-    active_until: data.inquiry_form_active_until as string,
+    code: ensured.code,
+    is_active: true,
   }
 }
 
-export function isInquiryFormActive(activeUntil?: string | null) {
-  return Boolean(activeUntil && new Date(activeUntil).getTime() > Date.now())
+export function isInquiryFormActive(_activeUntil?: string | null) {
+  return true
 }

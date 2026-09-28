@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
-import { activateInquiryFormLink, ensureInquiryFormLink, isInquiryFormActive } from "@/lib/inquiries/form-link"
+import { activateInquiryFormLink, ensureInquiryFormLink } from "@/lib/inquiries/form-link"
 import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
@@ -18,8 +18,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     code: result.code,
-    active_until: result.active_until,
-    is_active: isInquiryFormActive(result.active_until),
+    is_active: true,
   })
 }
 
@@ -30,7 +29,7 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
 
   if (await checkIsReadOnly(supabase, session.id)) {
-    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to activate inquiry links." }, { status: 403 })
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to access inquiry links." }, { status: 403 })
   }
 
   const result = await activateInquiryFormLink(supabase, session.id)
@@ -41,7 +40,6 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     code: result.code,
-    active_until: result.active_until,
     is_active: true,
   })
 }
