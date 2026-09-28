@@ -44,8 +44,11 @@ export default function PortfolioPage() {
   const [storageDrawerOpen, setStorageDrawerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
-  const [shareFolder, setShareFolder] =
-    useState<PortfolioFolderWithStats | null>(null);
+  const [shareFolderId, setShareFolderId] =
+    useState<number | null>(null);
+  const shareFolder = shareFolderId != null
+    ? folders.find((f: PortfolioFolderWithStats) => f.id === shareFolderId) ?? null
+    : null;
   const [newFolderName, setNewFolderName] = useState("");
   const [creating, setCreating] = useState(false);
   const [deleteFolderId, setDeleteFolderId] = useState<number | null>(null);
@@ -231,7 +234,7 @@ export default function PortfolioPage() {
               folders={folders}
               viewMode={viewMode}
               onDelete={handleDeleteFolder}
-              onShare={setShareFolder}
+              onShare={(f) => setShareFolderId(f.id)}
               onEdit={startEditFolder}
             />
           </Card>
@@ -442,7 +445,7 @@ export default function PortfolioPage() {
 
       <PortfolioShareModal
         open={!!shareFolder}
-        onClose={() => setShareFolder(null)}
+        onClose={() => setShareFolderId(null)}
         folder={shareFolder}
         onUpdated={() => void mutateFolders()}
       />

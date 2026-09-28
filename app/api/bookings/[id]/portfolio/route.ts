@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server"
 
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
-import { findFolderByBooking, findOrCreateBookingFolder } from "@/lib/portfolio/folders"
+import { buildShareUrl, findFolderByBooking, findOrCreateBookingFolder } from "@/lib/portfolio/folders"
 import { listFilesInFolder } from "@/lib/portfolio/files"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
 import { createClient } from "@/lib/supabase/server"
@@ -45,8 +45,15 @@ export async function GET(
 
     const allFiles = await listFilesInFolder(supabase, session.id, folder.id)
 
+    const enrichedFolder = {
+      ...folder,
+      share_url: folder.is_shared ? buildShareUrl(folder.uuid) : null,
+      file_count: allFiles.length,
+      total_size: allFiles.reduce((sum, f) => sum + Number(f.file_size), 0),
+    }
+
     return portfolioSuccess("Booking portfolio loaded", {
-      folder,
+      folder: enrichedFolder,
       reference_files: allFiles.filter((f) => f.section === "reference"),
       delivery_files: allFiles.filter((f) => f.section === "delivery"),
       files: allFiles,

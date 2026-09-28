@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Copy, Loader2, Share2, Check } from "lucide-react"
 
 import { AppModal } from "@/components/common/shared/app-modal"
@@ -26,6 +26,15 @@ export function PortfolioShareModal({
   const [shareUrl, setShareUrl] = useState<string | null>(folder?.share_url ?? null)
   const [isShared, setIsShared] = useState(folder?.is_shared ?? false)
   const [copied, setCopied] = useState(false)
+
+  // Sync local state when folder prop changes or modal opens
+  useEffect(() => {
+    if (open && folder) {
+      setIsShared(folder.is_shared ?? false)
+      setShareUrl(folder.share_url ?? null)
+      setCopied(false)
+    }
+  }, [open, folder?.is_shared, folder?.share_url])
 
   async function toggleShare(enable: boolean) {
     if (!folder) return
@@ -106,7 +115,7 @@ export function PortfolioShareModal({
                 </Button>
               </div>
               <p className="text-xs text-slate-500">
-                Enabling sharing generates a new link each time.
+                Anyone with this link can view the folder.
               </p>
             </div>
           )}
