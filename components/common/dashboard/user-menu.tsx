@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Bell, ChevronDown, LogOut, Settings, LifeBuoy, CreditCard } from "lucide-react"
+import { Bell, ChevronDown, LogOut, Settings, LifeBuoy, CreditCard, ImageIcon } from "lucide-react"
 
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog"
 import { NotificationsDropdown } from "./notifications-dropdown"
@@ -122,6 +122,13 @@ export function UserMenu({
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              <DropdownMenuItem
+                className="rounded-xl cursor-pointer"
+                onClick={() => router.push("/portfolio")}
+              >
+                <ImageIcon className="size-4" />
+                Portfolio
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="rounded-xl cursor-pointer"
                 onClick={() => router.push("/profile")}

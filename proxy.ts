@@ -9,6 +9,7 @@ import { checkIsReadOnly } from "@/lib/auth/subscription"
 const protectedPrefixes = [
   "/dashboard",
   "/services",
+  "/courses",
   "/customers",
   "/bookings",
   "/inquiries",

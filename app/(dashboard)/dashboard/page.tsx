@@ -7,7 +7,6 @@ import {
   CircleDollarSign,
   Command,
   HeartHandshake,
-  MoreVertical,
   Phone,
   TrendingUp,
   UsersRound,
@@ -976,14 +975,6 @@ export default function DashboardPage() {
                           Message
                         </Button>
                       )}
-
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="size-[3.25rem] rounded-[1.25rem] border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 shadow-sm text-slate-600 transition-colors"
-                      >
-                        <MoreVertical className="size-5" />
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, ArrowLeft } from "lucide-react";
+import { Plus, ArrowLeft, Home, ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -9,6 +9,12 @@ import { useHeaderContext } from "@/components/common/dashboard/dashboard-header
 import { UserMenu } from "@/components/common/dashboard/user-menu";
 import { QuickAddModals } from "@/components/common/dashboard/quick-add-modals";
 import { buttonVariants, Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -35,27 +41,36 @@ export function DashboardTopbar() {
   return (
     <header suppressHydrationWarning className="flex flex-col gap-4 mt-1">
       {/* Mobile Topbar Row */}
-      <div className="flex items-center justify-between gap-3 md:hidden w-full">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <Link
-            href="/dashboard"
-            aria-label="Dashboard Home"
-            contentEditable={false}
-            suppressHydrationWarning
-            className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white shadow-md shadow-purple-950/5 border border-white/80"
-          >
-            <BrandMark className="size-8 bg-transparent shadow-none p-0" />
-          </Link>
+      <div className="flex items-center justify-between gap-2 sm:gap-3 md:hidden w-full max-w-full min-w-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="App menu"
+              className="flex size-10 sm:size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white shadow-md shadow-purple-950/5 border border-white/80 transition-all hover:scale-105 active:scale-95"
+            >
+              <BrandMark className="size-6 sm:size-8 bg-transparent shadow-none p-0" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44 rounded-2xl p-1.5 shadow-xl border-slate-200/80">
+              <DropdownMenuItem className="gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium cursor-pointer" render={<Link href="/dashboard" />}>
+                <Home className="size-4 text-[#7c3aed]" />
+                Dashboard
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium cursor-pointer" render={<Link href="/portfolio" />}>
+                <ImageIcon className="size-4 text-[#7c3aed]" />
+                Portfolio
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {backLink && (
             <Link
               href={backLink}
-              className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors mr-1"
+              className="flex size-9 sm:size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors mr-0.5 sm:mr-1"
               title="Go back"
             >
-              <ArrowLeft className="size-5" />
+              <ArrowLeft className="size-4 sm:size-5" />
             </Link>
           )}
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 truncate">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 truncate">
             {title}
           </h1>
         </div>

@@ -11,6 +11,7 @@ import {
   UsersRound,
   ImageIcon,
   BarChart3,
+  GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -18,7 +19,7 @@ import { BrandMark } from "@/components/common/brand/brand-logo";
 import { cn } from "@/lib/utils";
 
 type SidebarItem = {
-  id: "dashboard" | "services" | "calendar" | "customers" | "broadcasts" | "bookings" | "inquiries" | "portfolio" | "profile" | "support" | "billing" | "notifications" | "reports"
+  id: "dashboard" | "services" | "courses" | "calendar" | "customers" | "broadcasts" | "bookings" | "inquiries" | "portfolio" | "profile" | "support" | "billing" | "notifications" | "reports"
   icon: LucideIcon
   href: string
   label: string
@@ -30,6 +31,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "bookings", icon: CalendarCheck, href: "/bookings", label: "Bookings" },
   { id: "inquiries", icon: ClipboardList, href: "/inquiries", label: "Inquiries" },
   { id: "services", icon: Flower2, href: "/services", label: "Services" },
+  { id: "courses", icon: GraduationCap, href: "/courses", label: "Courses" },
   { id: "reports", icon: BarChart3, href: "/reports", label: "Reports" },
 
   { id: "portfolio", icon: ImageIcon, href: "/portfolio", label: "Portfolio" },
@@ -59,7 +61,7 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
   const validNotifications = Array.isArray(notifications) ? notifications : []
   const unreadCount = validNotifications.filter((n) => !n.read_at).length
   const pendingInquiryCount = inquiryCounts?.pending ?? 0
-  const mobileItems = sidebarItems.filter((item) => item.id !== "inquiries")
+  const mobileItems = sidebarItems.filter((item) => item.id !== "inquiries" && item.id !== "portfolio")
 
   return (
     <>
