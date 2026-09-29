@@ -19,8 +19,16 @@ export function isPushConfigured(): boolean {
   return Boolean(getVapidPublicKey() && getVapidPrivateKey())
 }
 
+export const BOOKING_REMINDER_2H_MINUTES = Number(
+  readPushEnv("BOOKING_REMINDER_2H_MINUTES") ?? 120
+)
+
+export const BOOKING_REMINDER_10M_MINUTES = Number(
+  readPushEnv("BOOKING_REMINDER_10M_MINUTES") ?? 10
+)
+
 export const BOOKING_REMINDER_MINUTES_BEFORE = Number(
-  readPushEnv("BOOKING_REMINDER_MINUTES_BEFORE") ?? 60
+  readPushEnv("BOOKING_REMINDER_MINUTES_BEFORE") ?? 120
 )
 
 export const NOTIFICATION_MAX_ATTEMPTS = Number(readPushEnv("NOTIFICATION_MAX_ATTEMPTS") ?? 3)

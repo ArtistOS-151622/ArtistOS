@@ -2,33 +2,31 @@ name: Cron Jobs
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # scan-bookings
-    - cron: '*/2 * * * *' # dispatch
+    - cron: '*/5 * * * *' # notifications (scan & dispatch)
     - cron: '0 3 * * *'   # expire-shares
   workflow_dispatch:
 
 jobs:
-  scan-bookings:
-    name: Scan Bookings
+  notifications:
+    name: Process Notifications
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Scan Bookings API
         run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "ERROR: APP_URL secret is not set in GitHub repository secrets!"
+            exit 1
+          fi
           curl -X GET "${{ secrets.APP_URL }}/api/cron/notifications/scan-bookings" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --fail
+            --fail-with-body --show-error --silent
 
-  dispatch:
-    name: Dispatch Notifications
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/2 * * * *'
-    runs-on: ubuntu-latest
-    steps:
       - name: Trigger Dispatch API
         run: |
           curl -X GET "${{ secrets.APP_URL }}/api/cron/notifications/dispatch" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --fail
+            --fail-with-body --show-error --silent
 
   expire-shares:
     name: Expire Shares
@@ -39,4 +37,4 @@ jobs:
         run: |
           curl -X GET "${{ secrets.APP_URL }}/api/cron/portfolio/expire-shares" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --fail
+            --fail-with-body --show-error --silent

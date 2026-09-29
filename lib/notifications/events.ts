@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
-import { NOTIFICATION_MAX_ATTEMPTS } from "@/lib/push/config"
-import type { NotificationEventRow } from "@/lib/push/types"
+import { NOTIFICATION_MAX_ATTEMPTS } from "../push/config.ts"
+import type { NotificationEventRow } from "../push/types.ts"
 
 type EnqueueInput = {
   userId: number
