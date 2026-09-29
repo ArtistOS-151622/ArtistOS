@@ -19,7 +19,6 @@ create table if not exists public.platform_payments (
   plan_id bigint references public.platform_subscriptions(id),
   plan_name varchar(255),
   base_amount numeric not null,
-  gst_amount numeric not null,
   amount numeric not null,
   status varchar(20) not null default 'pending', -- pending, completed, failed
   rp_order_id varchar(255),

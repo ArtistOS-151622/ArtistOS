@@ -15,11 +15,10 @@ create trigger platform_settings_set_updated_at
 before update on platform_settings
 for each row execute function public.set_updated_at();
 
--- Insert default values (e.g. GST Rate)
+-- Insert default values
 insert into platform_settings (key, value, type, description)
 values 
-  ('maintenance_mode', 'false', 'boolean', 'If true, the application is in maintenance mode'),
-  ('global_gst_rate', '0.18', 'number', 'Global GST rate applied to purchases (e.g. 0.18 for 18%)')
+  ('maintenance_mode', 'false', 'boolean', 'If true, the application is in maintenance mode')
 on conflict (key) do nothing;
 
 -- 2. Support Tickets
