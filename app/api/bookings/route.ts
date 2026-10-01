@@ -4,6 +4,7 @@ import { checkIsReadOnly } from "@/lib/auth/subscription"
 
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
+import { sendBookingNotificationWhatsApp } from "@/lib/whatsapp/booking-notifications"
 
 type BookingInput = {
   customer_id?: string | number
@@ -240,6 +241,12 @@ export async function POST(request: NextRequest) {
     })).filter((s: any) => s.id) ?? [],
     additional_charges: fullBooking.booking_additional_charges ?? [],
   }
+
+  // Send automated WhatsApp notification asynchronously (non-blocking)
+  const isConfirmed = booking.status === "confirmed"
+  void sendBookingNotificationWhatsApp(booking.id, isConfirmed ? "confirmed" : "created").catch((err) => {
+    console.error("[WhatsApp] Failed to dispatch booking notification:", err)
+  })
 
   return NextResponse.json({ booking: formatted })
 }
