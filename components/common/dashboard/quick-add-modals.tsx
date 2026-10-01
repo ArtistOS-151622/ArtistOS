@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { mutate } from "swr";
 import { User, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
@@ -68,6 +69,7 @@ export function QuickAddModals({
         }
       } else {
         toast.success("Customer added successfully!");
+        void mutate("/api/dashboard");
         setCustomerModalOpen(false);
         setCustomerValues(emptyCustomerForm);
         router.refresh();
@@ -104,6 +106,7 @@ export function QuickAddModals({
         toast.error(data.error ?? "Unable to save booking.");
       } else {
         toast.success("Booking created successfully!");
+        void mutate("/api/dashboard");
         setBookingModalOpen(false);
         setBookingValues(emptyBookingForm);
         router.refresh();

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
+import useSWR from "swr"
 import { Bell, ChevronDown, LogOut, Settings, LifeBuoy, CreditCard, ImageIcon } from "lucide-react"
 
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog"
@@ -39,6 +40,15 @@ export function UserMenu({
   const pathname = usePathname() || ""
   const isProfileActive = pathname.includes("/profile") || pathname.includes("/billing") || pathname.includes("/support")
 
+  const { data: authData } = useSWR(
+    propName ? null : "/api/auth/me",
+    (url: string) => fetch(url).then((r) => r.json()),
+    {
+      dedupingInterval: 60000,
+      revalidateOnFocus: false,
+    }
+  )
+
   useEffect(() => {
     if (propName) {
       setDisplayName(propName)
@@ -48,36 +58,24 @@ export function UserMenu({
       return
     }
 
-    async function fetchUser() {
-      try {
-        const res = await fetch("/api/auth/me")
-        if (res.ok) {
-          const data = await res.json()
-          if (data?.user) {
-            const artistName = data.user.artist_name || "Artist Studio"
-            setDisplayName(artistName)
-            if (data.user.studio_logo_url || data.user.avatar_url) {
-              setLogoUrl(data.user.studio_logo_url || data.user.avatar_url)
-            }
-
-            // Generate initials
-            const parts = artistName.split(" ").filter(Boolean)
-            const ini =
-              parts.length > 1
-                ? (parts[0][0] + parts[1][0]).toUpperCase()
-                : parts.length === 1
-                  ? parts[0].slice(0, 2).toUpperCase()
-                  : "AS"
-            setDisplayInitials(ini)
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch user profile", err)
+    if (authData?.user) {
+      const artistName = authData.user.artist_name || "Artist Studio"
+      setDisplayName(artistName)
+      if (authData.user.studio_logo_url || authData.user.avatar_url) {
+        setLogoUrl(authData.user.studio_logo_url || authData.user.avatar_url)
       }
-    }
 
-    void fetchUser()
-  }, [propName, propInitials])
+      // Generate initials
+      const parts = artistName.split(" ").filter(Boolean)
+      const ini =
+        parts.length > 1
+          ? (parts[0][0] + parts[1][0]).toUpperCase()
+          : parts.length === 1
+            ? parts[0].slice(0, 2).toUpperCase()
+            : "AS"
+      setDisplayInitials(ini)
+    }
+  }, [propName, propInitials, authData])
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" })

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { mutate } from "swr";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Calendar, Filter, Plus, Search, LayoutGrid } from "lucide-react";
@@ -238,6 +239,7 @@ export function BookingManager() {
         toast.error(data.error ?? "Unable to save booking.");
       } else {
         toast.success(editing ? "Booking updated successfully" : "Booking created successfully");
+        void mutate("/api/dashboard");
         if (editing) pendingScrollId.current = editing.id;
         cancelEdit();
         if (editing) {
@@ -270,6 +272,7 @@ export function BookingManager() {
         toast.error(data.error ?? "Unable to delete booking.");
       } else {
         toast.success("Booking deleted successfully");
+        void mutate("/api/dashboard");
         setDeleting(null);
         void fetchBookingsThrough(page, search, statusFilter);
       }

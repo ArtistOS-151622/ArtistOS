@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -13,8 +13,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 import {
-  Bar,
-  BarChart,
   Area,
   AreaChart,
   CartesianGrid,
@@ -36,9 +34,53 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AppLoader } from "@/components/common/shared/app-loader";
+
+type DashboardData = {
+  artist_name: string;
+  today: {
+    dateStr: string;
+    total: number;
+    pending: number;
+    confirmed: number;
+    completed: number;
+  };
+  metrics: {
+    activeClients: { value: string; change: string };
+    newBookings: { value: string; change: string };
+    revenue: { value: string; change: string };
+    satisfaction: { value: string; change: string };
+  };
+  miniTrends: {
+    clients: { label: string; value: number }[];
+    bookings: { label: string; value: number }[];
+    revenue: { label: string; value: number }[];
+    satisfaction: { label: string; value: number }[];
+  };
+  appointmentChartData: {
+    month: string;
+    total: number;
+    completed: number;
+    confirmed: number;
+    pending: number;
+    cancelled: number;
+  }[];
+  revenueData: {
+    name: string;
+    value: number;
+    amount?: number;
+    fill: string;
+  }[];
+  totalRevenueSum: number;
+  upcomingClients: {
+    name: string;
+    service: string;
+    time: string;
+    artist: string;
+    phone: string;
+    email: string;
+  }[];
+};
 
 const appointmentChartConfig = {
   total: { label: "Total", color: "#cbd5e1" },
@@ -61,73 +103,28 @@ const revenueChartConfig = {
   },
 } satisfies ChartConfig;
 
-function formatBookingTime(dateStr: string, timeStr: string) {
-  try {
-    const [year, month, day] = dateStr.split("-").map(Number);
-    const [hours, minutes] = timeStr.split(":").map(Number);
-    const dateObj = new Date(year, month - 1, day, hours, minutes);
-
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    };
-
-    return dateObj.toLocaleDateString("en-US", options);
-  } catch {
-    return `${dateStr} ${timeStr}`;
+const fetcher = async (url: string): Promise<DashboardData> => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || "Failed to load dashboard data.");
   }
-}
+  return res.json();
+};
 
 export default function DashboardPage() {
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data, error, isLoading, mutate } = useSWR<DashboardData>(
+    "/api/dashboard",
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnMount: true,
+      dedupingInterval: 2000,
+      keepPreviousData: true,
+    },
+  );
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      try {
-        setLoading(true);
-        setError("");
-
-        // Fetch user profile info
-        const profileRes = await fetch("/api/auth/me");
-        if (profileRes.ok) {
-          const profileData = await profileRes.json();
-          setProfile(profileData?.user || null);
-        }
-
-        // Fetch bookings for the current year
-        const currentYear = new Date().getFullYear();
-        const start = `${currentYear - 1}-01-01`;
-        const end = `${currentYear + 1}-12-31`;
-
-        const bookingsRes = await fetch(
-          `/api/bookings?start_date=${start}&end_date=${end}`,
-        );
-        if (!bookingsRes.ok) {
-          throw new Error("Failed to load dashboard data.");
-        }
-
-        const bookingsData = await bookingsRes.json();
-        setBookings(bookingsData.bookings || []);
-      } catch (err: any) {
-        setError(
-          err.message || "An error occurred while loading dashboard data.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void loadDashboardData();
-  }, []);
-
-  if (loading) {
+  if (isLoading && !data) {
     return (
       <div className="space-y-6">
         <PageHeader title="Dashboard" />
@@ -225,13 +222,15 @@ export default function DashboardPage() {
     );
   }
 
-  if (error) {
+  if (error || !data) {
     return (
       <>
         <PageHeader title="Dashboard" />
         <div className="flex h-96 flex-col items-center justify-center rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-red-500">{error}</p>
-          <Button onClick={() => window.location.reload()} className="mt-4">
+          <p className="text-sm font-medium text-red-500">
+            {error?.message || "Failed to load dashboard data."}
+          </p>
+          <Button onClick={() => void mutate()} className="mt-4">
             Try again
           </Button>
         </div>
@@ -239,287 +238,63 @@ export default function DashboardPage() {
     );
   }
 
-  // Calculate dynamic stats
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-
-  const getBookingPrice = (b: any) => {
-    const servicesTotal =
-      b.services?.reduce(
-        (sum: number, s: any) =>
-          sum + Number(s.price || 0) * Number(s.quantity || 1),
-        0,
-      ) || 0;
-    const additionalChargesTotal =
-      b.additional_charges?.reduce(
-        (sum: number, c: any) =>
-          sum + Number(c.rate || 0) * Number(c.quantity || 1),
-        0,
-      ) || 0;
-    const discount = b.discount || 0;
-    return servicesTotal + additionalChargesTotal - discount;
-  };
-
-  // 1. Revenue this month
-  const currentMonthRevenue = bookings
-    .filter((b: any) => {
-      const d = new Date(b.booking_date);
-      return (
-        d.getFullYear() === currentYear &&
-        d.getMonth() === currentMonth &&
-        (b.status === "completed" || b.status === "confirmed")
-      );
-    })
-    .reduce((sum: number, b: any) => sum + getBookingPrice(b), 0);
-
-  const lastMonthRevenue = bookings
-    .filter((b: any) => {
-      const d = new Date(b.booking_date);
-      const lm = currentMonth === 0 ? 11 : currentMonth - 1;
-      const ly = currentMonth === 0 ? currentYear - 1 : currentYear;
-      return (
-        d.getFullYear() === ly &&
-        d.getMonth() === lm &&
-        (b.status === "completed" || b.status === "confirmed")
-      );
-    })
-    .reduce((sum: number, b: any) => sum + getBookingPrice(b), 0);
-
-  let revenueGrowthStr = "0% MoM";
-  if (lastMonthRevenue > 0) {
-    const growth =
-      ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
-    revenueGrowthStr = `${growth >= 0 ? "+" : ""}${growth.toFixed(0)}% this month`;
-  } else if (currentMonthRevenue > 0) {
-    revenueGrowthStr = "New revenue this month";
-  }
-
-  // 2. Active Clients
-  const getActiveClients = (list: any[]) =>
-    new Set(list.map((b) => b.customer_id)).size;
-
-  const currentMonthClients = getActiveClients(
-    bookings.filter((b: any) => {
-      const d = new Date(b.booking_date);
-      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-    }),
-  );
-  const lastMonthClients = getActiveClients(
-    bookings.filter((b: any) => {
-      const d = new Date(b.booking_date);
-      const lm = currentMonth === 0 ? 11 : currentMonth - 1;
-      const ly = currentMonth === 0 ? currentYear - 1 : currentYear;
-      return d.getFullYear() === ly && d.getMonth() === lm;
-    }),
-  );
-
-  let clientsGrowthStr = "0% MoM";
-  if (lastMonthClients > 0) {
-    const growth =
-      ((currentMonthClients - lastMonthClients) / lastMonthClients) * 100;
-    clientsGrowthStr = `${growth >= 0 ? "+" : ""}${growth.toFixed(0)}% this month`;
-  } else if (currentMonthClients > 0) {
-    clientsGrowthStr = "New clients this month";
-  }
-
-  // 3. New Bookings (current month)
-  const currentMonthBookings = bookings.filter((b: any) => {
-    const d = new Date(b.booking_date);
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-  });
-  const lastMonthBookings = bookings.filter((b: any) => {
-    const d = new Date(b.booking_date);
-    const lm = currentMonth === 0 ? 11 : currentMonth - 1;
-    const ly = currentMonth === 0 ? currentYear - 1 : currentYear;
-    return d.getFullYear() === ly && d.getMonth() === lm;
-  });
-
-  let bookingsGrowthStr = "0% MoM";
-  if (lastMonthBookings.length > 0) {
-    const growth =
-      ((currentMonthBookings.length - lastMonthBookings.length) /
-        lastMonthBookings.length) *
-      100;
-    bookingsGrowthStr = `${growth >= 0 ? "+" : ""}${growth.toFixed(0)}% this month`;
-  } else if (currentMonthBookings.length > 0) {
-    bookingsGrowthStr = "First bookings this month";
-  }
-
-  // 4. Client Satisfaction
-  const completed = bookings.filter(
-    (b: any) => b.status === "completed",
-  ).length;
-  const cancelled = bookings.filter((b: any) => b.status === "cancelled").length;
-  const totalEnded = completed + cancelled;
-  const satisfactionRate =
-    totalEnded > 0 ? Math.round((completed / totalEnded) * 100) : 100;
-
-  const metrics = [
-    {
-      title: "Active clients",
-      value: getActiveClients(bookings).toLocaleString(),
-      change: clientsGrowthStr,
-      icon: UsersRound,
-      iconBg: "bg-white/60 text-[#7c3aed]",
-      cardBg: "bg-gradient-to-br from-white to-purple-50/70",
-      stroke: "#7c3aed",
-      fill: "url(#fillPurple)",
-    },
-    {
-      title: "New bookings",
-      value: `+${currentMonthBookings.length}`,
-      change: bookingsGrowthStr,
-      icon: CalendarDays,
-      iconBg: "bg-white/60 text-[#0284c7]",
-      cardBg: "bg-gradient-to-br from-white to-sky-50/70",
-      stroke: "#0284c7",
-      fill: "url(#fillBlue)",
-    },
-    {
-      title: "Revenue",
-      value: `₹${currentMonthRevenue.toLocaleString()}`,
-      change: revenueGrowthStr,
-      icon: CircleDollarSign,
-      iconBg: "bg-white/60 text-[#16a34a]",
-      cardBg: "bg-gradient-to-br from-white to-emerald-50/70",
-      stroke: "#16a34a",
-      fill: "url(#fillGreen)",
-    },
-    {
-      title: "Client satisfaction",
-      value: `${satisfactionRate}%`,
-      change: `${completed} completed vs ${cancelled} cancelled`,
-      icon: HeartHandshake,
-      iconBg: "bg-white/60 text-[#e11d48]",
-      cardBg: "bg-gradient-to-br from-white to-rose-50/70",
-      stroke: "#e11d48",
-      fill: "url(#fillRose)",
-    },
-  ];
-
-  // Monthly appointments data
-  const monthsShort = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  const appointmentChartData = monthsShort.map((month, index) => {
-    const monthBookings = bookings.filter((b: any) => {
-      const d = new Date(b.booking_date);
-      return d.getFullYear() === currentYear && d.getMonth() === index;
-    });
-    const total = monthBookings.length;
-    const completed = monthBookings.filter(
-      (b: any) => b.status === "completed",
-    ).length;
-    const confirmed = monthBookings.filter(
-      (b: any) => b.status === "confirmed",
-    ).length;
-    const pending = monthBookings.filter(
-      (b: any) => b.status === "pending",
-    ).length;
-    const cancelled = monthBookings.filter(
-      (b: any) => b.status === "cancelled",
-    ).length;
-    return { month, total, completed, confirmed, pending, cancelled };
-  });
-
-  // Service distribution revenue data
-  const serviceRevenueMap: Record<string, number> = {};
-  let totalRevenueSum = 0;
-
-  bookings.forEach((b: any) => {
-    if (b.status === "completed" || b.status === "confirmed") {
-      b.services?.forEach((s: any) => {
-        const price = Number(s.price || 0);
-        const name = s.service_name || "Unknown Service";
-        serviceRevenueMap[name] = (serviceRevenueMap[name] || 0) + price;
-        totalRevenueSum += price;
-      });
-    }
-  });
-
-  const fills = [
-    "#7c3aed",
-    "#a7d99b",
-    "#8dccf2",
-    "#ffd18a",
-    "#bfc6ff",
-    "#dfe5ee",
-  ];
-  let rawRevenueData = Object.entries(serviceRevenueMap)
-    .map(([name, value]) => {
-      const pct =
-        totalRevenueSum > 0 ? Math.round((value / totalRevenueSum) * 100) : 0;
-      return { name, value: pct };
-    })
-    .filter((item) => item.value > 0)
-    .sort((a, b) => b.value - a.value);
-
-  let revenueData = rawRevenueData.map((item, idx) => ({
-    ...item,
-    fill: fills[idx % fills.length],
-  }));
-
-  if (revenueData.length === 0) {
-    revenueData = [{ name: "No data available", value: 100, fill: "#dfe5ee" }];
-  }
-
-  // Get upcoming 3 clients/bookings (status pending or confirmed, booking_date in future/today)
-  const todayStr = now.toISOString().split("T")[0];
-  const upcomingClients = bookings
-    .filter(
-      (b: any) =>
-        b.booking_date >= todayStr &&
-        b.status !== "cancelled" &&
-        b.status !== "completed",
-    )
-    .sort((a: any, b: any) => {
-      if (a.booking_date !== b.booking_date) {
-        return a.booking_date.localeCompare(b.booking_date);
-      }
-      return a.start_time.localeCompare(b.start_time);
-    })
-    .slice(0, 3)
-    .map((b: any) => ({
-      name: b.customer?.customer_name || "Unknown Client",
-      service:
-        b.services?.map((s: any) => s.service_name).join(", ") ||
-        "No services selected",
-      time: formatBookingTime(b.booking_date, b.start_time),
-      artist: profile?.artist_name || "Artist Studio",
-      phone: b.customer?.phone || "",
-      email: b.customer?.email || "",
-    }));
-
-  // Today's bookings
-  const todayBookings = bookings.filter(
-    (b: any) =>
-      b.booking_date === todayStr &&
-      b.status !== "cancelled"
-  );
-  
-  const pendingToday = todayBookings.filter((b: any) => b.status === "pending").length;
-  const confirmedToday = todayBookings.filter((b: any) => b.status === "confirmed").length;
-  const completedToday = todayBookings.filter((b: any) => b.status === "completed").length;
-
   const currentHour = now.getHours();
+  const currentYear = now.getFullYear();
+
   const greeting =
     currentHour < 12
       ? "Good morning"
       : currentHour < 18
         ? "Good afternoon"
         : "Good evening";
+
+  const metrics = [
+    {
+      title: "Active clients",
+      value: data.metrics.activeClients.value,
+      change: data.metrics.activeClients.change,
+      icon: UsersRound,
+      iconBg: "bg-white/60 text-[#7c3aed]",
+      cardBg: "bg-gradient-to-br from-white to-purple-50/70",
+      stroke: "#7c3aed",
+      fill: "url(#fillPurple)",
+      trendData: data.miniTrends.clients,
+    },
+    {
+      title: "New bookings",
+      value: data.metrics.newBookings.value,
+      change: data.metrics.newBookings.change,
+      icon: CalendarDays,
+      iconBg: "bg-white/60 text-[#0284c7]",
+      cardBg: "bg-gradient-to-br from-white to-sky-50/70",
+      stroke: "#0284c7",
+      fill: "url(#fillBlue)",
+      trendData: data.miniTrends.bookings,
+    },
+    {
+      title: "Revenue",
+      value: data.metrics.revenue.value,
+      change: data.metrics.revenue.change,
+      icon: CircleDollarSign,
+      iconBg: "bg-white/60 text-[#16a34a]",
+      cardBg: "bg-gradient-to-br from-white to-emerald-50/70",
+      stroke: "#16a34a",
+      fill: "url(#fillGreen)",
+      trendData: data.miniTrends.revenue,
+    },
+    {
+      title: "Client satisfaction",
+      value: data.metrics.satisfaction.value,
+      change: data.metrics.satisfaction.change,
+      icon: HeartHandshake,
+      iconBg: "bg-white/60 text-[#e11d48]",
+      cardBg: "bg-gradient-to-br from-white to-rose-50/70",
+      stroke: "#e11d48",
+      fill: "url(#fillRose)",
+      trendData: data.miniTrends.satisfaction,
+    },
+  ];
 
   return (
     <>
@@ -528,42 +303,56 @@ export default function DashboardPage() {
       {/* Greeting and Today's Events Banner */}
       <Card className="mb-5 rounded-[1.75rem] border-0 bg-gradient-to-br from-purple-600 via-indigo-600 to-indigo-700 text-white shadow-lg shadow-purple-950/10 relative overflow-hidden">
         {/* Abstract background elements */}
-        <div className="absolute right-0 top-0 h-full w-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent opacity-60"></div>
-        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10 blur-3xl"></div>
-        <div className="absolute -bottom-16 right-32 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
+        <div className="absolute right-0 top-0 h-full w-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent opacity-60" />
+        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-16 right-32 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
 
         <CardContent className="p-6 md:p-8 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-              {greeting}, {profile?.artist_name?.split(" ")[0] || "Artist"}! <span className="animate-wave origin-bottom-right inline-block">👋</span>
+              {greeting}, {data.artist_name.split(" ")[0] || "Artist"}!{" "}
+              <span className="animate-wave origin-bottom-right inline-block">👋</span>
             </h2>
             <p className="text-purple-100 text-lg">
-              You have <strong className="text-white font-semibold text-xl mx-1">{todayBookings.length}</strong> {todayBookings.length === 1 ? 'appointment' : 'appointments'} scheduled for today.
+              You have{" "}
+              <strong className="text-white font-semibold text-xl mx-1">
+                {data.today.total}
+              </strong>{" "}
+              {data.today.total === 1 ? "appointment" : "appointments"} scheduled for today.
             </p>
-            {todayBookings.length > 0 && (
+            {data.today.total > 0 && (
               <div className="flex flex-wrap items-center gap-3 pt-1">
-                {pendingToday > 0 && (
-                  <Badge variant="secondary" className="bg-amber-500/20 text-amber-100 border border-amber-500/30 hover:bg-amber-500/30 font-medium">
-                    {pendingToday} Pending
+                {data.today.pending > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-amber-500/20 text-amber-100 border border-amber-500/30 hover:bg-amber-500/30 font-medium"
+                  >
+                    {data.today.pending} Pending
                   </Badge>
                 )}
-                {confirmedToday > 0 && (
-                  <Badge variant="secondary" className="bg-sky-500/20 text-sky-100 border border-sky-500/30 hover:bg-sky-500/30 font-medium">
-                    {confirmedToday} Confirmed
+                {data.today.confirmed > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-sky-500/20 text-sky-100 border border-sky-500/30 hover:bg-sky-500/30 font-medium"
+                  >
+                    {data.today.confirmed} Confirmed
                   </Badge>
                 )}
-                {completedToday > 0 && (
-                  <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-100 border border-emerald-500/30 hover:bg-emerald-500/30 font-medium">
-                    {completedToday} Completed
+                {data.today.completed > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-emerald-500/20 text-emerald-100 border border-emerald-500/30 hover:bg-emerald-500/30 font-medium"
+                  >
+                    {data.today.completed} Completed
                   </Badge>
                 )}
               </div>
             )}
           </div>
-          
-          <Link href={`/bookings?date=${todayStr}`}>
+
+          <Link href={`/bookings?date=${data.today.dateStr}`}>
             <Button className="h-12 rounded-2xl bg-white text-[#6d28d9] hover:bg-slate-50 font-semibold px-6 shadow-md shadow-black/5 hover:scale-105 transition-all duration-300 w-full md:w-auto flex items-center gap-2">
-              View Today's Bookings
+              View Today&apos;s Bookings
               <ArrowRight className="size-4" />
             </Button>
           </Link>
@@ -571,14 +360,17 @@ export default function DashboardPage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric, index) => (
+        {metrics.map((metric) => (
           <Card
             key={metric.title}
             className={`rounded-[1.75rem] border-slate-100 ${metric.cardBg} group hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl shadow-purple-950/5`}
           >
             <CardHeader className="flex-row items-start p-5 pb-2 relative">
               <div className="z-10 min-w-0 flex-1 pr-14">
-                <CardTitle className="text-sm font-semibold text-slate-500 truncate" title={metric.title}>
+                <CardTitle
+                  className="text-sm font-semibold text-slate-500 truncate"
+                  title={metric.title}
+                >
                   {metric.title}
                 </CardTitle>
                 <p className="mt-2 text-3xl font-bold tracking-tight text-slate-800">
@@ -602,8 +394,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="p-5 pt-0 mt-2 relative z-0">
               <MiniTrendChart
-                active={index}
-                bookings={bookings}
+                data={metric.trendData}
                 stroke={metric.stroke}
                 fill={metric.fill}
               />
@@ -634,70 +425,26 @@ export default function DashboardPage() {
               className="h-full min-h-72 max-h-[362px] w-full"
             >
               <AreaChart
-                data={appointmentChartData}
+                data={data.appointmentChartData}
                 accessibilityLayer
                 margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
               >
                 <defs>
-                  <linearGradient
-                    id="fillCompleted"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor="var(--color-completed)"
-                      stopOpacity={0.6}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--color-completed)"
-                      stopOpacity={0.1}
-                    />
+                  <linearGradient id="fillCompleted" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-completed)" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="var(--color-completed)" stopOpacity={0.1} />
                   </linearGradient>
-                  <linearGradient
-                    id="fillConfirmed"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor="var(--color-confirmed)"
-                      stopOpacity={0.6}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--color-confirmed)"
-                      stopOpacity={0.1}
-                    />
+                  <linearGradient id="fillConfirmed" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-confirmed)" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="var(--color-confirmed)" stopOpacity={0.1} />
                   </linearGradient>
                   <linearGradient id="fillPending" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor="var(--color-pending)"
-                      stopOpacity={0.6}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--color-pending)"
-                      stopOpacity={0.1}
-                    />
+                    <stop offset="5%" stopColor="var(--color-pending)" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="var(--color-pending)" stopOpacity={0.1} />
                   </linearGradient>
                   <linearGradient id="fillCanceled" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor="var(--color-cancelled)"
-                      stopOpacity={0.6}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--color-cancelled)"
-                      stopOpacity={0.1}
-                    />
+                    <stop offset="5%" stopColor="var(--color-cancelled)" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="var(--color-cancelled)" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
@@ -779,7 +526,7 @@ export default function DashboardPage() {
                   content={<ChartTooltipContent hideLabel />}
                 />
                 <Pie
-                  data={revenueData}
+                  data={data.revenueData}
                   dataKey="value"
                   nameKey="name"
                   innerRadius={80}
@@ -803,7 +550,7 @@ export default function DashboardPage() {
                               y={viewBox.cy}
                               className="fill-slate-800 text-3xl font-bold tracking-tight"
                             >
-                              ₹{totalRevenueSum.toLocaleString()}
+                              ₹{data.totalRevenueSum.toLocaleString()}
                             </tspan>
                             <tspan
                               x={viewBox.cx}
@@ -817,7 +564,7 @@ export default function DashboardPage() {
                       }
                     }}
                   />
-                  {revenueData.map((entry) => (
+                  {data.revenueData.map((entry) => (
                     <Cell
                       key={entry.name}
                       fill={entry.fill}
@@ -828,9 +575,9 @@ export default function DashboardPage() {
               </PieChart>
             </ChartContainer>
             <div className="flex flex-col gap-3">
-              {revenueData.slice(0, 2).map((item) => {
+              {data.revenueData.slice(0, 2).map((item) => {
                 const rupeeValue = Math.round(
-                  (item.value / 100) * totalRevenueSum,
+                  (item.value / 100) * (data.totalRevenueSum || 0),
                 ).toLocaleString();
                 return (
                   <div
@@ -880,9 +627,9 @@ export default function DashboardPage() {
           </Link>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3 p-5 pt-0">
-          {upcomingClients.length > 0 ? (
-            upcomingClients.map((client) => {
-              const waUrl = `https://wa.me/${client.phone.replace(/\D/g, "")}?text=Hi%20${encodeURIComponent(client.name)},%20this%20is%20${encodeURIComponent(profile?.artist_name || "ArtistOS")}%20regarding%20your%20upcoming%20${encodeURIComponent(client.service)}%20booking.`;
+          {data.upcomingClients.length > 0 ? (
+            data.upcomingClients.map((client) => {
+              const waUrl = `https://wa.me/${client.phone.replace(/\D/g, "")}?text=Hi%20${encodeURIComponent(client.name)},%20this%20is%20${encodeURIComponent(client.artist || "ArtistOS")}%20regarding%20your%20upcoming%20${encodeURIComponent(client.service)}%20booking.`;
 
               return (
                 <Card
@@ -992,51 +739,14 @@ export default function DashboardPage() {
 }
 
 function MiniTrendChart({
-  active,
-  bookings,
+  data,
   stroke,
   fill,
 }: {
-  active: number;
-  bookings: any[];
+  data: { label: string; value: number }[];
   stroke: string;
   fill: string;
 }) {
-  const days = ["S", "M", "T", "W", "T", "F", "S"];
-  const data = [];
-
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const label = days[d.getDay()];
-    const dStr = d.toISOString().split("T")[0];
-
-    const dayBookings = bookings.filter((b) => b.booking_date === dStr);
-    let val = 0;
-
-    if (active === 0) {
-      val = new Set(dayBookings.map((b) => b.customer_id)).size;
-    } else if (active === 1) {
-      val = dayBookings.length;
-    } else if (active === 2) {
-      val = dayBookings
-        .filter((b) => b.status === "completed" || b.status === "confirmed")
-        .reduce((sum, b) => {
-          const price =
-            b.services?.reduce(
-              (sSum: number, s: any) => sSum + Number(s.price || 0),
-              0,
-            ) || 0;
-          return sum + price;
-        }, 0);
-    } else {
-      const comp = dayBookings.filter((b) => b.status === "completed").length;
-      val = comp;
-    }
-
-    data.push({ label, value: val || 0.1 });
-  }
-
   return (
     <ChartContainer
       config={miniChartConfig}
