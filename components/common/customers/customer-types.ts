@@ -3,7 +3,7 @@ export type Customer = {
   customer_name: string
   phone: string
   alt_phone?: string | null
-  email: string
+  email?: string | null
   address: string
   reference_by?: string | null
   created_at?: string

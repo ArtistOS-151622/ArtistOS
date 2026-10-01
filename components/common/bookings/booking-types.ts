@@ -43,7 +43,7 @@ export type BookingFormValues = {
     id: number
     customer_name: string
     phone: string
-    email: string
+    email?: string | null
     address: string
   } | null
 }

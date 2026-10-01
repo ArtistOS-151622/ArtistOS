@@ -232,7 +232,7 @@ export function BookingForm({
         customer_name: newCustomerValues.customer_name.trim(),
         phone: newCustomerValues.phone.trim(),
         alt_phone: newCustomerValues.alt_phone.trim() || null,
-        email: newCustomerValues.email.trim(),
+        email: newCustomerValues.email.trim() || null,
         address: newCustomerValues.address.trim(),
         reference_by: newCustomerValues.reference_by.trim() || null,
       };

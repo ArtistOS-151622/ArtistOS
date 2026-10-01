@@ -9,7 +9,7 @@ type CustomerInput = {
   customer_name?: string
   phone?: string
   alt_phone?: string | null
-  email?: string
+  email?: string | null
   address?: string
   reference_by?: string | null
 }
@@ -22,12 +22,11 @@ function validateId(value: string) {
 function validateCustomer(input: CustomerInput) {
   const customer_name = input.customer_name?.trim()
   const phone = input.phone?.trim()
-  const email = input.email?.trim()
+  const email = input.email?.trim() || null
   const address = input.address?.trim()
 
   if (!customer_name) return { error: "Customer name is required." }
   if (!phone) return { error: "Phone number is required." }
-  if (!email) return { error: "Email is required." }
   if (!address) return { error: "Customer address is required." }
 
   return {

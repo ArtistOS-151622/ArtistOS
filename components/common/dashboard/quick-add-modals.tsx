@@ -47,7 +47,7 @@ export function QuickAddModals({
       customer_name: customerValues.customer_name.trim(),
       phone: customerValues.phone.trim(),
       alt_phone: customerValues.alt_phone.trim() || null,
-      email: customerValues.email.trim(),
+      email: customerValues.email.trim() || null,
       address: customerValues.address.trim(),
       reference_by: customerValues.reference_by.trim() || null,
     };

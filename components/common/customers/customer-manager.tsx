@@ -216,7 +216,7 @@ export function CustomerManager() {
       customer_name: values.customer_name.trim(),
       phone: values.phone.trim(),
       alt_phone: values.alt_phone.trim() || null,
-      email: values.email.trim(),
+      email: values.email.trim() || null,
       address: values.address.trim(),
       reference_by: values.reference_by.trim() || null,
     };
@@ -289,7 +289,7 @@ export function CustomerManager() {
       customer_name: customer.customer_name,
       phone: customer.phone,
       alt_phone: customer.alt_phone ?? "",
-      email: customer.email,
+      email: customer.email ?? "",
       address: customer.address,
       reference_by: customer.reference_by ?? "",
     });

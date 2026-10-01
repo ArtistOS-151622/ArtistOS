@@ -574,6 +574,10 @@ export default function BookingDetailsPage() {
         "_blank",
       );
     } else if (method === "email") {
+      if (!booking.customer.email) {
+        alert("Customer does not have an email address.");
+        return;
+      }
       window.open(
         `mailto:${booking.customer.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`,
         "_blank",

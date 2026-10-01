@@ -47,7 +47,6 @@ export function CustomerForm({
         const newErrors: Record<string, string> = {};
         if (!values.customer_name?.trim()) newErrors.customer_name = "Please fill out this field.";
         if (!values.phone?.trim()) newErrors.phone = "Please fill out this field.";
-        if (!values.email?.trim()) newErrors.email = "Please fill out this field.";
         if (!values.address?.trim()) newErrors.address = "Please fill out this field.";
 
         if (Object.keys(newErrors).length > 0) {
@@ -109,7 +108,7 @@ export function CustomerForm({
 
       <FloatingInput
         id="email"
-        label="Email"
+        label="Email (optional)"
         icon={<Mail className="size-4" />}
         type="email"
         value={values.email}
@@ -117,7 +116,6 @@ export function CustomerForm({
         containerClassName="md:col-span-2"
         disabled={loading}
         error={errors.email}
-        required
       />
 
       <FloatingInput
