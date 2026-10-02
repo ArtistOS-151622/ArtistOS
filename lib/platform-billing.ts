@@ -38,16 +38,24 @@ export async function createPlatformPurchase(
   planId: number
 ) {
   // 1. Get the plan details
+  console.log(`[createPlatformPurchase] Looking up plan ID ${planId} for user ${userId}...`)
   const { data: plan, error: planError } = await supabase
     .from("platform_subscriptions")
     .select("*")
     .eq("id", planId)
     .single()
 
-  if (planError || !plan) throw new Error("Invalid platform plan")
-  if (!plan.is_active) throw new Error("Plan is no longer active")
+  if (planError || !plan) {
+    console.error("[createPlatformPurchase] Failed to fetch plan:", { planId, planError, plan })
+    throw new Error(planError ? `Invalid platform plan: ${planError.message}` : "Invalid platform plan")
+  }
+  if (!plan.is_active) {
+    console.error("[createPlatformPurchase] Plan is inactive:", { planId, name: plan.name })
+    throw new Error("Plan is no longer active")
+  }
 
   if (!isRazorpayConfigured()) {
+    console.error("[createPlatformPurchase] Razorpay not configured. Check NEXT_PUBLIC_RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET.")
     throw new Error("Razorpay is not connected! Please add your API keys in the .env file to accept payments.")
   }
 
@@ -57,6 +65,7 @@ export async function createPlatformPurchase(
     Number(plan.amount_inr),
     1 // quantity is always 1 for platform subscriptions
   )
+  console.log(`[createPlatformPurchase] Amounts calculated - Base: ${baseAmount}, Final: ${amount}`)
 
   // 3. Create a pending or completed payment record
   const { data: payment, error: paymentError } = await supabase
@@ -72,10 +81,16 @@ export async function createPlatformPurchase(
     .select("*")
     .single()
 
-  if (paymentError) throw new Error(paymentError.message)
+  if (paymentError) {
+    console.error("[createPlatformPurchase] Error creating platform_payments record:", paymentError)
+    throw new Error(paymentError.message)
+  }
+
+  console.log(`[createPlatformPurchase] Created payment record ID ${payment.id}, status: ${payment.status}`)
 
   if (amount === 0) {
     // Activate immediately
+    console.log(`[createPlatformPurchase] Amount is 0, completing payment immediately for ID ${payment.id}`)
     await completePlatformPayment(supabase, payment.id)
     return { payment, free_plan: true }
   }
@@ -85,6 +100,7 @@ export async function createPlatformPurchase(
   const amountPaise = Math.round(amount * 100)
 
   if (!plan.razorpay_plan_id) {
+    console.error(`[createPlatformPurchase] Plan ${plan.id} ("${plan.name}") is missing razorpay_plan_id`)
     await supabase
       .from("platform_payments")
       .update({
@@ -96,17 +112,30 @@ export async function createPlatformPurchase(
     throw new Error("This platform plan is not linked to a Razorpay subscription plan")
   }
 
-  const subscription = await razorpay.subscriptions.create({
-    plan_id: plan.razorpay_plan_id,
-    total_count: 120, // allow 10 years of monthly renewals
-    customer_notify: 1,
-    notes: {
-      user_id: String(userId),
-      payment_id: String(payment.id),
-      plan_id: String(plan.id),
-      type: "platform_subscription",
-    },
-  })
+  console.log(`[createPlatformPurchase] Requesting Razorpay subscription creation for plan_id="${plan.razorpay_plan_id}"...`)
+  let subscription: any
+  try {
+    subscription = await razorpay.subscriptions.create({
+      plan_id: plan.razorpay_plan_id,
+      total_count: 120, // allow 10 years of monthly renewals
+      customer_notify: 1,
+      notes: {
+        user_id: String(userId),
+        payment_id: String(payment.id),
+        plan_id: String(plan.id),
+        type: "platform_subscription",
+      },
+    })
+    console.log(`[createPlatformPurchase] Razorpay subscription created: ${subscription.id}`)
+  } catch (rpErr: any) {
+    console.error("[createPlatformPurchase] Razorpay subscription creation failed:", {
+      message: rpErr?.message,
+      statusCode: rpErr?.statusCode,
+      error: rpErr?.error,
+      raw: rpErr,
+    })
+    throw rpErr
+  }
 
   await supabase
     .from("platform_payments")
