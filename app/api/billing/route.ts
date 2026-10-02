@@ -92,12 +92,14 @@ export async function GET(request: NextRequest) {
       .select("*")
       .eq("user_id", userId)
       .neq("status", "cancelled")
+      .neq("status", "pending")
 
     const { data: storagePurchases } = await supabase
       .from("portfolio_storage_purchases")
       .select("*, storage_plans(name)")
       .eq("user_id", userId)
       .neq("status", "cancelled")
+      .neq("status", "pending")
 
     // Format and combine payments
     const formattedPlatformPayments = ((platformPayments || []) as PlatformPaymentRow[]).map((p) => ({

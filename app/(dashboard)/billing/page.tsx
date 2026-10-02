@@ -117,12 +117,13 @@ export default function BillingPage() {
 
   const isLoading = billingLoading || plansLoading
   const currentPlan = billing?.subscription?.platform_subscriptions ?? null
-  const payments = billing?.payments ?? []
+  const payments = (billing?.payments ?? []).filter(p => p.status !== "pending" && p.status !== "cancelled")
 
   useEffect(() => {
     setTitle("Billing & Payment")
   }, [setTitle])
 
+  /*
   const handleDownloadInvoice = async (payment: Payment) => {
     setDownloadingId(payment.id)
     try {
@@ -145,6 +146,7 @@ export default function BillingPage() {
       setDownloadingId(null)
     }
   }
+  */
 
   async function loadRazorpayScript() {
     if ((window as WindowWithRazorpay).Razorpay) return
@@ -510,6 +512,7 @@ export default function BillingPage() {
                     <p className="font-bold text-slate-900 text-sm w-20 text-right">
                       ₹{payment.amount.toLocaleString("en-IN")}
                     </p>
+                    {/*
                     <Button
                       variant="outline"
                       size="sm"
@@ -524,6 +527,7 @@ export default function BillingPage() {
                       )}
                       Invoice
                     </Button>
+                    */}
                   </div>
                 </div>
               ))}

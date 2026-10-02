@@ -3,6 +3,8 @@ create table if not exists platform_subscriptions (
   name text not null,
   description text,
   amount_inr numeric not null default 0,
+  compare_at_amount_inr numeric(10,2),
+  discount_percentage integer,
   original_price_inr numeric(10,2),
   billing_period text,
   features jsonb default '[]'::jsonb,
