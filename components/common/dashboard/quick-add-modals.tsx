@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { mutate } from "swr";
-import { User, Calendar } from "lucide-react";
+import { User, Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppModal } from "@/components/common/shared/app-modal";
@@ -18,6 +18,10 @@ import {
   emptyBookingForm,
   type BookingFormValues,
 } from "@/components/common/bookings/booking-types";
+import {
+  uploadReferenceImagesWithProgress,
+  type UploadProgressState,
+} from "@/components/common/bookings/booking-upload-helper";
 
 export type QuickAddModalsProps = {
   customerModalOpen: boolean;
@@ -41,6 +45,7 @@ export function QuickAddModals({
   // Booking State
   const [bookingValues, setBookingValues] = useState<BookingFormValues>(emptyBookingForm);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingUploadProgress, setBookingUploadProgress] = useState<UploadProgressState | null>(null);
 
   async function saveCustomer() {
     setCustomerLoading(true);
@@ -82,7 +87,20 @@ export function QuickAddModals({
   }
 
   async function saveBooking() {
+    if (bookingValues.storage_quota_exceeded) {
+      toast.error("Cannot save booking: Storage quota exceeded. Please upgrade your storage quota or remove photos.");
+      return;
+    }
     setBookingLoading(true);
+    const hasImagesToUpload = Boolean(bookingValues.reference_images && bookingValues.reference_images.length > 0);
+
+    if (hasImagesToUpload) {
+      setBookingUploadProgress({
+        percentage: 10,
+        message: "Saving booking details...",
+      });
+    }
+
     const payload = {
       customer_id: bookingValues.customer_id,
       booking_address: bookingValues.booking_address.trim(),
@@ -104,15 +122,31 @@ export function QuickAddModals({
 
       if (!res.ok || !data.booking) {
         toast.error(data.error ?? "Unable to save booking.");
-      } else {
-        toast.success("Booking created successfully!");
-        void mutate("/api/dashboard");
-        setBookingModalOpen(false);
-        setBookingValues(emptyBookingForm);
-        router.refresh();
+        setBookingUploadProgress(null);
+        return;
       }
+
+      const newBookingId = data.booking.id;
+
+      // Upload reference images with real-time byte-level progress
+      if (hasImagesToUpload) {
+        await uploadReferenceImagesWithProgress(
+          bookingValues.reference_images!,
+          newBookingId,
+          setBookingUploadProgress
+        );
+      }
+
+      // Show toast ONLY after uploads finish
+      toast.success("Booking created successfully!");
+      void mutate("/api/dashboard");
+      setBookingModalOpen(false);
+      setBookingValues(emptyBookingForm);
+      setBookingUploadProgress(null);
+      router.refresh();
     } catch {
       toast.error("Unable to save booking.");
+      setBookingUploadProgress(null);
     } finally {
       setBookingLoading(false);
     }
@@ -124,8 +158,10 @@ export function QuickAddModals({
   }
 
   function closeBookingModal() {
+    if (bookingLoading) return;
     setBookingModalOpen(false);
     setBookingValues(emptyBookingForm);
+    setBookingUploadProgress(null);
   }
 
   return (
@@ -177,40 +213,81 @@ export function QuickAddModals({
         description="Select client, assign services, specify date, timings slot, and booking address."
         onClose={closeBookingModal}
         footer={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-              onClick={closeBookingModal}
-            >
-              Cancel
-            </Button>
-            <div className="flex flex-col items-end gap-1">
+          <div className="w-full flex flex-col gap-3">
+            {bookingUploadProgress && (
+              <div className="rounded-2xl border border-purple-200/80 bg-purple-50/70 p-3.5 space-y-2 animate-in fade-in duration-200 text-left">
+                <div className="flex items-center justify-between text-xs font-semibold text-purple-950">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin text-[#7c3aed]" />
+                    <span>{bookingUploadProgress.message}</span>
+                  </div>
+                  <span className="font-mono text-purple-700 font-bold">
+                    {bookingUploadProgress.percentage}%
+                  </span>
+                </div>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-purple-100/90 shadow-inner">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#7c3aed] to-purple-500 transition-all duration-300 rounded-full"
+                    style={{
+                      width: `${Math.max(5, bookingUploadProgress.percentage)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between w-full gap-2">
               <Button
-                form="quick-booking-form"
-                type="submit"
-                className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10 disabled:opacity-50"
-                disabled={
-                  bookingLoading ||
-                  !bookingValues.customer_id ||
-                  !bookingValues.booking_address.trim() ||
-                  !bookingValues.booking_date ||
-                  !bookingValues.start_time ||
-                  !bookingValues.end_time ||
-                  !bookingValues.status ||
-                  bookingValues.services.length === 0
-                }
+                type="button"
+                variant="outline"
+                disabled={bookingLoading}
+                className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                onClick={closeBookingModal}
               >
-                Create booking
+                Cancel
               </Button>
-              {bookingValues.services.length === 0 && (
-                <p className="text-xs text-amber-600 font-medium">
-                  Select at least 1 service to continue
-                </p>
-              )}
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  form="quick-booking-form"
+                  type="submit"
+                  className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10 disabled:opacity-50"
+                  disabled={
+                    bookingLoading ||
+                    !bookingValues.customer_id ||
+                    !bookingValues.booking_address.trim() ||
+                    !bookingValues.booking_date ||
+                    !bookingValues.start_time ||
+                    !bookingValues.end_time ||
+                    !bookingValues.status ||
+                    bookingValues.services.length === 0 ||
+                    Boolean(bookingValues.storage_quota_exceeded)
+                  }
+                >
+                  {bookingLoading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>
+                        {bookingUploadProgress
+                          ? `${bookingUploadProgress.percentage}% Uploading...`
+                          : "Saving..."}
+                      </span>
+                    </div>
+                  ) : (
+                    "Create booking"
+                  )}
+                </Button>
+                {bookingValues.storage_quota_exceeded ? (
+                  <p className="text-xs text-red-600 font-semibold">
+                    Storage quota exceeded. Please upgrade quota to create booking
+                  </p>
+                ) : bookingValues.services.length === 0 ? (
+                  <p className="text-xs text-amber-600 font-medium">
+                    Select at least 1 service to continue
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </>
+          </div>
         }
       >
         <BookingForm

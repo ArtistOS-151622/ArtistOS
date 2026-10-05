@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   MapPin,
   Plus,
@@ -10,8 +10,14 @@ import {
   ChevronDown,
   X,
   ScissorsLineDashed,
+  Image as ImageIcon,
+  UploadCloud,
+  AlertTriangle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { StoragePlansModal } from "@/components/storage/storage-plans-modal";
+import type { StoragePlanRow, QuotaInfo } from "@/lib/portfolio/types";
 
 import type {
   Customer,
@@ -45,7 +51,25 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 
+type SlotItem =
+  | {
+      type: "existing";
+      id: number;
+      name: string;
+      size: number;
+      url: string;
+    }
+  | {
+      type: "new";
+      file: File;
+      name: string;
+      size: number;
+      url: string;
+    }
+  | null;
+
 type BookingFormProps = {
+  bookingId?: number;
   values: BookingFormValues;
   loading?: boolean;
   submitText?: string;
@@ -53,9 +77,11 @@ type BookingFormProps = {
   onSubmit: () => void;
   onCancel?: () => void;
   formId?: string;
+  onQuotaExceededChange?: (exceeded: boolean) => void;
 };
 
 export function BookingForm({
+  bookingId,
   values,
   loading = false,
   submitText = "Create booking",
@@ -63,6 +89,7 @@ export function BookingForm({
   onSubmit,
   onCancel,
   formId = "booking-form",
+  onQuotaExceededChange,
 }: BookingFormProps) {
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [allServices, setAllServices] = useState<ArtistService[]>([]);
@@ -94,6 +121,257 @@ export function BookingForm({
   });
   const [serviceLoading, setServiceLoading] = useState(false);
   const [serviceError, setServiceError] = useState("");
+
+  // Reference Images state for the 3 slots: [SlotItem, SlotItem, SlotItem]
+  const [slots, setSlots] = useState<SlotItem[]>([null, null, null]);
+  const [loadingReferences, setLoadingReferences] = useState(false);
+  const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null);
+
+  // Storage Quota states
+  const [storageQuota, setStorageQuota] = useState<QuotaInfo | null>(null);
+  const [storagePlans, setStoragePlans] = useState<StoragePlanRow[]>([]);
+  const [storageModalOpen, setStorageModalOpen] = useState(false);
+
+  const loadStorageInfo = useCallback(async () => {
+    try {
+      const res = await fetch("/api/portfolio/storage-info");
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.status && json.data) {
+        setStorageQuota(json.data.quota ?? null);
+        setStoragePlans(json.data.plans ?? []);
+      }
+    } catch (err) {
+      console.error("Failed to load storage quota:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadStorageInfo();
+  }, [loadStorageInfo]);
+
+  // Compute total size of newly selected images
+  const newFilesTotalBytes = slots.reduce(
+    (total, s) => (s && s.type === "new" ? total + s.size : total),
+    0
+  );
+  const remainingBytes = storageQuota ? storageQuota.remaining_bytes : null;
+  const isQuotaExceeded =
+    remainingBytes !== null &&
+    (newFilesTotalBytes > remainingBytes || (newFilesTotalBytes > 0 && remainingBytes <= 0));
+
+  // Sync quota exceeded state
+  useEffect(() => {
+    onQuotaExceededChange?.(isQuotaExceeded);
+    if (values.storage_quota_exceeded !== isQuotaExceeded) {
+      onChange({
+        ...values,
+        storage_quota_exceeded: isQuotaExceeded,
+      });
+    }
+  }, [isQuotaExceeded, values, onChange, onQuotaExceededChange]);
+
+  // Sync / fetch reference images
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadReferenceImages() {
+      if (!bookingId) {
+        // If creating new booking and values already has reference_images
+        if (values.reference_images && values.reference_images.length > 0) {
+          const newSlots: SlotItem[] = [null, null, null];
+          values.reference_images.slice(0, 3).forEach((f, idx) => {
+            newSlots[idx] = {
+              type: "new",
+              file: f,
+              name: f.name,
+              size: f.size,
+              url: URL.createObjectURL(f),
+            };
+          });
+          setSlots(newSlots);
+        } else {
+          setSlots([null, null, null]);
+        }
+        return;
+      }
+
+      setLoadingReferences(true);
+      try {
+        const res = await fetch(`/api/bookings/${bookingId}/portfolio`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelled) return;
+
+        const refFiles = (json.data?.reference_files ?? []).slice(0, 3);
+        const loadedSlots: SlotItem[] = [null, null, null];
+        refFiles.forEach((rf: any, idx: number) => {
+          loadedSlots[idx] = {
+            type: "existing",
+            id: rf.id,
+            name: rf.file_name,
+            size: Number(rf.file_size),
+            url: rf.public_url,
+          };
+        });
+        setSlots(loadedSlots);
+
+        onChange({
+          ...values,
+          existing_reference_images: refFiles.map((rf: any) => ({
+            id: rf.id,
+            file_name: rf.file_name,
+            file_size: Number(rf.file_size),
+            public_url: rf.public_url,
+            mime_type: rf.mime_type,
+          })),
+          reference_images: [],
+          removed_reference_image_ids: [],
+        });
+      } catch (err) {
+        console.error("Failed to load booking reference images:", err);
+      } finally {
+        if (!cancelled) setLoadingReferences(false);
+      }
+    }
+
+    void loadReferenceImages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId]);
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      slots.forEach((s) => {
+        if (s && s.type === "new" && s.url.startsWith("blob:")) {
+          URL.revokeObjectURL(s.url);
+        }
+      });
+    };
+  }, [slots]);
+
+  const handleSlotChange = (slotIndex: number, file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (JPEG, PNG, WebP, etc.).");
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("Image file size must be less than 20MB.");
+      return;
+    }
+
+    // Check if adding this image exceeds available quota
+    const otherNewBytes = slots.reduce((total, s, idx) => {
+      if (idx === slotIndex) return total;
+      return s && s.type === "new" ? total + s.size : total;
+    }, 0);
+    const projectedNewBytes = otherNewBytes + file.size;
+    const isExceeded =
+      storageQuota !== null &&
+      (projectedNewBytes > storageQuota.remaining_bytes ||
+        (projectedNewBytes > 0 && storageQuota.remaining_bytes <= 0));
+
+    if (isExceeded && storageQuota) {
+      toast.error(
+        `Storage quota exceeded! These photos require ${(projectedNewBytes / (1024 * 1024)).toFixed(1)} MB, but you only have ${storageQuota.remaining_bytes_human} remaining. Please upgrade your storage quota.`
+      );
+    }
+
+    const prevSlot = slots[slotIndex];
+    const updatedRemoved = [...(values.removed_reference_image_ids || [])];
+    if (prevSlot) {
+      if (prevSlot.type === "existing") {
+        if (!updatedRemoved.includes(prevSlot.id)) {
+          updatedRemoved.push(prevSlot.id);
+        }
+      } else if (prevSlot.type === "new" && prevSlot.url.startsWith("blob:")) {
+        URL.revokeObjectURL(prevSlot.url);
+      }
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    const updatedSlots = [...slots];
+    updatedSlots[slotIndex] = {
+      type: "new",
+      file,
+      name: file.name,
+      size: file.size,
+      url: previewUrl,
+    };
+    setSlots(updatedSlots);
+
+    const newFiles = updatedSlots
+      .filter((s): s is Extract<SlotItem, { type: "new" }> => s !== null && s.type === "new")
+      .map((s) => s.file);
+
+    const existingFiles = updatedSlots
+      .filter((s): s is Extract<SlotItem, { type: "existing" }> => s !== null && s.type === "existing")
+      .map((s) => ({
+        id: s.id,
+        file_name: s.name,
+        file_size: s.size,
+        public_url: s.url,
+      }));
+
+    onChange({
+      ...values,
+      reference_images: newFiles,
+      existing_reference_images: existingFiles,
+      removed_reference_image_ids: updatedRemoved,
+      storage_quota_exceeded: isExceeded,
+    });
+  };
+
+  const removeSlot = (slotIndex: number) => {
+    const prevSlot = slots[slotIndex];
+    if (!prevSlot) return;
+
+    const updatedRemoved = [...(values.removed_reference_image_ids || [])];
+    if (prevSlot.type === "existing") {
+      if (!updatedRemoved.includes(prevSlot.id)) {
+        updatedRemoved.push(prevSlot.id);
+      }
+    } else if (prevSlot.type === "new" && prevSlot.url.startsWith("blob:")) {
+      URL.revokeObjectURL(prevSlot.url);
+    }
+
+    const updatedSlots = [...slots];
+    updatedSlots[slotIndex] = null;
+    setSlots(updatedSlots);
+
+    const newFiles = updatedSlots
+      .filter((s): s is Extract<SlotItem, { type: "new" }> => s !== null && s.type === "new")
+      .map((s) => s.file);
+
+    const existingFiles = updatedSlots
+      .filter((s): s is Extract<SlotItem, { type: "existing" }> => s !== null && s.type === "existing")
+      .map((s) => ({
+        id: s.id,
+        file_name: s.name,
+        file_size: s.size,
+        public_url: s.url,
+      }));
+
+    const remainingNewBytes = updatedSlots.reduce(
+      (total, s) => (s && s.type === "new" ? total + s.size : total),
+      0
+    );
+    const quotaExceededAfterRemove =
+      storageQuota !== null &&
+      (remainingNewBytes > storageQuota.remaining_bytes ||
+        (remainingNewBytes > 0 && storageQuota.remaining_bytes <= 0));
+
+    onChange({
+      ...values,
+      reference_images: newFiles,
+      existing_reference_images: existingFiles,
+      removed_reference_image_ids: updatedRemoved,
+      storage_quota_exceeded: quotaExceededAfterRemove,
+    });
+  };
 
   // Fetch initial data
   useEffect(() => {
@@ -333,6 +611,10 @@ export function BookingForm({
         className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
+          if (isQuotaExceeded) {
+            toast.error("Storage quota exceeded! Please upgrade your storage quota or remove photos before saving.");
+            return;
+          }
           const newErrors: Record<string, string> = {};
           if (!values.customer_id) newErrors.customer_id = "Please fill out this field.";
           if (!values.booking_address?.trim()) newErrors.booking_address = "Please fill out this field.";
@@ -695,7 +977,199 @@ export function BookingForm({
               }
             />
           </div>
+
+          {/* Reference Images Section (Max 3) */}
+          <div className="md:col-span-3 space-y-3 pt-1">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <ImageIcon className="size-3.5 text-[#7c3aed]" />
+                Reference Images (Optional, Max 3)
+              </Label>
+              <div className="flex items-center gap-2">
+                {storageQuota && (
+                  <span
+                    className={cn(
+                      "text-[10px] sm:text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-colors",
+                      isQuotaExceeded
+                        ? "bg-red-50 text-red-600 border-red-200"
+                        : "bg-purple-50/70 text-purple-700 border-purple-100"
+                    )}
+                  >
+                    Storage: {storageQuota.remaining_bytes_human} free
+                  </span>
+                )}
+                <span className="text-[11px] font-medium text-slate-400">
+                  {slots.filter(Boolean).length} / 3 selected
+                </span>
+              </div>
+            </div>
+
+            {/* Quota Exceeded Banner */}
+            {isQuotaExceeded && (
+              <div className="rounded-2xl border border-red-200 bg-red-50/95 p-3.5 sm:p-4 text-red-800 space-y-2.5 shadow-xs animate-in fade-in duration-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="size-5 text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-red-900">
+                        Storage Quota Exceeded
+                      </h4>
+                      <p className="text-xs text-red-700 mt-0.5 leading-relaxed">
+                        These photos require{" "}
+                        <span className="font-bold text-red-900">
+                          {(newFilesTotalBytes / (1024 * 1024)).toFixed(1)} MB
+                        </span>
+                        , but your remaining storage quota is only{" "}
+                        <span className="font-bold text-red-900">
+                          {storageQuota?.remaining_bytes_human ?? "0 MB"}
+                        </span>
+                        . Please upgrade your storage quota or remove photos to save this booking.
+                      </p>
+                    </div>
+                  </div>
+                  {storagePlans.length > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setStorageModalOpen(true)}
+                      className="shrink-0 h-8 px-3.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold shadow-xs"
+                    >
+                      Upgrade Storage Quota
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {loadingReferences ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="min-h-[140px] rounded-2xl border border-slate-200 bg-slate-50/50 p-3 flex flex-col items-center justify-center animate-pulse"
+                  >
+                    <div className="w-full h-20 bg-slate-200/70 rounded-xl mb-2" />
+                    <div className="w-16 h-3 bg-slate-200/70 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {slots.map((slot, index) => {
+                  const isThisSlotExceeded = isQuotaExceeded && slot?.type === "new";
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        "relative group rounded-2xl border transition-all duration-200 overflow-hidden flex flex-col items-center justify-center p-3 text-center min-h-[140px]",
+                        slot
+                          ? isThisSlotExceeded
+                            ? "border-red-300 bg-red-50/20 ring-1 ring-red-200"
+                            : "border-purple-200 bg-purple-50/20"
+                          : "border-dashed border-slate-200 hover:border-purple-300 hover:bg-slate-50/60 bg-white"
+                      )}
+                    >
+                      {slot ? (
+                        <div className="relative w-full h-full flex flex-col items-center">
+                          <div
+                            className="relative w-full h-24 rounded-xl overflow-hidden bg-slate-100 border border-slate-200/60 mb-2 cursor-pointer group/img"
+                            onClick={() => setZoomImage({ url: slot.url, name: slot.name })}
+                            title="Click to view image"
+                          >
+                            <img
+                              src={slot.url}
+                              alt={slot.name}
+                              className="w-full h-full object-cover transition-transform group-hover/img:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/25 transition-colors flex items-center justify-center">
+                              <span className="opacity-0 group-hover/img:opacity-100 text-white text-[10px] font-medium bg-black/60 px-2 py-0.5 rounded-full transition-opacity shadow-xs">
+                                View
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeSlot(index);
+                              }}
+                              className="absolute top-1.5 right-1.5 size-6 rounded-full bg-slate-900/70 hover:bg-red-600 text-white flex items-center justify-center shadow-md transition-colors z-10"
+                              title="Remove image"
+                            >
+                              <X className="size-3.5" />
+                            </button>
+                          </div>
+                          <div className="w-full flex items-center justify-between text-[11px] text-slate-500 px-0.5">
+                            <span className="truncate max-w-[110px] font-medium text-slate-700" title={slot.name}>
+                              {slot.name}
+                            </span>
+                            <span className={cn("text-[10px] shrink-0 font-medium", isThisSlotExceeded ? "text-red-600 font-semibold" : "text-slate-400")}>
+                              {(slot.size / (1024 * 1024)).toFixed(1)} MB
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <label className="w-full h-full cursor-pointer flex flex-col items-center justify-center py-4">
+                          <div className="size-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-[#7c3aed] mb-2 group-hover:scale-105 transition-transform shadow-2xs">
+                            <UploadCloud className="size-5" />
+                          </div>
+                          <span className="text-xs font-semibold text-slate-700">
+                            Slot {index + 1}
+                          </span>
+                          <span className="text-[10px] text-slate-400 mt-0.5">
+                            Click to choose image
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/heic"
+                            className="sr-only"
+                            disabled={loading}
+                            onChange={(e) => {
+                              const selected = e.target.files?.[0];
+                              if (selected) handleSlotChange(index, selected);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <p className="text-[11px] text-slate-400">
+              Reference images will be stored under this booking in the Portfolio section and count towards your storage quota.
+            </p>
+          </div>
         </div>
+
+        {/* Zoom Lightbox Preview Modal */}
+        {zoomImage ? (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
+            onClick={() => setZoomImage(null)}
+          >
+            <div
+              className="relative max-w-2xl max-h-[85vh] bg-black rounded-2xl overflow-hidden shadow-2xl flex flex-col items-center border border-white/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setZoomImage(null)}
+                className="absolute top-3 right-3 size-8 rounded-full bg-black/70 hover:bg-white hover:text-black text-white flex items-center justify-center transition-colors z-20"
+              >
+                <X className="size-4" />
+              </button>
+              <img
+                src={zoomImage.url}
+                alt={zoomImage.name}
+                className="max-h-[75vh] w-auto object-contain rounded-t-2xl"
+              />
+              <div className="p-3 text-center text-xs text-white/90 w-full bg-slate-900 truncate">
+                {zoomImage.name}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </form>
 
       {/* Tiny Quick-Create Customer Form Modal */}
@@ -795,6 +1269,19 @@ export function BookingForm({
         confirmVariant="default"
         onConfirm={() => setDuplicatePhonePopupOpen(false)}
       />
+
+      {/* Storage Plans Upgrade Modal */}
+      {storagePlans.length > 0 && (
+        <StoragePlansModal
+          open={storageModalOpen}
+          onClose={() => setStorageModalOpen(false)}
+          plans={storagePlans}
+          onSuccess={() => {
+            void loadStorageInfo();
+            toast.success("Storage quota upgraded successfully!");
+          }}
+        />
+      )}
     </div>
   );
 }

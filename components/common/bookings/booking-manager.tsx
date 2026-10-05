@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { mutate } from "swr";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Calendar, Filter, Plus, Search, LayoutGrid } from "lucide-react";
+import { Calendar, Filter, Plus, Search, LayoutGrid, Loader2 } from "lucide-react";
 
 import { SkeletonCard } from "@/components/common/shared/skeleton-card";
 import { BookingDateFilter } from "@/components/common/bookings/booking-date-filter";
@@ -19,6 +19,10 @@ import {
   type Booking,
   type BookingFormValues,
 } from "@/components/common/bookings/booking-types";
+import {
+  uploadReferenceImagesWithProgress,
+  type UploadProgressState,
+} from "@/components/common/bookings/booking-upload-helper";
 import { HeaderPortal } from "@/components/common/dashboard/dashboard-header-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,6 +62,7 @@ export function BookingManager() {
   const [deleting, setDeleting] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null);
 
   // View state
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
@@ -211,7 +216,21 @@ export function BookingManager() {
   }, [search, statusFilter, date]);
 
   async function saveBooking() {
+    if (values.storage_quota_exceeded) {
+      toast.error("Cannot save booking: Storage quota exceeded. Please upgrade your storage quota or remove photos.");
+      return;
+    }
     setLoading(true);
+    const hasImagesToUpload = Boolean(values.reference_images && values.reference_images.length > 0);
+    const hasImagesToDelete = Boolean(values.removed_reference_image_ids && values.removed_reference_image_ids.length > 0);
+    const totalUploadCount = values.reference_images?.length ?? 0;
+
+    if (hasImagesToUpload || hasImagesToDelete) {
+      setUploadProgress({
+        percentage: 10,
+        message: "Saving booking details...",
+      });
+    }
 
     const payload = {
       customer_id: values.customer_id,
@@ -237,23 +256,62 @@ export function BookingManager() {
 
       if (!res.ok || !data.booking) {
         toast.error(data.error ?? "Unable to save booking.");
+        setUploadProgress(null);
+        return;
+      }
+
+      const targetBookingId = editing ? editing.id : data.booking.id;
+
+      // 1. Delete removed reference images if any were removed during edit
+      if (hasImagesToDelete) {
+        setUploadProgress({
+          percentage: 20,
+          message: "Updating reference images...",
+        });
+        await Promise.all(
+          values.removed_reference_image_ids!.map(async (fileId) => {
+            try {
+              await fetch(`/api/portfolio/files/${fileId}`, {
+                method: "DELETE",
+              });
+            } catch (delErr) {
+              console.error("Failed to delete removed reference image:", delErr);
+            }
+          })
+        );
+      }
+
+      // 2. Upload reference images with real-time byte-level progress
+      if (hasImagesToUpload) {
+        await uploadReferenceImagesWithProgress(
+          values.reference_images!,
+          targetBookingId,
+          setUploadProgress
+        );
+      }
+
+      // Show success toast ONLY after all uploads and saves are complete
+      toast.success(editing ? "Booking updated successfully" : "Booking created successfully");
+
+      void mutate("/api/dashboard");
+      if (editing) pendingScrollId.current = editing.id;
+      setEditing(null);
+      setValues(emptyBookingForm);
+      setFormOpen(false);
+      setUploadProgress(null);
+
+      if (editing) {
+        void fetchBookingsThrough(page, search, statusFilter);
       } else {
-        toast.success(editing ? "Booking updated successfully" : "Booking created successfully");
-        void mutate("/api/dashboard");
-        if (editing) pendingScrollId.current = editing.id;
-        cancelEdit();
-        if (editing) {
-          void fetchBookingsThrough(page, search, statusFilter);
+        if (search !== "") {
+          setSearch("");
         } else {
-          if (search !== "") {
-            setSearch("");
-          } else {
-            void fetchBookings(1, "", statusFilter, false);
-          }
+          void fetchBookings(1, "", statusFilter, false);
         }
       }
     } catch {
       toast.error("Unable to save booking.");
+      setUploadProgress(null);
     } finally {
       setLoading(false);
     }
@@ -295,6 +353,9 @@ export function BookingManager() {
       services: booking.services?.map((s) => String(s.id)) ?? [],
       status: booking.status,
       additional_request: booking.additional_request ?? "",
+      reference_images: [],
+      existing_reference_images: [],
+      removed_reference_image_ids: [],
       initial_customer: booking.customer
         ? {
             id: booking.customer_id,
@@ -308,9 +369,11 @@ export function BookingManager() {
   }
 
   function cancelEdit() {
+    if (loading) return;
     setEditing(null);
     setValues(emptyBookingForm);
     setFormOpen(false);
+    setUploadProgress(null);
   }
 
   function startCreate() {
@@ -511,43 +574,85 @@ export function BookingManager() {
         description="Select client, assign services, specify date, timings slot, and booking address."
         onClose={cancelEdit}
         footer={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-              onClick={cancelEdit}
-            >
-              Cancel
-            </Button>
-            <div className="flex flex-col items-end gap-1">
+          <div className="w-full flex flex-col gap-3">
+            {uploadProgress && (
+              <div className="rounded-2xl border border-purple-200/80 bg-purple-50/70 p-3.5 space-y-2 animate-in fade-in duration-200 text-left">
+                <div className="flex items-center justify-between text-xs font-semibold text-purple-950">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin text-[#7c3aed]" />
+                    <span>{uploadProgress.message}</span>
+                  </div>
+                  <span className="font-mono text-purple-700 font-bold">
+                    {uploadProgress.percentage}%
+                  </span>
+                </div>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-purple-100/90 shadow-inner">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#7c3aed] to-purple-500 transition-all duration-300 rounded-full"
+                    style={{
+                      width: `${Math.max(5, uploadProgress.percentage)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between w-full gap-2">
               <Button
-                form="booking-form"
-                type="submit"
-                className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10 disabled:opacity-50"
-                disabled={
-                  loading ||
-                  !values.customer_id ||
-                  !values.booking_address.trim() ||
-                  !values.booking_date ||
-                  !values.start_time ||
-                  !values.end_time ||
-                  !values.status ||
-                  values.services.length === 0
-                }
+                type="button"
+                variant="outline"
+                disabled={loading}
+                className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                onClick={cancelEdit}
               >
-                {editing ? "Update booking" : "Create booking"}
+                Cancel
               </Button>
-              {values.services.length === 0 && (
-                <p className="text-xs text-amber-600 font-medium">
-                  Select at least 1 service to continue
-                </p>
-              )}
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  form="booking-form"
+                  type="submit"
+                  className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10 disabled:opacity-50"
+                  disabled={
+                    loading ||
+                    !values.customer_id ||
+                    !values.booking_address.trim() ||
+                    !values.booking_date ||
+                    !values.start_time ||
+                    !values.end_time ||
+                    !values.status ||
+                    values.services.length === 0 ||
+                    Boolean(values.storage_quota_exceeded)
+                  }
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>
+                        {uploadProgress
+                          ? `${uploadProgress.percentage}% Uploading...`
+                          : "Saving..."}
+                      </span>
+                    </div>
+                  ) : (
+                    editing ? "Update booking" : "Create booking"
+                  )}
+                </Button>
+                {values.storage_quota_exceeded ? (
+                  <p className="text-xs text-red-600 font-semibold">
+                    Storage quota exceeded. Please upgrade quota to {editing ? "update" : "create"} booking
+                  </p>
+                ) : values.services.length === 0 ? (
+                  <p className="text-xs text-amber-600 font-medium">
+                    Select at least 1 service to continue
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </>
+          </div>
         }
       >
         <BookingForm
+          bookingId={editing?.id}
           values={values}
           loading={loading}
           submitText={editing ? "Update booking" : "Create booking"}

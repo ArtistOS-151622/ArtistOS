@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { STORAGE_FREE_TIER_BYTES } from "@/lib/portfolio/config"
 
 export async function GET() {
   const supabase = await createClient()
@@ -54,7 +55,7 @@ export async function GET() {
       // Storage
       const rawQuota = user.portfolio_storage_quotas
       const quota = Array.isArray(rawQuota) ? rawQuota[0] : rawQuota
-      const finalQuota = quota || { free_storage_bytes: 10000000, purchase_storage_bytes: 0, used_storage_bytes: 0 }
+      const finalQuota = quota || { free_storage_bytes: STORAGE_FREE_TIER_BYTES, purchase_storage_bytes: 0, used_storage_bytes: 0 }
       
       const purchases = user.portfolio_storage_purchases || []
       const active_plans = purchases.filter((p: any) => p.status === 'active').length
@@ -102,7 +103,7 @@ export async function GET() {
           services_offered
         },
         storage: {
-          free_quota: Number(finalQuota.free_storage_bytes || 0),
+          free_quota: Math.max(Number(finalQuota.free_storage_bytes || 0), STORAGE_FREE_TIER_BYTES),
           purchased_quota: Number(finalQuota.purchase_storage_bytes || 0),
           used: Number(finalQuota.used_storage_bytes || 0),
           active_plans,

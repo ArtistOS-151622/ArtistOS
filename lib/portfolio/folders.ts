@@ -61,6 +61,10 @@ export async function findOrCreateBookingFolder(
     .eq("user_id", userId)
     .maybeSingle()
 
+  if (!booking) {
+    throw new Error("Booking not found or access denied")
+  }
+
   const customerName = (booking?.customer as any)?.customer_name
   const index = await getBookingIndex(supabase, userId, bookingId)
   const name = customerName ? `${customerName} (#${index})` : `Booking #${index}`
@@ -155,10 +159,12 @@ export async function listFolders(
   const result: PortfolioFolderWithStats[] = []
 
   for (const folder of (folders ?? []) as PortfolioFolderRow[]) {
+    // Count portfolio files excluding private booking reference images
     const { count } = await supabase
       .from("portfolio_files")
       .select("*", { count: "exact", head: true })
       .eq("folder_id", folder.id)
+      .neq("section", "reference")
 
     const { data: sizeData } = await supabase
       .from("portfolio_files")
@@ -172,7 +178,7 @@ export async function listFolders(
 
     const fileCount = count ?? 0
     
-    // Skip booking folders that have no files uploaded yet
+    // Skip booking folders that have no deliverables uploaded yet (reference images remain under booking info only)
     if (folder.booking_id !== null && fileCount === 0) {
       continue
     }
@@ -197,11 +203,12 @@ export async function listFolders(
       }
     }
 
-    // Fetch up to 4 preview files for folder icon 2x2 grid preview
+    // Fetch up to 4 preview files for folder icon 2x2 grid preview (excluding reference images)
     const { data: previewData } = await supabase
       .from("portfolio_files")
       .select("id, storage_path, mime_type")
       .eq("folder_id", folder.id)
+      .neq("section", "reference")
       .order("sort_order", { ascending: true })
       .limit(4)
 

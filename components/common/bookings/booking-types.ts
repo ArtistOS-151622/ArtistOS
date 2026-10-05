@@ -39,6 +39,9 @@ export type BookingFormValues = {
   services: string[]
   status: "pending" | "confirmed" | "completed" | "cancelled"
   additional_request: string
+  reference_images?: File[]
+  existing_reference_images?: ExistingReferenceImage[]
+  removed_reference_image_ids?: number[]
   initial_customer?: {
     id: number
     customer_name: string
@@ -46,6 +49,15 @@ export type BookingFormValues = {
     email?: string | null
     address: string
   } | null
+  storage_quota_exceeded?: boolean
+}
+
+export type ExistingReferenceImage = {
+  id: number
+  file_name: string
+  file_size: number
+  public_url: string
+  mime_type?: string
 }
 
 export const emptyBookingForm: BookingFormValues = {
@@ -57,5 +69,9 @@ export const emptyBookingForm: BookingFormValues = {
   services: [],
   status: "pending",
   additional_request: "",
+  reference_images: [],
+  existing_reference_images: [],
+  removed_reference_image_ids: [],
   initial_customer: null,
+  storage_quota_exceeded: false,
 }

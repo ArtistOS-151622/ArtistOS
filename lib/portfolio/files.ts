@@ -49,7 +49,8 @@ export async function listFilesInFolder(
   supabase: SupabaseClient,
   userId: number,
   folderId: number,
-  section?: string | null
+  section?: string | null,
+  includeReference: boolean = true
 ): Promise<PortfolioFileWithUrl[]> {
   let query = supabase
     .from("portfolio_files")
@@ -59,7 +60,11 @@ export async function listFilesInFolder(
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true })
 
-  if (section) query = query.eq("section", section)
+  if (section) {
+    query = query.eq("section", section)
+  } else if (!includeReference) {
+    query = query.neq("section", "reference")
+  }
 
   const { data, error } = await query
   if (error) throw new Error(error.message)

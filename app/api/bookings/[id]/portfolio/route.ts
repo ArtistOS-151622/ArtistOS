@@ -43,7 +43,7 @@ export async function GET(
       })
     }
 
-    const allFiles = await listFilesInFolder(supabase, session.id, folder.id)
+    const allFiles = await listFilesInFolder(supabase, session.id, folder.id, null, true)
 
     const enrichedFolder = {
       ...folder,

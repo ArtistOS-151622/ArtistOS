@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
         supabase,
         session.id,
         Number(folderId),
-        section
+        section,
+        false
       )
       return portfolioSuccess("Files loaded", { files })
     }

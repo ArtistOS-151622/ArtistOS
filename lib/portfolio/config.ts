@@ -1,5 +1,6 @@
-export const STORAGE_FREE_TIER_BYTES = Number(
-  process.env.STORAGE_FREE_TIER_BYTES ?? 10_000_000
+export const STORAGE_FREE_TIER_BYTES = Math.max(
+  10 * 1024 * 1024,
+  Number(process.env.STORAGE_FREE_TIER_BYTES || 10 * 1024 * 1024)
 )
 export const STORAGE_DEFAULT_SHARE_EXPIRY_DAYS = Number(
   process.env.STORAGE_DEFAULT_SHARE_EXPIRY_DAYS ?? 30

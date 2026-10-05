@@ -19,7 +19,7 @@ export class QuotaService {
   }
 
   getFreeStorageBytes(): number {
-    return Number(this.row.free_storage_bytes)
+    return Math.max(Number(this.row.free_storage_bytes || 0), STORAGE_FREE_TIER_BYTES)
   }
 
   getPurchaseStorageBytes(): number {
@@ -121,7 +121,16 @@ export async function getOrCreateQuota(
     .eq("user_id", userId)
     .maybeSingle()
 
-  if (existing) return existing as PortfolioStorageQuotaRow
+  if (existing) {
+    if (Number(existing.free_storage_bytes || 0) < STORAGE_FREE_TIER_BYTES) {
+      await supabase
+        .from("portfolio_storage_quotas")
+        .update({ free_storage_bytes: STORAGE_FREE_TIER_BYTES })
+        .eq("id", existing.id)
+      existing.free_storage_bytes = STORAGE_FREE_TIER_BYTES
+    }
+    return existing as PortfolioStorageQuotaRow
+  }
 
   const { data, error } = await supabase
     .from("portfolio_storage_quotas")
