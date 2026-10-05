@@ -133,8 +133,12 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
       newErrors.customer_name = "Please enter your full name."
     if (!values.phone.trim())
       newErrors.phone = "Please enter a valid phone number."
-    if (!values.email.trim())
-      newErrors.email = "Please enter your email address."
+    if (
+      values.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())
+    ) {
+      newErrors.email = "Please enter a valid email address."
+    }
     if (!values.address.trim())
       newErrors.address = "Please enter event venue or address."
     if (!values.booking_date)
@@ -422,11 +426,10 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
 
                     <FloatingInput
                       type="email"
-                      label="Email Address"
+                      label="Email Address (Optional)"
                       icon={<Mail className="size-4 text-slate-400" />}
                       value={values.email}
                       error={formErrors.email}
-                      required
                       onChange={(e) => updateValue("email", e.target.value)}
                     />
                   </div>

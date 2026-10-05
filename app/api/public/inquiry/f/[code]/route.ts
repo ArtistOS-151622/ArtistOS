@@ -8,7 +8,7 @@ type PublicInquiryInput = {
   customer_name?: string
   phone?: string
   alt_phone?: string | null
-  email?: string
+  email?: string | null
   address?: string
   booking_date?: string
   start_time?: string
@@ -24,7 +24,7 @@ type RouteContext = {
 function validateInquiry(input: PublicInquiryInput) {
   const customer_name = input.customer_name?.trim()
   const phone = input.phone?.trim()
-  const email = input.email?.trim()
+  const email = input.email?.trim() || null
   const address = input.address?.trim()
   const booking_date = input.booking_date?.trim()
   const start_time = input.start_time?.trim()
@@ -32,7 +32,9 @@ function validateInquiry(input: PublicInquiryInput) {
 
   if (!customer_name) return { error: "Customer name is required." }
   if (!phone) return { error: "Phone number is required." }
-  if (!email) return { error: "Email is required." }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "Please enter a valid email address." }
+  }
   if (!address) return { error: "Address is required." }
   if (!booking_date) return { error: "Booking date is required." }
   if (!start_time) return { error: "Start time is required." }

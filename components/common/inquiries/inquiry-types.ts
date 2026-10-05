@@ -17,7 +17,7 @@ export type Inquiry = {
     customer_name: string
     phone: string
     alt_phone?: string | null
-    email: string
+    email?: string | null
     address: string
   }
   services?: {
