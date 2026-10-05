@@ -8,9 +8,16 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { phone, password } = body
 
-    if (!phone || !password) {
+    if (!phone) {
       return NextResponse.json(
-        { error: "Phone number and password are required" },
+        { error: "Phone number is required. Please use /api/auth/otp/send and /api/auth/otp/verify for WhatsApp OTP login." },
+        { status: 400 }
+      )
+    }
+
+    if (!password) {
+      return NextResponse.json(
+        { error: "Password authentication is disabled. Please verify your mobile number with WhatsApp OTP at /login." },
         { status: 400 }
       )
     }

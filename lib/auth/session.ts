@@ -8,7 +8,8 @@ export type ArtistSession = {
   studio_name?: string
 }
 
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
+// Session expiration duration: 1 year (365 days)
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 
 type JwtPayload = ArtistSession & {
   iat: number

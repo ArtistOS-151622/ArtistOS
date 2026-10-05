@@ -11,7 +11,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const to = body.to || "918849264807"
-    const templateName = body.templateName || "create_booking" // or "booking_confirmed"
+    const templateName =
+      body.templateName || "one_day_reminder_to_customer" // "one_day_reminder_to_customer" | "create_booking" | "booking_confirmed"
 
     const formattedPhone = formatWhatsAppPhoneNumber(to)
     if (!formattedPhone) {

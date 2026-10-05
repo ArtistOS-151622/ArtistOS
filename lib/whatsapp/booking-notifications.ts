@@ -1,7 +1,14 @@
-import { createClient } from "@/lib/supabase/server"
-import { sendWhatsAppTemplate, formatWhatsAppPhoneNumber } from "@/lib/whatsapp/client"
+import type { SupabaseClient } from "@supabase/supabase-js"
+import { createAdminClient } from "../supabase/admin.ts"
+import { sendWhatsAppTemplate, formatWhatsAppPhoneNumber } from "./client.ts"
+import { APP_TIMEZONE, toWallClock, getMinutesUntilBooking } from "../notifications/time.ts"
 
-export type BookingNotificationTrigger = "created" | "confirmed"
+export type BookingNotificationTrigger =
+  | "created"
+  | "confirmed"
+  | "reminder_24h"
+  | "one_day_reminder"
+  | "one_day_reminder_to_customer"
 
 function formatDisplayDate(dateStr: string): string {
   try {
@@ -37,14 +44,19 @@ function formatDisplayTime(timeStr: string): string {
 }
 
 /**
- * Sends automated WhatsApp notification for booking creation or confirmation
+ * Sends automated WhatsApp notification for booking creation, confirmation, or 24h reminder
  */
 export async function sendBookingNotificationWhatsApp(
   bookingId: number | string,
   trigger: BookingNotificationTrigger,
+  existingSupabase?: SupabaseClient
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = await createClient()
+    const supabase =
+      existingSupabase ||
+      (process.env.SUPABASE_SERVICE_ROLE_KEY
+        ? createAdminClient()
+        : await (await import("../supabase/server.ts")).createClient())
 
     const { data: booking, error: fetchError } = await supabase
       .from("bookings")
@@ -69,7 +81,7 @@ export async function sendBookingNotificationWhatsApp(
       .maybeSingle()
 
     if (fetchError || !booking) {
-      console.warn(`[WhatsApp] Booking #${bookingId} not found for notification.`);
+      console.warn(`[WhatsApp] Booking #${bookingId} not found for notification.`)
       return { success: false, error: "Booking not found" }
     }
 
@@ -93,10 +105,27 @@ export async function sendBookingNotificationWhatsApp(
     }
 
     // Determine template:
-    // If trigger is 'confirmed' OR the booking status is 'confirmed', send 'booking_confirmed'
-    // Otherwise send 'create_booking'
+    // If trigger is 24h reminder -> 'one_day_reminder_to_customer'
+    // If trigger is confirmed OR status is confirmed -> 'booking_confirmed'
+    // Otherwise -> 'create_booking'
+    const isOneDayReminder =
+      trigger === "reminder_24h" ||
+      trigger === "one_day_reminder" ||
+      trigger === "one_day_reminder_to_customer"
+
     const isConfirmed = trigger === "confirmed" || booking.status === "confirmed"
-    const templateName = isConfirmed ? "booking_confirmed" : "create_booking"
+
+    const templateName = isOneDayReminder
+      ? "one_day_reminder_to_customer"
+      : isConfirmed
+        ? "booking_confirmed"
+        : "create_booking"
+
+    const eventTitle = isOneDayReminder
+      ? "1-Day Booking Reminder"
+      : isConfirmed
+        ? "Booking Confirmed"
+        : "Booking Created"
 
     // 1. Customer Name
     const customerName = customer?.customer_name?.trim() || "Customer"
@@ -173,18 +202,44 @@ export async function sendBookingNotificationWhatsApp(
 
     // Log to notification_events table for tracking/audit
     try {
-      await supabase.from("notification_events").insert({
-        user_id: booking.user_id,
-        channel: "whatsapp",
-        event_type: templateName,
-        entity_type: "booking",
-        entity_id: booking.id,
-        title: isConfirmed ? "Booking Confirmed" : "Booking Created",
-        body: `WhatsApp sent to ${formattedPhone} for booking #${booking.id}`,
-        status: result.success ? "sent" : "failed",
-        last_error: result.error || null,
-        sent_at: result.success ? new Date().toISOString() : null,
-      })
+      const { data: existing } = await supabase
+        .from("notification_events")
+        .select("id, attempts")
+        .eq("user_id", booking.user_id)
+        .eq("channel", "whatsapp")
+        .eq("event_type", templateName)
+        .eq("entity_type", "booking")
+        .eq("entity_id", booking.id)
+        .maybeSingle()
+
+      if (existing?.id) {
+        await supabase
+          .from("notification_events")
+          .update({
+            title: eventTitle,
+            body: `WhatsApp sent to ${formattedPhone} for booking #${booking.id}`,
+            status: result.success ? "sent" : "failed",
+            attempts: (existing.attempts || 1) + 1,
+            last_error: result.error || null,
+            sent_at: result.success ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id)
+      } else {
+        await supabase.from("notification_events").insert({
+          user_id: booking.user_id,
+          channel: "whatsapp",
+          event_type: templateName,
+          entity_type: "booking",
+          entity_id: booking.id,
+          title: eventTitle,
+          body: `WhatsApp sent to ${formattedPhone} for booking #${booking.id}`,
+          status: result.success ? "sent" : "failed",
+          attempts: 1,
+          last_error: result.error || null,
+          sent_at: result.success ? new Date().toISOString() : null,
+        })
+      }
     } catch (auditErr) {
       // Non-critical audit log failure
       console.warn("[WhatsApp] Failed to save notification event audit:", auditErr)
@@ -198,4 +253,170 @@ export async function sendBookingNotificationWhatsApp(
       error: err?.message || "Internal error sending WhatsApp notification",
     }
   }
+}
+
+/**
+ * Convenience helper to send the 1-day reminder WhatsApp template for a booking
+ */
+export async function sendOneDayBookingReminderWhatsApp(
+  bookingId: number | string,
+  existingSupabase?: SupabaseClient
+) {
+  return sendBookingNotificationWhatsApp(bookingId, "reminder_24h", existingSupabase)
+}
+
+export type WhatsAppReminderScanResult = {
+  scanned: number
+  sent: number
+  failed: number
+  skipped: number
+  details?: Array<{ bookingId: number; status: "sent" | "failed" | "skipped"; reason?: string }>
+}
+
+/**
+ * Scans active bookings occurring tomorrow (within 24 hours of booking time)
+ * and sends the 'one_day_reminder_to_customer' WhatsApp template message.
+ */
+export async function scanCustomerWhatsAppReminders(
+  supabase: SupabaseClient
+): Promise<WhatsAppReminderScanResult> {
+  const now = new Date()
+  const nowLocal = toWallClock(now, APP_TIMEZONE)
+
+  // Look ahead for tomorrow and day after tomorrow in artist's timezone
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  const tomorrowLocal = toWallClock(tomorrow, APP_TIMEZONE)
+  const lookahead = new Date(now.getTime() + 48 * 60 * 60 * 1000)
+  const lookaheadLocal = toWallClock(lookahead, APP_TIMEZONE)
+
+  // Bookings with dates starting tomorrow up to lookahead window
+  const { data: bookings, error } = await supabase
+    .from("bookings")
+    .select(`
+      id,
+      user_id,
+      customer_id,
+      booking_date,
+      start_time,
+      status
+    `)
+    .in("status", ["pending", "confirmed"])
+    .gte("booking_date", tomorrowLocal.date)
+    .lte("booking_date", lookaheadLocal.date)
+
+  if (error) {
+    console.error("[WhatsApp Reminder Scanner] Error querying bookings:", error)
+    throw new Error(`Failed to query bookings for WhatsApp reminders: ${error.message}`)
+  }
+
+  const result: WhatsAppReminderScanResult = {
+    scanned: bookings?.length || 0,
+    sent: 0,
+    failed: 0,
+    skipped: 0,
+    details: [],
+  }
+
+  if (!bookings || bookings.length === 0) {
+    return result
+  }
+
+  for (const booking of bookings) {
+    // Only send if the booking is strictly tomorrow (or future date, not today or past)
+    if (booking.booking_date <= nowLocal.date) {
+      result.skipped += 1
+      result.details?.push({
+        bookingId: booking.id,
+        status: "skipped",
+        reason: "Booking is today or in the past",
+      })
+      continue
+    }
+
+    const startTime = booking.start_time || "09:00"
+    const diffMinutes = getMinutesUntilBooking(
+      booking.booking_date,
+      startTime,
+      nowLocal.date,
+      nowLocal.time
+    )
+
+    // Booking has already started or passed
+    if (diffMinutes <= 0) {
+      result.skipped += 1
+      result.details?.push({
+        bookingId: booking.id,
+        status: "skipped",
+        reason: "Booking already started/passed",
+      })
+      continue
+    }
+
+    // Must be within 24 hours of booking time (diffMinutes <= 1440)
+    if (diffMinutes > 24 * 60) {
+      result.skipped += 1
+      result.details?.push({
+        bookingId: booking.id,
+        status: "skipped",
+        reason: `More than 24h away (${diffMinutes}m remaining)`,
+      })
+      continue
+    }
+
+    // Check deduplication in notification_events
+    const { data: existingLog } = await supabase
+      .from("notification_events")
+      .select("id, status, attempts")
+      .eq("user_id", booking.user_id)
+      .eq("channel", "whatsapp")
+      .eq("event_type", "one_day_reminder_to_customer")
+      .eq("entity_type", "booking")
+      .eq("entity_id", booking.id)
+      .maybeSingle()
+
+    if (existingLog) {
+      if (existingLog.status === "sent") {
+        result.skipped += 1
+        result.details?.push({
+          bookingId: booking.id,
+          status: "skipped",
+          reason: "Reminder already sent",
+        })
+        continue
+      }
+      if (existingLog.status === "failed" && (existingLog.attempts || 0) >= 3) {
+        result.skipped += 1
+        result.details?.push({
+          bookingId: booking.id,
+          status: "skipped",
+          reason: "Exceeded max attempts (3)",
+        })
+        continue
+      }
+    }
+
+    // Send WhatsApp reminder
+    console.log(
+      `[WhatsApp Scanner] Sending 24h reminder (one_day_reminder_to_customer) for booking #${booking.id} (${diffMinutes}m until booking)`
+    )
+    const sendRes = await sendBookingNotificationWhatsApp(
+      booking.id,
+      "reminder_24h",
+      supabase
+    )
+
+    if (sendRes.success) {
+      result.sent += 1
+      result.details?.push({ bookingId: booking.id, status: "sent" })
+    } else {
+      result.failed += 1
+      result.details?.push({
+        bookingId: booking.id,
+        status: "failed",
+        reason: sendRes.error,
+      })
+    }
+  }
+
+  return result
 }

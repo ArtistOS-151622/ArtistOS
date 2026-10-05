@@ -2,14 +2,16 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { dispatchPendingNotifications } from "@/lib/notifications/dispatcher"
 import { scanBookingReminders } from "@/lib/notifications/producers/bookings"
+import { scanCustomerWhatsAppReminders } from "@/lib/whatsapp/booking-notifications"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 /**
  * Producer & Auto-dispatcher.
  *
- * Enqueues reminders for bookings whose 2h or 10m reminder moment has arrived,
- * and immediately drains pending events to ensure prompt delivery.
+ * 1. Enqueues artist push reminders for bookings due within 2h or 10m.
+ * 2. Scans and sends 24h WhatsApp reminders to customers (one_day_reminder_to_customer).
+ * 3. Immediately drains pending push notification events to ensure prompt delivery.
  */
 export async function GET(request: NextRequest) {
   const secret = request.headers.get("authorization")?.replace("Bearer ", "")
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const scanResult = await scanBookingReminders(supabase)
+    const whatsAppResult = await scanCustomerWhatsAppReminders(supabase)
     const dispatchResult = await dispatchPendingNotifications(supabase)
 
     return NextResponse.json({
@@ -33,6 +36,7 @@ export async function GET(request: NextRequest) {
       skipped: scanResult.skipped,
       enqueued2h: scanResult.enqueued2h,
       enqueued10m: scanResult.enqueued10m,
+      whatsAppReminders: whatsAppResult,
       dispatched: dispatchResult,
     })
   } catch (err) {
@@ -41,4 +45,8 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+export async function POST(request: NextRequest) {
+  return GET(request)
 }

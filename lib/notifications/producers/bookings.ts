@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { enqueueEvent } from "../events.ts"
-import { APP_TIMEZONE, formatTimeLabel, toWallClock } from "../time.ts"
+import { APP_TIMEZONE, formatTimeLabel, toWallClock, getMinutesUntilBooking } from "../time.ts"
 import {
   BOOKING_REMINDER_2H_MINUTES,
   BOOKING_REMINDER_10M_MINUTES,
@@ -56,20 +56,7 @@ function buildReminderCopy(booking: ReminderBookingRow, type: "2h" | "10m") {
   return { title, body }
 }
 
-/**
- * Calculates wall-clock difference in minutes between booking start time
- * and current local time in the specified timezone.
- */
-export function getMinutesUntilBooking(
-  bookingDate: string,
-  startTime: string,
-  nowLocalDate: string,
-  nowLocalTime: string
-): number {
-  const bMs = Date.parse(`${bookingDate}T${startTime.slice(0, 5)}:00Z`)
-  const nMs = Date.parse(`${nowLocalDate}T${nowLocalTime}:00Z`)
-  return Math.round((bMs - nMs) / 60_000)
-}
+export { getMinutesUntilBooking } from "../time.ts"
 
 /**
  * Enqueue reminders for bookings due within 2 hours and within 10 minutes.
