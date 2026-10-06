@@ -23,7 +23,7 @@ export async function GET() {
     const formattedData = users.map((user: any) => {
       const rawQuota = user.portfolio_storage_quotas
       const quota = Array.isArray(rawQuota) ? rawQuota[0] : rawQuota
-      const finalQuota = quota || { free_storage_bytes: 10000000, purchase_storage_bytes: 0, used_storage_bytes: 0 }
+      const finalQuota = quota || { free_storage_bytes: 10485760, purchase_storage_bytes: 0, used_storage_bytes: 0 }
       
       const allPurchases = user.portfolio_storage_purchases || []
       

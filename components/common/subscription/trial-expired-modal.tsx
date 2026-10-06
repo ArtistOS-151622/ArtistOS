@@ -13,9 +13,28 @@ export function TrialExpiredModal({ onClose, subscriptionStatus = "none" }: Prop
   const router = useRouter()
 
   const isHalted = subscriptionStatus === "halted"
+  const isCancelled = subscriptionStatus === "cancelled"
+
+  const badgeText = isHalted
+    ? "Payment Failed"
+    : isCancelled
+      ? "Plan Cancelled"
+      : "1-Month Trial Ended"
+
+  const titleText = isHalted
+    ? "Your Subscription is Paused"
+    : isCancelled
+      ? "Subscription Ended"
+      : "Your 1-Month Free Trial Has Expired"
+
+  const descText = isHalted
+    ? "Your subscription payment failed and your account is now in read-only mode. Please update your payment details or choose a plan to continue."
+    : isCancelled
+      ? "Your subscription has ended and your account is now in read-only mode. Your data is safe. Upgrade to restore full access."
+      : "Your 1-month (30-day) free trial is over. Your account is now in read-only mode. Upgrade to a plan to continue creating and managing bookings."
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div data-guard-exempt="true" className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Blurred backdrop — clicking it also closes the modal */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -25,7 +44,7 @@ export function TrialExpiredModal({ onClose, subscriptionStatus = "none" }: Prop
       {/* Modal card */}
       <div className="relative w-full max-w-md overflow-hidden rounded-3xl shadow-2xl">
         {/* Gradient header */}
-        <div className={`relative px-8 pt-10 pb-8 text-white text-center overflow-hidden ${isHalted ? 'bg-gradient-to-br from-red-600 via-rose-600 to-red-800' : 'bg-gradient-to-br from-[#7c3aed] via-[#6d28d9] to-[#4c1d95]'}`}>
+        <div className={`relative px-8 pt-10 pb-8 text-white text-center overflow-hidden ${isHalted || isCancelled ? 'bg-gradient-to-br from-red-600 via-rose-600 to-red-800' : 'bg-gradient-to-br from-[#7c3aed] via-[#6d28d9] to-[#4c1d95]'}`}>
           {/* Decorative orbs */}
           <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
           <div className="pointer-events-none absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
@@ -46,16 +65,14 @@ export function TrialExpiredModal({ onClose, subscriptionStatus = "none" }: Prop
 
           {/* Badge */}
           <div className="relative inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-widest mb-4">
-            <Sparkles className="size-3" /> {isHalted ? "Payment Failed" : "Free Trial Ended"}
+            <Sparkles className="size-3" /> {badgeText}
           </div>
 
           <h2 className="relative text-2xl font-bold leading-tight mb-2">
-            {isHalted ? "Your Subscription is Paused" : "Your Free Trial Has Expired"}
+            {titleText}
           </h2>
           <p className="relative text-sm text-white/90 font-medium leading-relaxed">
-            {isHalted 
-              ? "Your payment has failed three times. Please update your payment details or contact us to continue using this service."
-              : "Your 30-day free trial is over. Upgrade to a plan to continue using all features of ArtistOS."}
+            {descText}
           </p>
         </div>
 

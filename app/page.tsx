@@ -12,9 +12,14 @@ import {
   ChevronRight,
   GalleryHorizontalEnd,
   Gift,
+  HardDrive,
   LineChart,
   Search,
+  ShieldCheck,
+  Sparkles,
   UsersRound,
+  X,
+  Zap,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import useSWR from "swr"
@@ -179,77 +184,37 @@ type PricingPlan = {
   cta?: string
   featured?: boolean
   is_featured?: boolean
+  has_whatsapp_automation?: boolean
+  storage_quota_mb?: number
 }
-
-
 
 /**
  * Marketing-only free trial card shown first in the pricing section.
  * Not a row in `platform_subscriptions` — its CTA goes to signup, not checkout.
  */
 const freeTrialPlan: PricingPlan = {
+  id: 0,
   name: "Free Trial",
   price: "₹0",
-  period: "for 1 month",
-  description: "Try every core feature for a full month. No card required.",
+  period: "for 30 days",
+  billing_period: "/30 days",
+  amount_inr: 0,
+  description: "Try every core business tool free for 30 days. No credit card required to start.",
   features: [
-    "Booking calendar & scheduling",
-    "Client CRM & booking history",
-    "Service & pricing management",
-    "inquiry Management",
-    "Payment & invoice tracking",
-    "Business reports & analytics",
-    "Portfolio gallery",
-    "Shareable Portfolio links",
-    "WhatsApp broadcast campaigns"
+    "Booking Calendar & Appointments",
+    "Client CRM & Booking History",
+    "Service & Pricing Management",
+    "Payment & Invoice Tracking",
+    "Public Booking & Inquiry Form",
+    "10 MB Free Storage Quota",
+    "WhatsApp OTP Verification (for everyone)",
+    "No Automated WhatsApp Notifications",
   ],
-  cta: "Start free",
+  cta: "Start 30-Day Free Trial",
+  is_featured: false,
+  has_whatsapp_automation: false,
+  storage_quota_mb: 10,
 }
-
-const pricingPlans: PricingPlan[] = [
-  {
-    name: "Monthly",
-    price: "₹299",
-    compare_at_amount_inr: 500,
-    discount_percentage: 50,
-    billing_period: "monthly",
-    description: "Best for solo artists who want to organize bookings and payments.",
-    features: [
-      "Booking Calendar & Scheduling",
-      "Client CRM (Customer Management)",
-      "Payment & Invoice Tracking",
-      "Portfolio Gallery with Cloud Storage",
-      "WhatsApp Broadcast Campaigns",
-      "Business Reports & Analytics",
-      "Service & Pricing Management"
-    ],
-    cta: "Start monthly",
-  },
-  {
-    name: "Yearly",
-    price: "₹2799",
-    compare_at_amount_inr: 5000,
-    discount_percentage: 44,
-    billing_period: "yearly",
-    description: "Save more with a full year of business management tools.",
-    features: [
-      "All Monthly Features",
-      "Priority Customer Support",
-      "Early Access to New Features",
-      "Personal Onboarding Session"
-    ],
-    cta: "Choose yearly",
-    featured: true,
-  },
-  {
-    name: "Custom",
-    price: "White label",
-    period: "",
-    description: "For salons, academies, and brands that need their own branded platform.",
-    features: ["Custom branding", "Team access", "Custom domain", "Dedicated setup"],
-    cta: "Contact us",
-  },
-]
 
 export default function Home() {
   useScrollReveal()
@@ -1058,258 +1023,273 @@ function SyncSection() {
 
 function PricingSection() {
   const { data: plans, isLoading } = useSWR<PricingPlan[]>("/api/platform-subscriptions", fetcher)
-  const sliderRef = useRef<HTMLDivElement>(null)
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly")
 
-  // Use the fetched plans, fallback to hardcoded ONLY if the API returned an error/non-array
-  const displayPlans = plans && Array.isArray(plans) ? plans : pricingPlans
+  // Use plans loaded dynamically from the database
+  const displayPlans = plans && Array.isArray(plans) ? plans : []
 
-  // Marketing-only free trial card, always shown first (not a billable DB plan).
-  const cardPlans: PricingPlan[] = [freeTrialPlan, ...displayPlans]
+  // Filter plans based on the active billing cycle
+  const cyclePlans = displayPlans.filter((plan) => {
+    const period = (plan.billing_period || plan.period || "").toLowerCase()
+    return billingCycle === "yearly" ? period.includes("year") : period.includes("month")
+  })
 
-  const scrollSlider = (dir: "left" | "right") => {
-    if (!sliderRef.current) return
-    const cardWidth = sliderRef.current.querySelector("article")?.offsetWidth ?? 280
-    sliderRef.current.scrollBy({ left: dir === "right" ? cardWidth + 20 : -(cardWidth + 20), behavior: "smooth" })
-  }
+  // Hardcoded Free Trial is shown first, followed by dynamic DB paid plans
+  const allCards = [freeTrialPlan, ...cyclePlans]
 
   return (
-    <section id="pricing" className="px-6 py-10 sm:px-12 lg:px-20">
+    <section id="pricing" className="px-6 py-16 sm:px-12 lg:px-20 bg-gradient-to-b from-[#fbfcff] to-white">
       <div data-reveal="blur-in" className="mx-auto max-w-3xl text-center">
-        <p className="text-sm font-semibold text-primary">Simple pricing</p>
-        <h2 className="mt-3 text-4xl font-semibold tracking-tight text-[#282a47] sm:text-5xl">
-          Start free, <span className="text-[#7c3aed]">grow from there</span>
+        <div className="inline-flex items-center gap-2 rounded-full bg-purple-50 border border-purple-200/60 px-3.5 py-1 text-xs font-semibold text-[#7c3aed] mb-3">
+          <Sparkles className="size-3.5" />
+          <span>Simple, Transparent Pricing</span>
+        </div>
+        <h2 className="mt-2 text-4xl font-bold tracking-tight text-[#1a1d3a] sm:text-5xl">
+          Choose the plan that fits <span className="text-[#7c3aed]">your studio</span>
         </h2>
+        <p className="mt-3 text-base text-slate-500 max-w-xl mx-auto">
+          Start with a 30-day free trial on signup. Upgrade anytime as your clientele grows.
+        </p>
+
+        {/* Toggle Switch */}
+        <div className="mt-8 flex items-center justify-center">
+          <div className="inline-flex items-center rounded-full bg-slate-100/90 p-1.5 border border-slate-200 shadow-inner">
+            <button
+              type="button"
+              onClick={() => setBillingCycle("monthly")}
+              className={`rounded-full px-5 py-2 text-xs sm:text-sm font-semibold transition-all duration-200 ${billingCycle === "monthly"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+                }`}
+            >
+              Monthly billing
+            </button>
+            <button
+              type="button"
+              onClick={() => setBillingCycle("yearly")}
+              className={`relative flex items-center gap-2 rounded-full px-5 py-2 text-xs sm:text-sm font-semibold transition-all duration-200 ${billingCycle === "yearly"
+                  ? "bg-[#7c3aed] text-white shadow-md shadow-purple-600/25"
+                  : "text-slate-600 hover:text-slate-900"
+                }`}
+            >
+              <span>Yearly billing</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {isLoading ? (
-        // Skeleton: mobile slider, desktop grid
-        <div className="mt-14">
-          {/* Mobile skeleton slider */}
-          <div className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide lg:hidden">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex min-h-[460px] w-[80vw] max-w-[320px] shrink-0 snap-start flex-col rounded-[1.75rem] border border-slate-100 bg-white p-7 shadow-sm">
-                <Skeleton className="h-8 w-1/2 mb-4" />
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-4 w-3/4 mb-8" />
-                <Skeleton className="h-12 w-32 mb-12" />
-                <div className="space-y-4 flex-1">
-                  <Skeleton className="h-4 w-5/6" />
-                  <Skeleton className="h-4 w-4/6" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-                <Skeleton className="h-12 w-full mt-auto" />
+        <div className="mt-12 max-w-6xl mx-auto grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex min-h-[500px] flex-col rounded-[2rem] border border-slate-100 bg-white p-8 shadow-sm">
+              <Skeleton className="h-6 w-1/3 mb-4" />
+              <Skeleton className="h-10 w-1/2 mb-4" />
+              <Skeleton className="h-4 w-3/4 mb-8" />
+              <div className="space-y-3 flex-1">
+                {[1, 2, 3, 4, 5].map((j) => (
+                  <Skeleton key={j} className="h-4 w-full" />
+                ))}
               </div>
-            ))}
-          </div>
-          {/* Desktop skeleton grid */}
-          <div className="hidden lg:grid gap-6 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex min-h-[460px] flex-col rounded-[1.75rem] border border-slate-100 bg-white p-7 shadow-sm">
-                <Skeleton className="h-8 w-1/2 mb-4" />
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-4 w-3/4 mb-8" />
-                <Skeleton className="h-12 w-32 mb-12" />
-                <div className="space-y-4 flex-1">
-                  <Skeleton className="h-4 w-5/6" />
-                  <Skeleton className="h-4 w-4/6" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-                <Skeleton className="h-12 w-full mt-auto" />
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : displayPlans.length === 0 ? (
-        <div className="mt-14 text-center py-16 text-[#888ca6] text-sm">
-          No active pricing plans at the moment. Check back soon!
+              <Skeleton className="h-12 w-full mt-6 rounded-full" />
+            </div>
+          ))}
         </div>
       ) : (
-        <div className="mt-14">
-          {/* Mobile: horizontal scroll slider with nav buttons */}
-          <div className="lg:hidden">
-            <div
-              ref={sliderRef}
-              className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
-            >
-              {cardPlans.map((plan) => (
-                <div key={plan.id || plan.name} className="w-[82vw] max-w-[330px] shrink-0 snap-start">
-                  <PricingCard plan={plan} />
-                </div>
-              ))}
-            </div>
-
-            {/* Prev / Next buttons — only shown when >1 plan */}
-            {cardPlans.length > 1 && (
-              <div className="mt-5 flex items-center justify-center gap-3">
-                <button
-                  onClick={() => scrollSlider("left")}
-                  aria-label="Previous plan"
-                  className="flex size-11 items-center justify-center rounded-full border border-[#e0e3f5] bg-white shadow-sm text-[#7c3aed] transition hover:bg-[#7c3aed] hover:text-white active:scale-95"
-                >
-                  <ChevronLeft className="size-5" />
-                </button>
-                <button
-                  onClick={() => scrollSlider("right")}
-                  aria-label="Next plan"
-                  className="flex size-11 items-center justify-center rounded-full border border-[#e0e3f5] bg-white shadow-sm text-[#7c3aed] transition hover:bg-[#7c3aed] hover:text-white active:scale-95"
-                >
-                  <ChevronRight className="size-5" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Desktop: card grid */}
-          <div
-            className={`hidden gap-6 lg:grid ${cardPlans.length === 1
-              ? "lg:mx-auto lg:max-w-sm lg:grid-cols-1"
-              : cardPlans.length === 2
-                ? "lg:mx-auto lg:max-w-3xl lg:grid-cols-2"
-                : cardPlans.length === 4
-                  ? "lg:grid-cols-4"
-                  : "lg:grid-cols-3"
-              }`}
-          >
-            {cardPlans.map((plan, i) => (
-              <div
-                key={plan.id || plan.name}
-                data-reveal="flip-up"
-                className="h-full"
-                style={{ animationDelay: `${i * 110}ms` }}
-              >
-                <PricingCard plan={plan} />
-              </div>
-            ))}
-          </div>
+        <div className="mt-12 max-w-6xl mx-auto grid gap-8 sm:grid-cols-2 lg:grid-cols-3 items-stretch">
+          {allCards.map((plan) => (
+            <PricingCard key={plan.id !== undefined ? plan.id : `${plan.name}-${billingCycle}`} plan={plan} billingCycle={billingCycle} />
+          ))}
         </div>
       )}
+
+      {/* Free Trial Banner */}
+      <div className="mt-12 max-w-2xl mx-auto rounded-2xl border border-purple-100 bg-purple-50/60 p-4 text-center sm:flex sm:items-center sm:justify-between sm:text-left sm:px-6">
+        <div className="flex items-center gap-3 justify-center sm:justify-start">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-purple-600 text-white shadow-sm shrink-0">
+            <Gift className="size-5" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-900">Try ArtistOS free for 30 days</p>
+            <p className="text-xs text-slate-500">Every signup includes complete platform trial. No credit card required.</p>
+          </div>
+        </div>
+        <a
+          href="/signup"
+          className="mt-3 inline-flex items-center justify-center rounded-xl bg-white border border-purple-200 px-4 py-2 text-xs font-bold text-purple-700 shadow-sm hover:bg-purple-100 transition-colors sm:mt-0 shrink-0"
+        >
+          Start Free Trial
+        </a>
+      </div>
     </section>
   )
 }
 
-function PricingCard({ plan }: { plan: PricingPlan }) {
-  const isFeatured = plan.is_featured ?? plan.featured ?? false
-  const isFree = plan.amount_inr === 0 || plan.price === "\u20b90"
 
-  const price = plan.amount_inr !== undefined ? `\u20b9${plan.amount_inr}` : plan.price ?? ""
-  const compareAtPrice = plan.compare_at_amount_inr ? `\u20b9${plan.compare_at_amount_inr}` : null
-  const periodText = plan.billing_period || plan.period
+function PricingCard({ plan, billingCycle = "monthly" }: { plan: PricingPlan; billingCycle?: "monthly" | "yearly" }) {
+  const isFree = plan.amount_inr === 0 || plan.price === "₹0" || plan.name.toLowerCase().includes("free")
+  const isFeatured = !isFree && Boolean(plan.is_featured ?? plan.featured)
+  const isPro = !isFree && (Boolean(plan.has_whatsapp_automation) || isFeatured)
+
+  const price = isFree
+    ? "₹0"
+    : plan.amount_inr !== undefined
+      ? `₹${plan.amount_inr.toLocaleString("en-IN")}`
+      : plan.price ?? "₹0"
+  const compareAtPrice = plan.compare_at_amount_inr ? `₹${plan.compare_at_amount_inr.toLocaleString("en-IN")}` : null
+  const periodText = isFree ? "/30 days" : plan.billing_period || (billingCycle === "yearly" ? "/year" : "/month")
 
   const features = plan.features ?? []
+  const badgeText = isFree
+    ? "Free on Signup"
+    : plan.discount_percentage
+      ? `Save ${plan.discount_percentage}%`
+      : isFeatured
+        ? (billingCycle === "yearly" ? "Best Value" : "Most Popular")
+        : "Essential"
 
-  const href = isFree
-    ? "/signup"
-    : plan.name.toLowerCase().includes("custom")
-      ? "#cta"
-      : "/login?next=/billing"
+  const href = "/signup"
+  const ctaLabel = plan.cta || (isFree ? "Start 30-Day Free Trial" : isPro ? "Get Started with Pro" : "Get Started with Starter")
 
   return (
     <article
-      className={`relative flex h-full flex-col overflow-hidden rounded-[1.75rem] p-7 transition duration-300 hover:-translate-y-1.5 ${isFeatured
-        ? "bg-[#1c1435] text-white shadow-2xl shadow-[#7c3aed]/25 ring-1 ring-[#7c3aed]/40"
-        : "border border-[#eaedf8] bg-white text-[#232542] shadow-sm shadow-[#b8bdd8]/20 hover:shadow-xl hover:shadow-[#b8bdd8]/25"
+      className={`relative flex h-full flex-col overflow-hidden rounded-[2rem] p-8 transition-all duration-300 hover:-translate-y-1 ${isFeatured
+          ? "border-2 border-[#7c3aed] bg-[#1a1336] text-white shadow-2xl shadow-purple-950/40 ring-1 ring-[#7c3aed]/40"
+          : isFree
+            ? "border border-slate-200 bg-slate-50/50 text-slate-900 shadow-sm hover:shadow-md"
+            : "border border-slate-200 bg-white text-slate-900 shadow-lg shadow-slate-200/50 hover:shadow-xl"
         }`}
     >
+      {/* Decorative Glow for Pro card */}
       {isFeatured && (
-        <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-[#7c3aed]/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 -top-20 size-56 rounded-full bg-[#7c3aed]/30 blur-3xl" />
       )}
 
+      {/* Card Header */}
       <div className="relative">
         <div className="flex items-center justify-between gap-3">
-          <p
-            className={`text-xs font-bold uppercase tracking-[0.18em] ${isFeatured ? "text-[#c4b5fd]" : isFree ? "text-[#23a982]" : "text-[#9096b5]"
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-xs font-extrabold uppercase tracking-widest ${isFeatured ? "text-[#c4b5fd]" : isFree ? "text-slate-600" : "text-[#7c3aed]"
+                }`}
+            >
+              {plan.name}
+            </span>
+          </div>
+
+          <span
+            className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${isFeatured
+                ? "bg-[#7c3aed] text-white shadow-sm"
+                : isFree
+                  ? "bg-slate-200 text-slate-700"
+                  : "bg-purple-100 text-purple-700"
               }`}
           >
-            {plan.name}
-          </p>
-          {isFeatured && (
-            <span className="rounded-full bg-[#7c3aed] px-3 py-1 text-[0.6rem] font-bold uppercase tracking-wider text-white">
-              Best value
-            </span>
-          )}
-          {isFree && (
-            <span className="rounded-full bg-[#eafaf4] px-3 py-1 text-[0.6rem] font-bold uppercase tracking-wider text-[#1c8f6f]">
-              No card
-            </span>
-          )}
+            {badgeText}
+          </span>
         </div>
 
-        {(compareAtPrice || plan.discount_percentage) && (
-          <div className="mt-4 flex min-h-6 flex-wrap items-center gap-2">
-            {compareAtPrice && (
-              <span
-                className={`text-sm font-semibold line-through ${isFeatured ? "text-white/40" : "text-[#9aa0bd]"
-                  }`}
-              >
+        {/* Pricing block */}
+        <div className="mt-4">
+          {compareAtPrice && (
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-sm font-semibold line-through ${isFeatured ? "text-white/45" : "text-slate-400"}`}>
                 {compareAtPrice}
               </span>
-            )}
-            {plan.discount_percentage ? (
-              <span
-                className={`rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider ${isFeatured ? "bg-white/15 text-white" : "bg-emerald-50 text-emerald-700"
-                  }`}
-              >
-                {plan.discount_percentage}% off
-              </span>
-            ) : null}
-          </div>
-        )}
-
-        <div className={`flex flex-wrap items-end gap-1.5 ${compareAtPrice || plan.discount_percentage ? "mt-1" : "mt-4"}`}>
-          <span
-            className={`text-[2.75rem] font-bold leading-none tracking-tight ${isFeatured ? "text-white" : "text-[#1a1d3a]"
-              }`}
-          >
-            {price}
-          </span>
-          {periodText && (
-            <span className={`mb-1 text-sm font-medium ${isFeatured ? "text-white/55" : "text-[#9096b5]"}`}>
-              {periodText}
-            </span>
+              {plan.discount_percentage ? (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${isFeatured ? "bg-white/15 text-white" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    }`}
+                >
+                  {plan.discount_percentage}% off
+                </span>
+              ) : null}
+            </div>
           )}
 
+          <div className="flex items-baseline gap-1.5">
+            <span className={`text-4xl font-extrabold tracking-tight ${isFeatured ? "text-white" : "text-slate-900"}`}>
+              {price}
+            </span>
+            <span className={`text-sm font-medium ${isFeatured ? "text-white/60" : "text-slate-500"}`}>
+              {periodText}
+            </span>
+          </div>
         </div>
 
+        <p className={`mt-3 text-xs leading-relaxed ${isFeatured ? "text-white/70" : "text-slate-500"}`}>
+          {plan.description}
+        </p>
 
-        {/* {plan.description && (
-          <p className={`mt-3 text-sm leading-6 ${isFeatured ? "text-white/65" : "text-[#6b6f8e]"}`}>
-            {plan.description}
-          </p>
-        )} */}
+        {/* Storage & WhatsApp Quota Highlights */}
+        <div className="mt-5 space-y-2">
+          <div
+            className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium ${isFeatured ? "bg-white/10 text-white" : "bg-white text-slate-700 border border-slate-200/80 shadow-xs"
+              }`}
+          >
+            <HardDrive className={`size-4 shrink-0 ${isFeatured ? "text-[#c4b5fd]" : "text-[#7c3aed]"}`} />
+            <span>
+              <strong>{plan.storage_quota_mb ?? (isPro ? 100 : 10)} MB</strong> Cloud Storage Quota
+            </span>
+          </div>
+
+          <div
+            className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium ${isFeatured
+                ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/30"
+                : isPro
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-white text-slate-600 border border-slate-200/80 shadow-xs"
+              }`}
+          >
+            {isPro ? (
+              <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
+            ) : (
+              <X className="size-4 shrink-0 text-slate-400" />
+            )}
+            <span>
+              {isPro
+                ? "Automated WhatsApp Confirmations & 24h Reminders"
+                : "No Automated WhatsApp Messages (OTP Only)"}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <div className={`my-6 h-px ${isFeatured ? "bg-white/12" : "bg-[#eef0f7]"}`} />
+      <div className={`my-6 h-px ${isFeatured ? "bg-white/10" : "bg-slate-200/70"}`} />
 
-      <div className="flex-1 space-y-1">
+      {/* Feature list */}
+      <div className="flex-1 space-y-2.5">
+        <p className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isFeatured ? "text-white/50" : "text-slate-400"}`}>
+          Features Included:
+        </p>
         {features.map((feature) => (
-          <div key={feature} className="flex items-start gap-3">
+          <div key={feature} className="flex items-start gap-2.5">
             <span
-              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${isFeatured ? "bg-white/15" : isFree ? "bg-[#eafaf4]" : "bg-[#f3e8ff]"
+              className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full ${isFeatured ? "bg-white/15" : "bg-purple-100"
                 }`}
             >
               <Check
-                className={`size-3 ${isFeatured ? "text-white" : isFree ? "text-[#23a982]" : "text-[#7c3aed]"}`}
+                className={`size-2.5 ${isFeatured ? "text-white" : "text-[#7c3aed]"}`}
                 strokeWidth={3}
               />
             </span>
-            <span className={`text-sm leading-6 ${isFeatured ? "text-white/85" : "text-[#3d4169]"}`}>
+            <span className={`text-xs leading-5 ${isFeatured ? "text-white/85" : "text-slate-600"}`}>
               {feature}
             </span>
           </div>
         ))}
       </div>
 
+      {/* CTA Button */}
       <a
         href={href}
-        className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold tracking-wide transition-all duration-200 ${isFeatured
-          ? "bg-white text-[#1c1435] shadow-lg shadow-black/20 hover:bg-[#f3e8ff]"
-          : isFree
-            ? "bg-[#23a982] text-white shadow-lg shadow-[#23a982]/25 hover:bg-[#1c8f6f]"
-            : "bg-[#7c3aed] text-white shadow-lg shadow-[#7c3aed]/25 hover:bg-[#6d28d9]"
+        className={`mt-8 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold tracking-wide transition-all duration-200 ${isFeatured
+            ? "bg-white text-slate-900 shadow-lg shadow-black/20 hover:bg-purple-50"
+            : isFree
+              ? "bg-slate-900 text-white shadow-md shadow-slate-900/10 hover:bg-slate-800"
+              : "bg-[#7c3aed] text-white shadow-md shadow-purple-600/20 hover:bg-[#6d28d9]"
           }`}
-        suppressHydrationWarning
       >
-        {plan.cta || "Get Started"}
+        {ctaLabel}
         <ArrowRight className="size-4" />
       </a>
     </article>

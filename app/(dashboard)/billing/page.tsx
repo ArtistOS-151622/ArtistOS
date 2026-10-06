@@ -5,7 +5,7 @@ import { useHeaderContext } from "@/components/common/dashboard/dashboard-header
 import {
   Crown, CheckCircle2, Download, Receipt,
   Sparkles, Loader2, FileText, Calendar,
-  ShieldCheck, Zap, BadgeCheck
+  ShieldCheck, Zap, BadgeCheck, HardDrive
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -114,6 +114,7 @@ export default function BillingPage() {
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null)
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly")
 
   const isLoading = billingLoading || plansLoading
   const currentPlan = billing?.subscription?.platform_subscriptions ?? null
@@ -121,7 +122,10 @@ export default function BillingPage() {
 
   useEffect(() => {
     setTitle("Billing & Payment")
-  }, [setTitle])
+    if (currentPlan?.billing_period?.includes("year")) {
+      setBillingCycle("yearly")
+    }
+  }, [setTitle, currentPlan])
 
   const handleDownloadInvoice = async (payment: Payment) => {
     setDownloadingId(payment.id)
@@ -318,6 +322,22 @@ export default function BillingPage() {
                     Renews on {format(new Date(billing.subscription.next_billing_at), "MMMM d, yyyy")}
                   </p>
                 )}
+
+                {/* Quota & Feature badges */}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-1 text-xs font-semibold text-white">
+                    <HardDrive className="size-3.5" />
+                    {currentPlan.amount_inr >= 500 || currentPlan.name?.toLowerCase().includes("pro")
+                      ? "100 MB Cloud Storage"
+                      : "10 MB Cloud Storage"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-1 text-xs font-semibold text-white">
+                    <CheckCircle2 className="size-3.5" />
+                    {currentPlan.amount_inr >= 500 || currentPlan.name?.toLowerCase().includes("pro")
+                      ? "Automated WhatsApp Messages Active"
+                      : "WhatsApp Auto Messages Excluded"}
+                  </span>
+                </div>
               </div>
 
               <div className="flex flex-col gap-2 shrink-0">
@@ -340,10 +360,12 @@ export default function BillingPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-bold text-slate-900">Free Plan</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Free Tier</h3>
                   <span className="text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Current</span>
                 </div>
-                <p className="text-sm text-slate-500 mt-0.5">You are on the free tier. Upgrade to unlock premium features.</p>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  10 MB cloud storage included. Upgrade to a paid plan below for increased storage and WhatsApp automation.
+                </p>
               </div>
             </div>
             <a href="#plans">
@@ -361,55 +383,97 @@ export default function BillingPage() {
           const filteredPlans = plans.filter(plan => !(currentPlan && plan.amount_inr === 0))
           if (filteredPlans.length === 0) return null
 
+          const cyclePlans = filteredPlans.filter(p =>
+            billingCycle === "yearly" ? p.billing_period?.includes("year") : p.billing_period?.includes("month")
+          )
+
           return (
-            <section id="plans" className={filteredPlans.length === 2 ? "max-w-2xl mx-auto mt-12" : "mt-12"}>
-              <h2 className={`text-sm font-semibold uppercase tracking-widest text-slate-400 mb-4 px-1 ${filteredPlans.length === 2 ? "text-center" : ""}`}>
-                {currentPlan ? "Available Plans" : "Choose a Plan"}
-              </h2>
-              <div className={`grid gap-4 sm:grid-cols-2 ${filteredPlans.length >= 3 ? 'lg:grid-cols-3' : ''}`}>
-                {filteredPlans.map(plan => {
+            <section id="plans" className="mt-12">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-400">
+                    {currentPlan ? "Upgrade or Change Plan" : "Choose a Plan"}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Select the billing cycle and tier that best matches your workflow.
+                  </p>
+                </div>
+
+                {/* Toggle switch for billing cycle */}
+                <div className="inline-flex items-center rounded-full bg-slate-100 p-1 border border-slate-200 shadow-inner self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setBillingCycle("monthly")}
+                    className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
+                      billingCycle === "monthly"
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingCycle("yearly")}
+                    className={`relative flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
+                      billingCycle === "yearly"
+                        ? "bg-[#7c3aed] text-white shadow-md shadow-purple-600/25"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>Yearly</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className={`grid gap-5 sm:grid-cols-2 ${cyclePlans.length >= 3 ? 'lg:grid-cols-3' : 'max-w-3xl mx-auto'}`}>
+                {cyclePlans.map(plan => {
                   const isCurrent = currentPlan?.id === plan.id
-                  const isFeatured = plan.is_featured
+                  const isPro = plan.name?.toLowerCase().includes("pro") || plan.amount_inr >= 500
+                  const isFeatured = plan.is_featured ?? isPro
                   const isFreeTier = isFreeTierPlan(plan)
                   return (
                     <div
                       key={plan.id}
-                      className={`relative flex flex-col overflow-hidden rounded-2xl border p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${isFeatured
-                        ? "bg-gradient-to-br from-[#7c3aed] to-[#5b21b6] border-[#7c3aed] text-white shadow-lg shadow-purple-600/20"
-                        : "bg-white border-slate-100 shadow-sm"
+                      className={`relative flex flex-col overflow-hidden rounded-3xl border p-7 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${isFeatured
+                        ? "bg-gradient-to-br from-[#1c1435] via-[#2a144e] to-[#160d2b] border-[#7c3aed] text-white shadow-lg shadow-purple-900/30 ring-1 ring-[#7c3aed]/40"
+                        : "bg-white border-slate-200 shadow-sm text-slate-900"
                         }`}
                     >
-                      {isFeatured && (
-                        <span className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                          <Sparkles className="size-3" /> Best Value
+                      {isFeatured && !isCurrent && (
+                        <span className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-[#7c3aed] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                          <Sparkles className="size-3" /> {billingCycle === "yearly" ? "Best Value" : "Most Popular"}
                         </span>
                       )}
                       {isCurrent && (
                         <span className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                          <ShieldCheck className="size-3" /> Current
+                          <ShieldCheck className="size-3" /> Current Plan
                         </span>
                       )}
-                      <p className={`text-xs font-bold uppercase tracking-widest mb-2 ${isFeatured ? "text-white/70" : "text-[#7c3aed]"}`}>
-                        {plan.name}
+
+                      <p className={`text-xs font-extrabold uppercase tracking-widest mb-1 ${isFeatured ? "text-[#c4b5fd]" : "text-[#7c3aed]"}`}>
+                        {plan.name} Plan
                       </p>
+
                       {plan.compare_at_amount_inr || plan.discount_percentage ? (
-                        <div className="mb-1.5 flex min-h-5 items-center gap-2">
+                        <div className="mb-1 flex min-h-5 items-center gap-2">
                           {plan.compare_at_amount_inr ? (
                             <span className={`text-sm font-semibold line-through ${isFeatured ? "text-white/45" : "text-slate-400"}`}>
                               ₹{plan.compare_at_amount_inr}
                             </span>
                           ) : null}
                           {plan.discount_percentage ? (
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${isFeatured ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700"
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${isFeatured ? "bg-white/15 text-white" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                               }`}>
                               {plan.discount_percentage}% off
                             </span>
                           ) : null}
                         </div>
                       ) : null}
-                      <div className="mb-3 flex flex-wrap items-end gap-1">
-                        <span className={`text-3xl font-bold leading-none ${isFeatured ? "text-white" : "text-slate-900"}`}>
-                          ₹{plan.amount_inr}
+
+                      <div className="mb-2 flex flex-wrap items-baseline gap-1">
+                        <span className={`text-3xl font-extrabold leading-none ${isFeatured ? "text-white" : "text-slate-900"}`}>
+                          ₹{plan.amount_inr.toLocaleString("en-IN")}
                         </span>
                         {isFreeTier ? (
                           <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>First Month</span>
@@ -417,31 +481,60 @@ export default function BillingPage() {
                           <span className={`text-xs mb-0.5 ${isFeatured ? "text-white/60" : "text-slate-400"}`}>{plan.billing_period}</span>
                         ) : null}
                       </div>
+
                       <p className={`text-xs leading-5 mb-4 ${isFeatured ? "text-white/70" : "text-slate-500"}`}>{plan.description}</p>
-                      <div className="flex-1 space-y-2 mb-5">
+
+                      {/* Quota Badges */}
+                      <div className="mb-5 space-y-2">
+                        <div
+                          className={`flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs font-semibold ${
+                            isFeatured ? "bg-white/10 text-white" : "bg-purple-50 text-purple-700"
+                          }`}
+                        >
+                          <HardDrive className="size-3.5 shrink-0" />
+                          <span>{isPro ? "100 MB Cloud Storage" : "10 MB Cloud Storage"}</span>
+                        </div>
+                        <div
+                          className={`flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs font-semibold ${
+                            isFeatured
+                              ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/30"
+                              : "bg-slate-50 text-slate-600"
+                          }`}
+                        >
+                          <CheckCircle2 className={`size-3.5 shrink-0 ${isFeatured ? "text-emerald-400" : "text-slate-400"}`} />
+                          <span>
+                            {isPro
+                              ? "Automated WhatsApp Confirmations & 24h Reminders"
+                              : "Manual WhatsApp Shortcuts (Auto-messages excluded)"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 space-y-2 mb-6">
                         {plan.features.map((f: string) => (
                           <div key={f} className={`flex items-start gap-2 text-xs ${isFeatured ? "text-white/85" : "text-slate-600"}`}>
-                            <CheckCircle2 className={`size-3.5 shrink-0 mt-0.5 ${isFeatured ? "text-white/70" : "text-[#7c3aed]"}`} />
+                            <CheckCircle2 className={`size-3.5 shrink-0 mt-0.5 ${isFeatured ? "text-purple-300" : "text-[#7c3aed]"}`} />
                             {f}
                           </div>
                         ))}
                       </div>
+
                       <button
                         disabled={isCurrent || loadingPlanId === plan.id}
                         onClick={() => handlePurchase(plan)}
-                        className={`w-full h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${isCurrent
-                          ? "bg-emerald-50 text-emerald-700 cursor-not-allowed"
+                        className={`w-full h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${isCurrent
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-not-allowed"
                           : isFeatured
-                            ? "bg-white text-[#7c3aed] hover:bg-[#f3e8ff]"
+                            ? "bg-white text-slate-900 shadow-md shadow-black/20 hover:bg-purple-50"
                             : "bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-md shadow-purple-600/20"
                           }`}
                       >
                         {isCurrent ? (
-                          <><ShieldCheck className="size-3.5" /> Current Plan</>
+                          <><ShieldCheck className="size-4" /> Current Plan</>
                         ) : loadingPlanId === plan.id ? (
-                          <><Loader2 className="size-3.5 animate-spin" /> Processing...</>
+                          <><Loader2 className="size-4 animate-spin" /> Processing...</>
                         ) : (
-                          <><Crown className="size-3.5" /> Get Started</>
+                          <><Crown className="size-4" /> {isPro ? "Upgrade to Pro" : "Select Starter"}</>
                         )}
                       </button>
                     </div>

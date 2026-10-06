@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { createAdminClient } from "../supabase/admin.ts"
 import { sendWhatsAppTemplate, formatWhatsAppPhoneNumber } from "./client.ts"
 import { APP_TIMEZONE, toWallClock, getMinutesUntilBooking } from "../notifications/time.ts"
+import { getUserPlanFeatures } from "../auth/plan-features.ts"
 
 export type BookingNotificationTrigger =
   | "created"
@@ -83,6 +84,18 @@ export async function sendBookingNotificationWhatsApp(
     if (fetchError || !booking) {
       console.warn(`[WhatsApp] Booking #${bookingId} not found for notification.`)
       return { success: false, error: "Booking not found" }
+    }
+
+    // Check if the artist's plan includes automated WhatsApp notifications
+    const planFeatures = await getUserPlanFeatures(supabase, booking.user_id)
+    if (!planFeatures.hasWhatsAppAutomation) {
+      console.log(
+        `[WhatsApp] User #${booking.user_id} is on "${planFeatures.planName}" plan which does not include automated WhatsApp notifications. Skipping.`
+      )
+      return {
+        success: false,
+        error: "Automated WhatsApp booking notifications are only available on the Pro plan.",
+      }
     }
 
     const customer = Array.isArray(booking.customer)
@@ -348,6 +361,18 @@ export async function scanCustomerWhatsAppReminders(
         bookingId: booking.id,
         status: "skipped",
         reason: "Booking already started/passed",
+      })
+      continue
+    }
+
+    // Check if the artist's plan includes automated WhatsApp reminders
+    const artistPlan = await getUserPlanFeatures(supabase, booking.user_id)
+    if (!artistPlan.hasWhatsAppAutomation) {
+      result.skipped += 1
+      result.details?.push({
+        bookingId: booking.id,
+        status: "skipped",
+        reason: `Artist on "${artistPlan.planName}" plan (WhatsApp auto reminders require Pro plan)`,
       })
       continue
     }

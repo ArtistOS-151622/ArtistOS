@@ -8,6 +8,11 @@ import {
   resolveCompletedPlatformPaymentDates,
   unixSecondsToIso,
 } from "@/lib/platform-billing-dates"
+import {
+  PRO_STORAGE_BYTES,
+  STARTER_STORAGE_BYTES,
+  syncUserStorageQuota,
+} from "@/lib/auth/plan-features"
 
 function getRazorpayKeySecret(): string {
   const secret = process.env.RAZORPAY_KEY_SECRET
@@ -84,7 +89,31 @@ export async function createPlatformPurchase(
   const razorpay = getRazorpayClient()
   const amountPaise = Math.round(amount * 100)
 
-  if (!plan.razorpay_plan_id) {
+  let razorpayPlanId = plan.razorpay_plan_id
+  if (!razorpayPlanId) {
+    try {
+      const period = plan.billing_period?.includes("year") ? "yearly" : "monthly"
+      const rzpPlan = await razorpay.plans.create({
+        period,
+        interval: 1,
+        item: {
+          name: `${plan.name} (${period})`,
+          amount: amountPaise,
+          currency: "INR",
+          description: plan.description || `ArtistOS ${plan.name} Plan`,
+        },
+      })
+      razorpayPlanId = rzpPlan.id
+      await supabase
+        .from("platform_subscriptions")
+        .update({ razorpay_plan_id: razorpayPlanId })
+        .eq("id", plan.id)
+    } catch (createPlanErr) {
+      console.error("Failed to auto-create Razorpay plan:", createPlanErr)
+    }
+  }
+
+  if (!razorpayPlanId) {
     await supabase
       .from("platform_payments")
       .update({
@@ -97,7 +126,7 @@ export async function createPlatformPurchase(
   }
 
   const subscription = await razorpay.subscriptions.create({
-    plan_id: plan.razorpay_plan_id,
+    plan_id: razorpayPlanId,
     total_count: 120, // allow 10 years of monthly renewals
     customer_notify: 1,
     notes: {
@@ -338,6 +367,14 @@ async function applyCompletedPlatformPayment(
       console.error("Failed to insert user_subscription:", insertError)
       throw new Error(`Failed to create subscription: ${insertError.message}`)
     }
+  }
+
+  // Sync storage quota based on the plan's quota configured in the database
+  const quotaBytes = (Number(plan.storage_quota_mb) || (plan.has_whatsapp_automation ? 100 : 10)) * 1024 * 1024
+  try {
+    await syncUserStorageQuota(supabase, payment.user_id, quotaBytes)
+  } catch (quotaErr) {
+    console.error("Failed to sync user storage quota after subscription:", quotaErr)
   }
 
   return true

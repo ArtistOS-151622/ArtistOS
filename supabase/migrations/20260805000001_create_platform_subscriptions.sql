@@ -10,10 +10,17 @@ create table if not exists platform_subscriptions (
   is_featured boolean not null default false,
   badge_text text,
   display_order integer not null default 0,
+  has_whatsapp_automation boolean not null default false,
+  storage_quota_mb integer not null default 10,
   razorpay_plan_id text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Ensure new columns exist if table was already created
+alter table platform_subscriptions 
+  add column if not exists has_whatsapp_automation boolean not null default false,
+  add column if not exists storage_quota_mb integer not null default 10;
 
 -- Enable RLS
 alter table platform_subscriptions enable row level security;
