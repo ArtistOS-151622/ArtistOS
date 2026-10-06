@@ -142,7 +142,7 @@ export async function createPlatformPurchase(
 
   const subscription = await razorpay.subscriptions.create({
     plan_id: razorpayPlanId,
-    total_count: 120, // allow 10 years of monthly renewals
+    total_count: plan.billing_period?.includes("year") ? 10 : 120, // 10 years (10 billing cycles for yearly, 120 cycles for monthly)
     customer_notify: 1,
     notes: {
       user_id: String(userId),
