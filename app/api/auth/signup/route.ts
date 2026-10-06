@@ -9,9 +9,9 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { phone, password, artistName, studioName, address, email, studioLogo } = body
 
-    if (!phone || !password || !artistName || !studioName || !address) {
+    if (!phone || !artistName || !studioName || !address) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields (phone, artistName, studioName, address)" },
         { status: 400 }
       )
     }
@@ -23,15 +23,14 @@ export async function POST(request: Request) {
       )
     }
 
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: "Password must be at least 6 characters long." },
-        { status: 400 }
-      )
+    // Password is now optional in ArtistOS (WhatsApp OTP auth is preferred)
+    let hashedPassword: string | null = null
+    if (password && typeof password === "string" && password.trim()) {
+      hashedPassword = createHash("sha256").update(password).digest("hex")
+    } else {
+      const { randomBytes } = await import("crypto")
+      hashedPassword = createHash("sha256").update(randomBytes(32).toString("hex")).digest("hex")
     }
-
-    // Securely hash password using SHA-256 (native, zero-dependency)
-    const hashedPassword = createHash("sha256").update(password).digest("hex")
 
     const supabase = await createClient()
 

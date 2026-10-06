@@ -24,17 +24,30 @@ export function ReadOnlyOverlay({ isReadOnly, subscriptionStatus = "none" }: Pro
   if (isExempt) return null
 
   const isHalted = subscriptionStatus === "halted"
+  const isCancelled = subscriptionStatus === "cancelled"
+
+  const title = isHalted
+    ? "Subscription Paused"
+    : isCancelled
+      ? "Subscription Cancelled"
+      : "1-Month Trial Expired"
+
+  const message = isHalted
+    ? "Payment failed. Actions blocked (read-only mode)."
+    : isCancelled
+      ? "Plan ended. Actions blocked (read-only mode)."
+      : "Free trial ended. Actions blocked (read-only mode)."
 
   if (isPending) {
     return (
-      <div className="fixed top-0 left-0 right-0 bg-orange-500 text-white z-[9000] px-4 py-2 text-center text-sm font-medium shadow-md flex items-center justify-center gap-2">
+      <div data-guard-exempt="true" className="fixed top-0 left-0 right-0 bg-orange-500 text-white z-[9000] px-4 py-2 text-center text-sm font-medium shadow-md flex items-center justify-center gap-2">
         Your payment has failed. Please check your email to update your payment method before your subscription is paused.
       </div>
     )
   }
 
   return (
-    <div className="fixed bottom-[4.75rem] inset-x-3 sm:inset-x-6 lg:bottom-auto lg:top-3 lg:left-1/2 lg:-translate-x-1/2 lg:w-full lg:max-w-2xl z-[9000] animate-in fade-in slide-in-from-bottom-3 lg:slide-in-from-top-3 duration-300 pointer-events-auto ">
+    <div data-guard-exempt="true" className="fixed bottom-[4.75rem] inset-x-3 sm:inset-x-6 lg:bottom-auto lg:top-3 lg:left-1/2 lg:-translate-x-1/2 lg:w-full lg:max-w-2xl z-[9000] animate-in fade-in slide-in-from-bottom-3 lg:slide-in-from-top-3 duration-300 pointer-events-auto ">
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-3 sm:px-5 sm:py-3 text-white shadow-2xl shadow-red-950/40 border border-white/25 backdrop-blur-md mb-3">
         {/* Subtle decorative glow orb */}
         <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/15 blur-xl" />
@@ -54,15 +67,15 @@ export function ReadOnlyOverlay({ isReadOnly, subscriptionStatus = "none" }: Pro
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-xs sm:text-sm tracking-tight text-white flex items-center gap-1">
-                  Subscription Expired
+                  {title}
                 </span>
                 <span className="hidden sm:inline text-red-200/60">•</span>
                 <span className="hidden sm:inline text-red-100 text-xs sm:text-sm font-medium truncate">
-                  You are in read-only mode.
+                  {message}
                 </span>
               </div>
               <p className="text-[11px] text-red-100/90 sm:hidden truncate font-medium">
-                Read-only mode active
+                {title} • Read-only mode
               </p>
             </div>
           </div>

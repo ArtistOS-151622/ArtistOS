@@ -48,3 +48,19 @@ export function formatTimeLabel(time: string): string {
 
   return `${displayHour}:${rawMinute ?? "00"} ${suffix}`
 }
+
+/**
+ * Calculates wall-clock difference in minutes between booking start time
+ * and current local time.
+ */
+export function getMinutesUntilBooking(
+  bookingDate: string,
+  startTime: string,
+  nowLocalDate: string,
+  nowLocalTime: string
+): number {
+  const timePart = (startTime || "09:00").slice(0, 5)
+  const bMs = Date.parse(`${bookingDate}T${timePart}:00Z`)
+  const nMs = Date.parse(`${nowLocalDate}T${nowLocalTime.slice(0, 5)}:00Z`)
+  return Math.round((bMs - nMs) / 60_000)
+}

@@ -4,6 +4,7 @@ import { checkIsReadOnly } from "@/lib/auth/subscription"
 
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
+import { sendBookingNotificationWhatsApp } from "@/lib/whatsapp/booking-notifications"
 
 type BookingInput = {
   customer_id?: string | number
@@ -65,7 +66,7 @@ export async function PATCH(
   // Verify ownership before updating
   const { data: checkOwn, error: ownError } = await supabase
     .from("bookings")
-    .select("id")
+    .select("id, status")
     .eq("id", id)
     .eq("user_id", session.id)
     .maybeSingle()
@@ -163,6 +164,14 @@ export async function PATCH(
       price: bs.unit_price ?? bs.service?.price ?? 0,
     })).filter((s: any) => s.id) ?? [],
     additional_charges: fullBooking.booking_additional_charges ?? [],
+  }
+
+  // Send automated WhatsApp confirmation if status transitioned to 'confirmed'
+  const isNewlyConfirmed = body.status === "confirmed" && checkOwn.status !== "confirmed"
+  if (isNewlyConfirmed) {
+    void sendBookingNotificationWhatsApp(id, "confirmed").catch((err) => {
+      console.error("[WhatsApp] Failed to dispatch booking confirmation notification:", err)
+    })
   }
 
   return NextResponse.json({ booking: formatted })

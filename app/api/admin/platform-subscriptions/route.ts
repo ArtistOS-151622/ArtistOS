@@ -36,6 +36,8 @@ export async function POST(req: Request) {
       is_active,
       is_featured,
       display_order,
+      has_whatsapp_automation,
+      storage_quota_mb,
     } = body
 
     const { data, error } = await supabase
@@ -51,7 +53,9 @@ export async function POST(req: Request) {
           features: features || [],
           is_active: is_active ?? true,
           is_featured: is_featured ?? false,
-          display_order: display_order ?? 0
+          display_order: display_order ?? 0,
+          has_whatsapp_automation: Boolean(has_whatsapp_automation),
+          storage_quota_mb: Number(storage_quota_mb) || 10
         }
       ])
       .select()

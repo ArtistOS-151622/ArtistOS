@@ -21,6 +21,8 @@ export type PlatformSubscription = {
   is_active: boolean
   is_featured: boolean
   display_order: number
+  has_whatsapp_automation?: boolean
+  storage_quota_mb?: number
 }
 
 const isFreeTierPlan = (plan: PlatformSubscription) => plan.amount_inr === 0 && plan.billing_period !== ""
@@ -46,7 +48,9 @@ export function PlatformSubscriptionsTab() {
       features: ["One Month Free to Use", "Client CRM", "Portfolio gallery", "Booking calendar"],
       is_active: true,
       is_featured: false,
-      display_order: 0
+      display_order: 0,
+      has_whatsapp_automation: false,
+      storage_quota_mb: 10
     })
   }
 
@@ -240,6 +244,14 @@ export function PlatformSubscriptionsTab() {
                         <span className="ml-2 text-emerald-600">{plan.discount_percentage}% off</span>
                       ) : null}
                     </p>
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${plan.has_whatsapp_automation ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                        {plan.has_whatsapp_automation ? '✓ WhatsApp Automated' : '✕ No WhatsApp Auto'}
+                      </span>
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        {plan.storage_quota_mb ?? 10} MB Storage
+                      </span>
+                    </div>
                   </div>
                 </div>
                   )
@@ -323,6 +335,36 @@ export function PlatformSubscriptionsTab() {
                     checked={editingPlan.is_featured} 
                     onCheckedChange={v => updateDraft("is_featured", v)} 
                   />
+                </div>
+              </div>
+
+              {/* Feature Flags & Quotas */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="size-4 text-purple-600" /> Plan Entitlements & Features
+                </h3>
+                
+                <div className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">WhatsApp Automation</p>
+                      <p className="text-xs text-slate-500">Auto send booking created, confirmed & 24h reminders</p>
+                    </div>
+                    <Switch 
+                      checked={Boolean(editingPlan.has_whatsapp_automation)} 
+                      onCheckedChange={v => updateDraft("has_whatsapp_automation", v)} 
+                    />
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100">
+                    <FloatingInput 
+                      label="Storage Quota (MB)" 
+                      type="number"
+                      value={editingPlan.storage_quota_mb ?? 10}
+                      onChange={(e) => setEditingPlan({ ...editingPlan, storage_quota_mb: Number(e.target.value) })}
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Default: 10 MB for Starter, 100 MB for Pro.</p>
+                  </div>
                 </div>
               </div>
 

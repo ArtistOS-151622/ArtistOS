@@ -113,10 +113,12 @@ export async function proxy(request: NextRequest) {
     const exemptApiRoutes = [
       "/api/auth/",
       "/api/webhooks/",
+      "/api/billing",
       "/api/platform-subscriptions/",
       "/api/portfolio/purchase-storage/",
       "/api/admin/",
-      "/api/notifications/"
+      "/api/notifications/",
+      "/api/support"
     ]
     
     const isExempt = exemptApiRoutes.some(r => pathname.startsWith(r))
@@ -129,15 +131,15 @@ export async function proxy(request: NextRequest) {
 
     if (artist) {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-      if (supabaseUrl && supabaseAnonKey) {
-        const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } })
+      if (supabaseUrl && supabaseKey) {
+        const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
         try {
           const isReadOnly = await checkIsReadOnly(supabase, artist.id)
           if (isReadOnly) {
             return NextResponse.json(
-              { error: "Your subscription has expired. You are in read-only mode." },
+              { error: "Your account is in read-only mode. Please upgrade your subscription to make changes." },
               { status: 403 }
             )
           }

@@ -21,22 +21,33 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       is_active,
       is_featured,
       display_order,
+      has_whatsapp_automation,
+      storage_quota_mb,
     } = body
+
+    const updatePayload: Record<string, any> = {
+      name,
+      description,
+      amount_inr,
+      compare_at_amount_inr: compare_at_amount_inr || null,
+      discount_percentage: discount_percentage || null,
+      billing_period,
+      features: features || [],
+      is_active,
+      is_featured,
+      display_order,
+    }
+
+    if (has_whatsapp_automation !== undefined) {
+      updatePayload.has_whatsapp_automation = Boolean(has_whatsapp_automation)
+    }
+    if (storage_quota_mb !== undefined) {
+      updatePayload.storage_quota_mb = Number(storage_quota_mb) || 10
+    }
 
     const { data, error } = await supabase
       .from("platform_subscriptions")
-      .update({
-        name,
-        description,
-        amount_inr,
-        compare_at_amount_inr: compare_at_amount_inr || null,
-        discount_percentage: discount_percentage || null,
-        billing_period,
-        features: features || [],
-        is_active,
-        is_featured,
-        display_order
-      })
+      .update(updatePayload)
       .eq("id", id)
       .select()
       .single()

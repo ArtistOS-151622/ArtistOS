@@ -45,7 +45,69 @@ export function SubscriptionGuardProvider({ children }: { children: ReactNode })
     }
   }, [pathname, isOnBilling])
 
-  // Show modal when: (trial expired OR halted) + no active sub + not loading + not dismissed + not on billing page
+  // Block mutating actions in UI when in read-only mode
+  useEffect(() => {
+    if (!isReadOnly || isOnBilling) return
+
+    const handleFormSubmit = (e: Event) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setModalDismissed(false)
+    }
+
+    const handleClickCapture = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+
+      // Always allow clicks inside guard-exempt components (like the upgrade modal and banner)
+      if (target.closest("[data-guard-exempt]")) return
+
+      // Allow navigation links
+      const link = target.closest("a")
+      if (link) {
+        return // Allow browsing and reading pages
+      }
+
+      // Allow viewing controls (tabs, dropdown triggers, filters, pagination, close buttons)
+      if (target.closest("[role='tab'], [data-sidebar], [data-view-control], [aria-label='Close'], [data-dismiss]")) {
+        return
+      }
+
+      // Allow search inputs for finding existing records
+      if (target.tagName === "INPUT") {
+        const input = target as HTMLInputElement
+        if (input.type === "search" || input.placeholder?.toLowerCase().includes("search")) {
+          return
+        }
+      }
+
+      // Detect mutation / action buttons
+      const button = target.closest("button, [role='button'], input[type='submit']")
+      if (button) {
+        const btnText = (button.textContent || "").toLowerCase()
+        const isAction =
+          button.getAttribute("type") === "submit" ||
+          button.closest("form") ||
+          /add|create|save|edit|update|delete|remove|upload|send|confirm|book|new|pay/.test(btnText)
+
+        if (isAction) {
+          e.preventDefault()
+          e.stopPropagation()
+          setModalDismissed(false)
+        }
+      }
+    }
+
+    document.addEventListener("submit", handleFormSubmit, true)
+    document.addEventListener("click", handleClickCapture, true)
+
+    return () => {
+      document.removeEventListener("submit", handleFormSubmit, true)
+      document.removeEventListener("click", handleClickCapture, true)
+    }
+  }, [isReadOnly, isOnBilling])
+
+  // Show modal when: (trial expired OR halted OR cancelled) + no active sub + not loading + not dismissed + not on billing page
   const showModal = !isLoading && isReadOnly && !modalDismissed && !isOnBilling
 
   // Show trial banner during active trial (last 14 days, not expired, not paid)

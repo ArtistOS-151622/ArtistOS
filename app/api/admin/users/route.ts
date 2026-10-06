@@ -55,7 +55,7 @@ export async function GET() {
       // Storage
       const rawQuota = user.portfolio_storage_quotas
       const quota = Array.isArray(rawQuota) ? rawQuota[0] : rawQuota
-      const finalQuota = quota || { free_storage_bytes: STORAGE_FREE_TIER_BYTES, purchase_storage_bytes: 0, used_storage_bytes: 0 }
+      const finalQuota = quota || { free_storage_bytes: 10485760, purchase_storage_bytes: 0, used_storage_bytes: 0 }
       
       const purchases = user.portfolio_storage_purchases || []
       const active_plans = purchases.filter((p: any) => p.status === 'active').length

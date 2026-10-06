@@ -35,22 +35,32 @@ export async function checkIsReadOnly(supabase: SupabaseClient, userId: number):
     }
 
     if (activeSub.status === "halted") {
-      // Halted means retries failed. Immediately restrict access.
+      // Halted means retries failed. Immediately restrict access (read-only mode).
       return true
     }
 
-    if (activeSub.status === "active" || activeSub.status === "cancelled") {
-      // If active or cancelled, check if the billing period has expired
-      const endDateStr = activeSub.next_billing_at
-      if (!endDateStr || new Date(endDateStr) > now) {
-        return false // Not expired
+    if (activeSub.status === "cancelled") {
+      // Cancelled plan: if current billing period has expired, block action (read-only mode)
+      const endDateStr = activeSub.next_billing_at || activeSub.current_period_end
+      if (endDateStr && new Date(endDateStr) > now) {
+        return false // Paid period still active
       }
+      return true // Paid period ended, keep in read-only mode
+    }
+
+    if (activeSub.status === "active") {
+      // If active plan has an end date that has passed, block actions (read-only mode)
+      const endDateStr = activeSub.next_billing_at || activeSub.current_period_end
+      if (endDateStr && new Date(endDateStr) <= now) {
+        return true
+      }
+      return false
     }
   }
 
   const createdAt = new Date(user.created_at)
   const daysSinceSignup = Math.floor((now.getTime() - createdAt.getTime()) / msPerDay)
   
-  // If no active sub, they are read-only if their trial is expired
+  // 1 month free trial (30 days): if expired, block actions and keep in read-only mode
   return daysSinceSignup >= FREE_TRIAL_DAYS
 }
