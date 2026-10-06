@@ -431,7 +431,7 @@ export default function BillingPage() {
               <div className={`grid gap-5 sm:grid-cols-2 ${cyclePlans.length >= 3 ? 'lg:grid-cols-3' : 'max-w-3xl mx-auto'}`}>
                 {cyclePlans.map(plan => {
                   const isCurrent = currentPlan?.id === plan.id
-                  const isPro = plan.name?.toLowerCase().includes("pro") || plan.amount_inr >= 500
+                  const isPro = plan.name?.toLowerCase().includes("pro")
                   const isFeatured = plan.is_featured ?? isPro
                   const isFreeTier = isFreeTierPlan(plan)
                   return (
