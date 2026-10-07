@@ -9,11 +9,11 @@ export async function GET(request: NextRequest) {
   if (session) {
     const { data: user } = await supabase
       .from("users")
-      .select("is_test_user")
+      .select("is_free_user")
       .eq("id", session.id)
       .single()
     
-    if (user?.is_test_user) {
+    if (user?.is_free_user) {
       return NextResponse.json([])
     }
   }

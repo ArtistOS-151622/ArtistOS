@@ -4,6 +4,7 @@ import {
   verifyOtpInDatabase,
   verifyOtpStateToken,
   createRegistrationToken,
+  TEST_USER_OTP,
 } from "@/lib/auth/otp"
 import { createArtistToken, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/session"
 
@@ -29,34 +30,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // 1. Verify OTP
-    let isValidOtp = false
-    let failureReason: string | undefined
-
-    // First attempt DB verification
-    const dbResult = await verifyOtpInDatabase(cleanPhone, otp)
-    if (dbResult.valid) {
-      isValidOtp = true
-    } else if (dbResult.reason !== "db_error") {
-      failureReason = dbResult.reason
-    }
-
-    // If DB check failed or wasn't available, check the signed fallback stateToken
-    if (!isValidOtp && stateToken) {
-      if (verifyOtpStateToken(stateToken, cleanPhone, otp)) {
-        isValidOtp = true
-        failureReason = undefined
-      }
-    }
-
-    if (!isValidOtp) {
-      return NextResponse.json(
-        { error: failureReason || "Invalid or expired OTP. Please check the code and try again." },
-        { status: 400 }
-      )
-    }
-
-    // 2. Check if user already exists
+    // Check if user exists in database (to check test account status)
     const supabase = createAdminClient()
     const { data: user, error: userError } = await supabase
       .from("users")
@@ -69,6 +43,41 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Failed to verify account records. Please try again." },
         { status: 500 }
+      )
+    }
+
+    // 1. Verify OTP
+    let isValidOtp = false
+    let failureReason: string | undefined
+
+    if (user?.is_test_user) {
+      if (otp === TEST_USER_OTP) {
+        isValidOtp = true
+      } else {
+        failureReason = "Invalid OTP for test account. Please enter 123456."
+      }
+    } else {
+      // First attempt DB verification
+      const dbResult = await verifyOtpInDatabase(cleanPhone, otp)
+      if (dbResult.valid) {
+        isValidOtp = true
+      } else if (dbResult.reason !== "db_error") {
+        failureReason = dbResult.reason
+      }
+
+      // If DB check failed or wasn't available, check the signed fallback stateToken
+      if (!isValidOtp && stateToken) {
+        if (verifyOtpStateToken(stateToken, cleanPhone, otp)) {
+          isValidOtp = true
+          failureReason = undefined
+        }
+      }
+    }
+
+    if (!isValidOtp) {
+      return NextResponse.json(
+        { error: failureReason || "Invalid or expired OTP. Please check the code and try again." },
+        { status: 400 }
       )
     }
 

@@ -9,12 +9,12 @@ const FREE_TRIAL_DAYS = 30
 export async function checkIsReadOnly(supabase: SupabaseClient, userId: number): Promise<boolean> {
   const { data: user, error: userError } = await supabase
     .from("users")
-    .select("created_at, is_test_user")
+    .select("created_at, is_free_user")
     .eq("id", userId)
     .single()
 
   if (userError || !user) return true // default to restricted if user not found
-  if (user.is_test_user) return false // test users bypass read-only mode
+  if (user.is_free_user) return false // free users bypass read-only mode
 
   const now = new Date()
   const msPerDay = 1000 * 60 * 60 * 24

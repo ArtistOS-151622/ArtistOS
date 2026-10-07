@@ -9,7 +9,7 @@ export async function GET() {
     const { data: users, error } = await supabase
       .from("users")
       .select(`
-        id, phone, artist_name, studio_name, address, email, created_at, updated_at, is_test_user,
+        id, phone, artist_name, studio_name, address, email, created_at, updated_at, is_test_user, is_free_user,
         customers (count),
         bookings (id, status, created_at),
         booking_payments (amount),
@@ -84,6 +84,7 @@ export async function GET() {
           created_at: user.created_at,
           updated_at: user.updated_at,
           is_test_user: user.is_test_user || false,
+          is_free_user: user.is_free_user || false,
         },
         customers: {
           total: customer_count
@@ -133,24 +134,29 @@ export async function PATCH(request: Request) {
   const supabase = await createClient()
 
   try {
-    const { id, is_test_user } = await request.json()
+    const body = await request.json()
+    const { id, is_test_user, is_free_user } = body
 
-    if (!id || typeof is_test_user !== 'boolean') {
+    if (!id || (typeof is_test_user !== 'boolean' && typeof is_free_user !== 'boolean')) {
       return NextResponse.json({ error: "Invalid request payload" }, { status: 400 })
     }
 
+    const updates: Record<string, boolean> = {}
+    if (typeof is_test_user === 'boolean') updates.is_test_user = is_test_user
+    if (typeof is_free_user === 'boolean') updates.is_free_user = is_free_user
+
     const { data, error } = await supabase
       .from("users")
-      .update({ is_test_user })
+      .update(updates)
       .eq("id", id)
-      .select("id, is_test_user")
+      .select("id, is_test_user, is_free_user")
       .single()
 
     if (error) throw error
 
     return NextResponse.json({ success: true, user: data })
   } catch (error) {
-    console.error("Error updating user test status:", error)
+    console.error("Error updating user status:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

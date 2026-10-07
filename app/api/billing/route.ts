@@ -30,20 +30,20 @@ export async function GET(request: NextRequest) {
   try {
     const userId = session.id
 
-    // Check if test user
+    // Check if free user
     const { data: user } = await supabase
       .from("users")
-      .select("is_test_user")
+      .select("is_free_user")
       .eq("id", userId)
       .single()
 
-    const isTestUser = user?.is_test_user || false
+    const isFreeUser = user?.is_free_user || false
 
     let subscriptionRow = null;
     let endDateStr = null;
 
-    if (isTestUser) {
-      // Mock subscription for test user
+    if (isFreeUser) {
+      // Mock subscription for free user
       subscriptionRow = {
         id: -1,
         status: "active",
@@ -51,13 +51,13 @@ export async function GET(request: NextRequest) {
         next_billing_at: null,
         platform_subscriptions: {
           id: -1,
-          name: "ArtistOS Lifetime (Test)",
-          description: "Complimentary platform access for test accounts.",
+          name: "ArtistOS Lifetime (Free)",
+          description: "Complimentary platform access for free accounts.",
           amount_inr: 0,
           compare_at_amount_inr: null,
           discount_percentage: null,
           billing_period: "",
-          features: ["Unlimited Platform Access", "Test Account Privileges"],
+          features: ["Unlimited Platform Access", "Free Account Privileges"],
           is_featured: true,
           is_active: true
         }

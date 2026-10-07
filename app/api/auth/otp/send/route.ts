@@ -7,6 +7,8 @@ import {
   persistOtpInDatabase,
   OTP_COOLDOWN_SECONDS,
   OTP_EXPIRY_MINUTES,
+  isTestUser,
+  TEST_USER_OTP,
 } from "@/lib/auth/otp"
 
 export async function POST(request: Request) {
@@ -22,33 +24,40 @@ export async function POST(request: Request) {
       )
     }
 
-    const otp = generate6DigitOtp()
+    const testUser = await isTestUser(cleanPhone)
+    const otp = testUser ? TEST_USER_OTP : generate6DigitOtp()
     const otpHash = hashOtp(otp)
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000)
 
     // Save to database
     await persistOtpInDatabase(cleanPhone, otpHash, expiresAt)
 
-    // Dispatch WhatsApp message
-    const sendResult = await sendOtpToWhatsApp(cleanPhone, otp)
+    if (!testUser) {
+      // Dispatch WhatsApp message only for non-test users
+      const sendResult = await sendOtpToWhatsApp(cleanPhone, otp)
 
-    if (!sendResult.success) {
-      console.error("[OTP Send] WhatsApp delivery failed:", sendResult.error)
-      return NextResponse.json(
-        {
-          error:
-            sendResult.error ||
-            "Failed to send OTP via WhatsApp. Please ensure your WhatsApp number is active and try again.",
-        },
-        { status: 500 }
-      )
+      if (!sendResult.success) {
+        console.error("[OTP Send] WhatsApp delivery failed:", sendResult.error)
+        return NextResponse.json(
+          {
+            error:
+              sendResult.error ||
+              "Failed to send OTP via WhatsApp. Please ensure your WhatsApp number is active and try again.",
+          },
+          { status: 500 }
+        )
+      }
+    } else {
+      console.log(`[OTP Send] Test user detected (${cleanPhone}). Skipping WhatsApp dispatch; OTP is ${TEST_USER_OTP}.`)
     }
 
     const stateToken = createOtpStateToken(cleanPhone, otpHash, expiresAt.getTime())
 
     return NextResponse.json({
       success: true,
-      message: "OTP sent successfully to your WhatsApp.",
+      message: testUser
+        ? "Test account detected. Please enter your test OTP."
+        : "OTP sent successfully to your WhatsApp.",
       stateToken,
       cooldownSeconds: OTP_COOLDOWN_SECONDS,
     })

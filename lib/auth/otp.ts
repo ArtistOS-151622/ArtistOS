@@ -6,6 +6,27 @@ const OTP_EXPIRY_MINUTES = 10
 const OTP_COOLDOWN_SECONDS = 30
 const MAX_OTP_ATTEMPTS = 5
 
+export const TEST_USER_OTP = "123456"
+
+export async function isTestUser(phone: string, existingSupabase?: any): Promise<boolean> {
+  if (!phone) return false
+  const clean = phone.replace(/\D/g, "").slice(-10)
+  if (clean.length !== 10) return false
+
+  try {
+    const supabase = existingSupabase || createAdminClient()
+    const { data: user } = await supabase
+      .from("users")
+      .select("is_test_user")
+      .eq("phone", clean)
+      .maybeSingle()
+
+    return Boolean(user?.is_test_user)
+  } catch (err) {
+    console.error("[OTP] Error checking isTestUser:", err)
+    return false
+  }
+}
 
 function getAuthSecret(): string {
   const secret =

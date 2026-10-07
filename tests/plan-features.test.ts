@@ -2,7 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { getUserPlanFeatures, PRO_STORAGE_BYTES, STARTER_STORAGE_BYTES } from "../lib/auth/plan-features.ts"
 
-test("getUserPlanFeatures: identifies test user with Pro features", async () => {
+test("getUserPlanFeatures: identifies free user with Pro features", async () => {
   const mockSupabase = {
     from: (table: string) => {
       if (table === "users") {
@@ -10,7 +10,7 @@ test("getUserPlanFeatures: identifies test user with Pro features", async () => 
           select: () => ({
             eq: () => ({
               single: async () => ({
-                data: { created_at: new Date().toISOString(), is_test_user: true },
+                data: { created_at: new Date().toISOString(), is_free_user: true },
                 error: null,
               }),
             }),
@@ -22,7 +22,7 @@ test("getUserPlanFeatures: identifies test user with Pro features", async () => 
   } as any
 
   const features = await getUserPlanFeatures(mockSupabase, 101)
-  assert.equal(features.planTier, "test")
+  assert.equal(features.planTier, "free")
   assert.equal(features.hasWhatsAppAutomation, true)
   assert.equal(features.storageQuotaBytes, PRO_STORAGE_BYTES)
   assert.equal(features.storageQuotaMb, 100)
@@ -37,7 +37,7 @@ test("getUserPlanFeatures: Starter plan has 10 MB and NO WhatsApp automation", a
           select: () => ({
             eq: () => ({
               single: async () => ({
-                data: { created_at: new Date(Date.now() - 40 * 86400000).toISOString(), is_test_user: false },
+                data: { created_at: new Date(Date.now() - 40 * 86400000).toISOString(), is_free_user: false },
                 error: null,
               }),
             }),
@@ -96,7 +96,7 @@ test("getUserPlanFeatures: Pro plan has 100 MB and WhatsApp automation", async (
           select: () => ({
             eq: () => ({
               single: async () => ({
-                data: { created_at: new Date(Date.now() - 40 * 86400000).toISOString(), is_test_user: false },
+                data: { created_at: new Date(Date.now() - 40 * 86400000).toISOString(), is_free_user: false },
                 error: null,
               }),
             }),
@@ -155,7 +155,7 @@ test("getUserPlanFeatures: Free Trial has 10 MB and NO WhatsApp automation", asy
           select: () => ({
             eq: () => ({
               single: async () => ({
-                data: { created_at: new Date(Date.now() - 5 * 86400000).toISOString(), is_test_user: false },
+                data: { created_at: new Date(Date.now() - 5 * 86400000).toISOString(), is_free_user: false },
                 error: null,
               }),
             }),
@@ -199,7 +199,7 @@ test("getUserPlanFeatures: 1-month trial expired enters read-only mode", async (
           select: () => ({
             eq: () => ({
               single: async () => ({
-                data: { created_at: new Date(Date.now() - 31 * 86400000).toISOString(), is_test_user: false },
+                data: { created_at: new Date(Date.now() - 31 * 86400000).toISOString(), is_free_user: false },
                 error: null,
               }),
             }),
@@ -240,7 +240,7 @@ test("getUserPlanFeatures: Halted plan enters read-only mode immediately", async
           select: () => ({
             eq: () => ({
               single: async () => ({
-                data: { created_at: new Date(Date.now() - 10 * 86400000).toISOString(), is_test_user: false },
+                data: { created_at: new Date(Date.now() - 10 * 86400000).toISOString(), is_free_user: false },
                 error: null,
               }),
             }),
@@ -293,7 +293,7 @@ test("getUserPlanFeatures: Cancelled plan after period ends enters read-only mod
           select: () => ({
             eq: () => ({
               single: async () => ({
-                data: { created_at: new Date(Date.now() - 60 * 86400000).toISOString(), is_test_user: false },
+                data: { created_at: new Date(Date.now() - 60 * 86400000).toISOString(), is_free_user: false },
                 error: null,
               }),
             }),

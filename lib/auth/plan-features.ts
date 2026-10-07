@@ -4,7 +4,7 @@ export const FREE_TRIAL_DAYS = 30
 export const STARTER_STORAGE_BYTES = 10 * 1024 * 1024 // 10 MB = 10,485,760 bytes
 export const PRO_STORAGE_BYTES = 100 * 1024 * 1024 // 100 MB = 104,857,600 bytes
 
-export type PlanTier = "trial" | "starter" | "pro" | "test"
+export type PlanTier = "trial" | "starter" | "pro" | "free" | "test"
 
 export interface UserPlanFeatures {
   planTier: PlanTier
@@ -50,7 +50,7 @@ export async function getUserPlanFeatures(
     }
 
     const { data: user, error: userError } = await fromUsers
-      .select("created_at, is_test_user")
+      .select("created_at, is_free_user")
       .eq("id", userId)
       .single()
 
@@ -73,22 +73,22 @@ export async function getUserPlanFeatures(
       }
     }
 
-    // 1. Test Users bypass all restrictions
-    if (user.is_test_user) {
-    return {
-      planTier: "test",
-      planName: "ArtistOS Lifetime (Test)",
-      billingPeriod: "",
-      hasWhatsAppAutomation: true,
-      storageQuotaBytes: PRO_STORAGE_BYTES,
-      storageQuotaMb: 100,
-      isReadOnly: false,
-      hasActiveSub: true,
-      daysSinceSignup: Math.floor((now.getTime() - new Date(user.created_at).getTime()) / msPerDay),
-      trialDaysLeft: 9999,
-      subscriptionStatus: "active",
+    // 1. Free Users bypass all restrictions (Full access: 100MB storage, WhatsApp automation, no billing required)
+    if (user.is_free_user) {
+      return {
+        planTier: "free",
+        planName: "ArtistOS Lifetime (Free)",
+        billingPeriod: "",
+        hasWhatsAppAutomation: true,
+        storageQuotaBytes: PRO_STORAGE_BYTES,
+        storageQuotaMb: 100,
+        isReadOnly: false,
+        hasActiveSub: true,
+        daysSinceSignup: Math.floor((now.getTime() - new Date(user.created_at).getTime()) / msPerDay),
+        trialDaysLeft: 9999,
+        subscriptionStatus: "active",
+      }
     }
-  }
 
   // 2. Fetch active/pending/halted subscription
   const { data: activeSub } = await supabase

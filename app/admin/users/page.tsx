@@ -19,6 +19,7 @@ type UserData = {
     created_at: string
     updated_at: string
     is_test_user: boolean
+    is_free_user: boolean
   }
   customers: {
     total: number
@@ -73,25 +74,27 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
-  const [toggling, setToggling] = useState(false)
+  const [togglingKey, setTogglingKey] = useState<string | null>(null)
 
-  const toggleTestUser = async (user: UserData) => {
+  const toggleUserField = async (user: UserData, field: "is_free_user" | "is_test_user") => {
+    const key = `${user.id}-${field}`
     try {
-      setToggling(true)
+      setTogglingKey(key)
+      const newValue = !user.profile[field]
       const res = await fetch("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: user.id, is_test_user: !user.profile.is_test_user })
+        body: JSON.stringify({ id: user.id, [field]: newValue })
       })
       if (res.ok) {
         const { user: updated } = await res.json()
-        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, profile: { ...u.profile, is_test_user: updated.is_test_user } } : u))
-        setSelectedUser(prev => prev && prev.id === user.id ? { ...prev, profile: { ...prev.profile, is_test_user: updated.is_test_user } } : prev)
+        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, profile: { ...u.profile, [field]: updated[field] } } : u))
+        setSelectedUser(prev => prev && prev.id === user.id ? { ...prev, profile: { ...prev.profile, [field]: updated[field] } } : prev)
       }
     } catch (e) {
-      console.error("Failed to toggle test user", e)
+      console.error(`Failed to toggle ${field}`, e)
     } finally {
-      setToggling(false)
+      setTogglingKey(null)
     }
   }
 
@@ -136,6 +139,7 @@ export default function AdminUsersPage() {
                 <th className="px-6 py-4 font-medium">Customers</th>
                 <th className="px-6 py-4 font-medium">Net Profit</th>
                 <th className="px-6 py-4 font-medium">Joined Date</th>
+                <th className="px-6 py-4 font-medium">Free User</th>
                 <th className="px-6 py-4 font-medium">Test User</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
@@ -143,7 +147,7 @@ export default function AdminUsersPage() {
             <tbody className="divide-y divide-slate-100">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-6 py-8 text-center text-slate-500">
                     No registered users found.
                   </td>
                 </tr>
@@ -153,6 +157,9 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-900 flex items-center gap-2">
                         {user.profile.artist_name}
+                        {user.profile.is_free_user && (
+                          <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-emerald-800 uppercase">Free Account</span>
+                        )}
                         {user.profile.is_test_user && (
                           <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-amber-800 uppercase">Test Account</span>
                         )}
@@ -196,11 +203,21 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <Switch 
-                          checked={user.profile.is_test_user}
-                          onCheckedChange={() => toggleTestUser(user)}
-                          disabled={toggling}
+                          checked={user.profile.is_free_user}
+                          onCheckedChange={() => toggleUserField(user, "is_free_user")}
+                          disabled={togglingKey !== null}
                         />
-                        {toggling && <Loader2 className="size-3 animate-spin text-slate-400" />}
+                        {togglingKey === `${user.id}-is_free_user` && <Loader2 className="size-3 animate-spin text-slate-400" />}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={user.profile.is_test_user}
+                          onCheckedChange={() => toggleUserField(user, "is_test_user")}
+                          disabled={togglingKey !== null}
+                        />
+                        {togglingKey === `${user.id}-is_test_user` && <Loader2 className="size-3 animate-spin text-slate-400" />}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -240,8 +257,11 @@ export default function AdminUsersPage() {
           <>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
               <div>
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 flex-wrap">
                   {selectedUser.profile.artist_name}
+                  {selectedUser.profile.is_free_user && (
+                    <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-emerald-800 uppercase">Free Account</span>
+                  )}
                   {selectedUser.profile.is_test_user && (
                     <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-amber-800 uppercase">Test Account</span>
                   )}
@@ -255,6 +275,35 @@ export default function AdminUsersPage() {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar pb-24">
               
+              {/* Account Privileges / Toggles */}
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Account Privileges</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50/40 border border-emerald-100">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-900">Free User</div>
+                      <div className="text-[11px] text-slate-500">100MB, full access</div>
+                    </div>
+                    <Switch 
+                      checked={selectedUser.profile.is_free_user}
+                      onCheckedChange={() => toggleUserField(selectedUser, "is_free_user")}
+                      disabled={togglingKey !== null}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-50/40 border border-amber-100">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-900">Test User</div>
+                      <div className="text-[11px] text-slate-500">OTP 123456 bypass</div>
+                    </div>
+                    <Switch 
+                      checked={selectedUser.profile.is_test_user}
+                      onCheckedChange={() => toggleUserField(selectedUser, "is_test_user")}
+                      disabled={togglingKey !== null}
+                    />
+                  </div>
+                </div>
+              </section>
+
               {/* Profile Section */}
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
