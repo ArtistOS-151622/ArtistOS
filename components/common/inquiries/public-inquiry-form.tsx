@@ -51,7 +51,6 @@ type PublicInquiryFormProps = {
 
 type PublicInquiryResponse = {
   artist?: Artist
-  active_until?: string
   services?: ArtistService[]
   inquiry?: { id: number }
   error?: string

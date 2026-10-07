@@ -54,6 +54,6 @@ export async function activateInquiryFormLink(supabase: SupabaseClient, userId: 
   }
 }
 
-export function isInquiryFormActive(_activeUntil?: string | null) {
+export function isInquiryFormActive() {
   return true
 }

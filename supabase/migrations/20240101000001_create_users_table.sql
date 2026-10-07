@@ -26,13 +26,11 @@ create table if not exists public.users (
   is_test_user boolean default false,
   is_free_user boolean default false,
   inquiry_form_code varchar(12) not null default public.generate_inquiry_form_code(),
-  inquiry_form_active_until timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 create unique index if not exists users_inquiry_form_code_key on public.users(inquiry_form_code);
-create index if not exists users_inquiry_form_active_until_idx on public.users(inquiry_form_active_until);
 
 create or replace function public.set_updated_at()
 returns trigger as $$

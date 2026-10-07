@@ -62,7 +62,6 @@ type InquiriesResponse = {
 
 type FormLinkResponse = {
   code?: string
-  active_until?: string | null
   is_active?: boolean
   error?: string
 }
