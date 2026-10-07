@@ -115,19 +115,40 @@ export async function getOrCreateQuota(
   supabase: SupabaseClient,
   userId: number
 ): Promise<PortfolioStorageQuotaRow> {
+  const numUserId = Number(userId)
+
+  // Check if the user has free user status (100MB storage)
+  const { data: user } = await supabase
+    .from("users")
+    .select("is_free_user")
+    .eq("id", numUserId)
+    .maybeSingle()
+
+  const isFree = Boolean(user?.is_free_user)
+  const targetFreeBytes = isFree ? 100 * 1024 * 1024 : STORAGE_FREE_TIER_BYTES
+
   const { data: existing } = await supabase
     .from("portfolio_storage_quotas")
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", numUserId)
     .maybeSingle()
 
   if (existing) {
-    if (Number(existing.free_storage_bytes || 0) < STORAGE_FREE_TIER_BYTES) {
+    if (isFree && Number(existing.free_storage_bytes || 0) < targetFreeBytes) {
+      await supabase
+        .from("portfolio_storage_quotas")
+        .update({ free_storage_bytes: targetFreeBytes })
+        .eq("id", existing.id)
+      existing.free_storage_bytes = targetFreeBytes
+    } else if (!isFree && Number(existing.free_storage_bytes || 0) < STORAGE_FREE_TIER_BYTES) {
       await supabase
         .from("portfolio_storage_quotas")
         .update({ free_storage_bytes: STORAGE_FREE_TIER_BYTES })
         .eq("id", existing.id)
       existing.free_storage_bytes = STORAGE_FREE_TIER_BYTES
+    }
+    if (isFree) {
+      existing.free_storage_bytes = Math.max(Number(existing.free_storage_bytes || 0), targetFreeBytes)
     }
     return existing as PortfolioStorageQuotaRow
   }
@@ -135,13 +156,26 @@ export async function getOrCreateQuota(
   const { data, error } = await supabase
     .from("portfolio_storage_quotas")
     .insert({
-      user_id: userId,
-      free_storage_bytes: STORAGE_FREE_TIER_BYTES,
+      user_id: numUserId,
+      free_storage_bytes: targetFreeBytes,
     })
     .select("*")
     .single()
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    const { data: retry } = await supabase
+      .from("portfolio_storage_quotas")
+      .select("*")
+      .eq("user_id", numUserId)
+      .maybeSingle()
+    if (retry) {
+      if (isFree) {
+        retry.free_storage_bytes = Math.max(Number(retry.free_storage_bytes || 0), targetFreeBytes)
+      }
+      return retry as PortfolioStorageQuotaRow
+    }
+    throw new Error(error.message)
+  }
   return data as PortfolioStorageQuotaRow
 }
 

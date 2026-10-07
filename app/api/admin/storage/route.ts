@@ -9,7 +9,7 @@ export async function GET() {
     const { data: users, error } = await supabase
       .from("users")
       .select(`
-        id, artist_name, studio_name, phone, email,
+        id, artist_name, studio_name, phone, email, is_free_user,
         portfolio_storage_quotas (free_storage_bytes, purchase_storage_bytes, used_storage_bytes),
         portfolio_storage_purchases (
           id, storage_bytes, base_amount, amount, status, created_at, payment_method, quantity,
@@ -47,7 +47,9 @@ export async function GET() {
           email: user.email
         },
         storage: {
-          free: Math.max(Number(finalQuota.free_storage_bytes || 0), STORAGE_FREE_TIER_BYTES),
+          free: user.is_free_user
+            ? 100 * 1024 * 1024
+            : Math.max(Number(finalQuota.free_storage_bytes || 0), STORAGE_FREE_TIER_BYTES),
           purchased: Number(finalQuota.purchase_storage_bytes || 0),
           used: Number(finalQuota.used_storage_bytes || 0)
         },

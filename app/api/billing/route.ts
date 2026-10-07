@@ -46,18 +46,28 @@ export async function GET(request: NextRequest) {
       // Mock subscription for free user
       subscriptionRow = {
         id: -1,
+        user_id: userId,
+        platform_subscription_id: -1,
         status: "active",
+        current_period_start: null,
         current_period_end: null,
         next_billing_at: null,
         platform_subscriptions: {
           id: -1,
           name: "ArtistOS Lifetime (Free)",
-          description: "Complimentary platform access for free accounts.",
+          description: "Complimentary platform access for free accounts with 100 MB cloud storage and automated WhatsApp messaging.",
           amount_inr: 0,
           compare_at_amount_inr: null,
           discount_percentage: null,
-          billing_period: "",
-          features: ["Unlimited Platform Access", "Free Account Privileges"],
+          billing_period: "Lifetime",
+          storage_quota_mb: 100,
+          has_whatsapp_automation: true,
+          features: [
+            "Unlimited Platform Access",
+            "100 MB Cloud Storage",
+            "Automated WhatsApp Messages Active",
+            "Complimentary Full Access"
+          ],
           is_featured: true,
           is_active: true
         }

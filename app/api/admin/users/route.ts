@@ -104,7 +104,9 @@ export async function GET() {
           services_offered
         },
         storage: {
-          free_quota: Math.max(Number(finalQuota.free_storage_bytes || 0), STORAGE_FREE_TIER_BYTES),
+          free_quota: user.is_free_user
+            ? 100 * 1024 * 1024
+            : Math.max(Number(finalQuota.free_storage_bytes || 0), STORAGE_FREE_TIER_BYTES),
           purchased_quota: Number(finalQuota.purchase_storage_bytes || 0),
           used: Number(finalQuota.used_storage_bytes || 0),
           active_plans,
@@ -143,7 +145,20 @@ export async function PATCH(request: Request) {
 
     const updates: Record<string, boolean> = {}
     if (typeof is_test_user === 'boolean') updates.is_test_user = is_test_user
-    if (typeof is_free_user === 'boolean') updates.is_free_user = is_free_user
+    if (typeof is_free_user === 'boolean') {
+      updates.is_free_user = is_free_user
+      // Automatically sync portfolio storage quota to 100MB (free user) or 10MB
+      const targetQuotaBytes = is_free_user ? 100 * 1024 * 1024 : 10 * 1024 * 1024
+      await supabase
+        .from("portfolio_storage_quotas")
+        .upsert(
+          {
+            user_id: id,
+            free_storage_bytes: targetQuotaBytes,
+          },
+          { onConflict: "user_id" }
+        )
+    }
 
     const { data, error } = await supabase
       .from("users")

@@ -49,10 +49,13 @@ export async function getUserPlanFeatures(
       }
     }
 
-    const { data: user, error: userError } = await fromUsers
+    const numUserId = Number(userId)
+    const userQuery = fromUsers
       .select("created_at, is_free_user")
-      .eq("id", userId)
-      .single()
+      .eq("id", numUserId)
+    const { data: user, error: userError } = typeof (userQuery as any).maybeSingle === "function"
+      ? await (userQuery as any).maybeSingle()
+      : await (userQuery as any).single()
 
     const now = new Date()
     const msPerDay = 1000 * 60 * 60 * 24
@@ -75,6 +78,8 @@ export async function getUserPlanFeatures(
 
     // 1. Free Users bypass all restrictions (Full access: 100MB storage, WhatsApp automation, no billing required)
     if (user.is_free_user) {
+      // Opportunistically ensure storage quota row has 100 MB
+      syncUserStorageQuota(supabase, numUserId, PRO_STORAGE_BYTES).catch(() => {})
       return {
         planTier: "free",
         planName: "ArtistOS Lifetime (Free)",

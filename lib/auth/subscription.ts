@@ -6,12 +6,15 @@ const FREE_TRIAL_DAYS = 30
  * Checks if a user has an active subscription or is within their free trial.
  * If neither, they are in read-only mode and this function will return true (isReadOnly = true).
  */
-export async function checkIsReadOnly(supabase: SupabaseClient, userId: number): Promise<boolean> {
-  const { data: user, error: userError } = await supabase
+export async function checkIsReadOnly(supabase: SupabaseClient, userId: number | string): Promise<boolean> {
+  const numUserId = Number(userId)
+  const userQuery = supabase
     .from("users")
     .select("created_at, is_free_user")
-    .eq("id", userId)
-    .single()
+    .eq("id", numUserId)
+  const { data: user, error: userError } = typeof (userQuery as any).maybeSingle === "function"
+    ? await (userQuery as any).maybeSingle()
+    : await (userQuery as any).single()
 
   if (userError || !user) return true // default to restricted if user not found
   if (user.is_free_user) return false // free users bypass read-only mode
