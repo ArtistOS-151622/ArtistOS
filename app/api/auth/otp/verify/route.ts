@@ -4,6 +4,8 @@ import {
   verifyOtpInDatabase,
   verifyOtpStateToken,
   createRegistrationToken,
+  isTestPhoneNumber,
+  TEST_OTP_CODE,
 } from "@/lib/auth/otp"
 import { createArtistToken, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/session"
 
@@ -33,19 +35,27 @@ export async function POST(request: Request) {
     let isValidOtp = false
     let failureReason: string | undefined
 
-    // First attempt DB verification
-    const dbResult = await verifyOtpInDatabase(cleanPhone, otp)
-    if (dbResult.valid) {
-      isValidOtp = true
-    } else if (dbResult.reason !== "db_error") {
-      failureReason = dbResult.reason
-    }
-
-    // If DB check failed or wasn't available, check the signed fallback stateToken
-    if (!isValidOtp && stateToken) {
-      if (verifyOtpStateToken(stateToken, cleanPhone, otp)) {
+    if (isTestPhoneNumber(cleanPhone)) {
+      if (otp === TEST_OTP_CODE) {
         isValidOtp = true
-        failureReason = undefined
+      } else {
+        failureReason = "Invalid or expired OTP. Please check the code and try again."
+      }
+    } else {
+      // First attempt DB verification
+      const dbResult = await verifyOtpInDatabase(cleanPhone, otp)
+      if (dbResult.valid) {
+        isValidOtp = true
+      } else if (dbResult.reason !== "db_error") {
+        failureReason = dbResult.reason
+      }
+
+      // If DB check failed or wasn't available, check the signed fallback stateToken
+      if (!isValidOtp && stateToken) {
+        if (verifyOtpStateToken(stateToken, cleanPhone, otp)) {
+          isValidOtp = true
+          failureReason = undefined
+        }
       }
     }
 
@@ -74,6 +84,13 @@ export async function POST(request: Request) {
 
     // Case A: User exists with complete artist profile -> log them straight in
     if (user && user.artist_name && user.studio_name) {
+      if (isTestPhoneNumber(cleanPhone) && !user.is_test_user) {
+        await supabase
+          .from("users")
+          .update({ is_test_user: true })
+          .eq("id", user.id)
+      }
+
       const sessionData = {
         id: user.id,
         phone: user.phone,

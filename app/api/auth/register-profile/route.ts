@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createHash, randomBytes } from "crypto"
-import { verifyRegistrationToken } from "@/lib/auth/otp"
+import { verifyRegistrationToken, isTestPhoneNumber } from "@/lib/auth/otp"
 import { STORAGE_FREE_TIER_BYTES } from "@/lib/portfolio/config"
 import { createArtistToken, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/session"
 
@@ -54,6 +54,7 @@ export async function POST(request: Request) {
           studio_name: studioName.trim(),
           address: address.trim(),
           email: email?.trim() || null,
+          ...(isTestPhoneNumber(phone) ? { is_test_user: true } : {}),
         })
         .eq("id", existingUser.id)
         .select()
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
           studio_name: studioName.trim(),
           address: address.trim(),
           email: email?.trim() || null,
+          ...(isTestPhoneNumber(phone) ? { is_test_user: true } : {}),
         })
         .select()
         .single()
