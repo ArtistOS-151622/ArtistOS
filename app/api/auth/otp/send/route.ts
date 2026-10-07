@@ -7,8 +7,6 @@ import {
   persistOtpInDatabase,
   OTP_COOLDOWN_SECONDS,
   OTP_EXPIRY_MINUTES,
-  isTestPhoneNumber,
-  TEST_OTP_CODE,
 } from "@/lib/auth/otp"
 
 export async function POST(request: Request) {
@@ -24,31 +22,26 @@ export async function POST(request: Request) {
       )
     }
 
-    const isTest = isTestPhoneNumber(cleanPhone)
-    const otp = isTest ? TEST_OTP_CODE : generate6DigitOtp()
+    const otp = generate6DigitOtp()
     const otpHash = hashOtp(otp)
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000)
 
     // Save to database
     await persistOtpInDatabase(cleanPhone, otpHash, expiresAt)
 
-    // Dispatch WhatsApp message only for non-test numbers
-    if (!isTest) {
-      const sendResult = await sendOtpToWhatsApp(cleanPhone, otp)
+    // Dispatch WhatsApp message
+    const sendResult = await sendOtpToWhatsApp(cleanPhone, otp)
 
-      if (!sendResult.success) {
-        console.error("[OTP Send] WhatsApp delivery failed:", sendResult.error)
-        return NextResponse.json(
-          {
-            error:
-              sendResult.error ||
-              "Failed to send OTP via WhatsApp. Please ensure your WhatsApp number is active and try again.",
-          },
-          { status: 500 }
-        )
-      }
-    } else {
-      console.log(`[OTP Send] Test account detected (${cleanPhone}). Skipping WhatsApp dispatch; test OTP is ${TEST_OTP_CODE}.`)
+    if (!sendResult.success) {
+      console.error("[OTP Send] WhatsApp delivery failed:", sendResult.error)
+      return NextResponse.json(
+        {
+          error:
+            sendResult.error ||
+            "Failed to send OTP via WhatsApp. Please ensure your WhatsApp number is active and try again.",
+        },
+        { status: 500 }
+      )
     }
 
     const stateToken = createOtpStateToken(cleanPhone, otpHash, expiresAt.getTime())

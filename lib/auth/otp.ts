@@ -6,14 +6,6 @@ const OTP_EXPIRY_MINUTES = 10
 const OTP_COOLDOWN_SECONDS = 30
 const MAX_OTP_ATTEMPTS = 5
 
-export const TEST_PHONE_NUMBERS = ["9999999999", "6354870709"] as const
-export const TEST_OTP_CODE = "123456"
-
-export function isTestPhoneNumber(phone: string): boolean {
-  if (!phone) return false
-  const clean = phone.replace(/\D/g, "").slice(-10)
-  return (TEST_PHONE_NUMBERS as readonly string[]).includes(clean)
-}
 
 function getAuthSecret(): string {
   const secret =
@@ -115,11 +107,6 @@ export async function sendOtpToWhatsApp(phone: string, otp: string): Promise<Wha
     return { success: false, error: "Invalid mobile number" }
   }
 
-  // Bypass WhatsApp dispatch for test accounts
-  if (isTestPhoneNumber(phone)) {
-    console.log(`[WhatsApp OTP] Skipping WhatsApp dispatch for test account: ${formattedPhone} (OTP: ${otp})`)
-    return { success: true }
-  }
 
   // Exact parameter requirement: "your OTP is: {{actual otp}}"
   const customerNameParam = `your OTP is: ${otp}`
