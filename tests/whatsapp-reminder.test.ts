@@ -83,6 +83,19 @@ test("scanCustomerWhatsAppReminders filters and sends 24h reminders using mock c
       booking_services: [],
       booking_additional_charges: [],
     },
+    {
+      id: 204,
+      user_id: 1,
+      customer_id: 13,
+      booking_date: bTomorrow23h.date,
+      start_time: bTomorrow23h.time,
+      status: "pending",
+      discount: 0,
+      customer: { customer_name: "David", phone: "9876543213" },
+      artist: { artist_name: "Maya Art", studio_name: "Maya Studio" },
+      booking_services: [],
+      booking_additional_charges: [],
+    },
   ]
 
   const sentLogs: Array<Record<string, unknown>> = []
@@ -92,16 +105,28 @@ test("scanCustomerWhatsAppReminders filters and sends 24h reminders using mock c
       if (table === "bookings") {
         return {
           select: () => ({
+            eq: (col: string, val: unknown) => {
+              if (col === "status") {
+                return {
+                  gte: () => ({
+                    lte: async () => ({
+                      data: mockBookings.filter((item) => item.status === val),
+                      error: null,
+                    }),
+                  }),
+                }
+              }
+              return {
+                maybeSingle: async () => {
+                  const b = mockBookings.find((item) => item.id === Number(val))
+                  return { data: b || null, error: null }
+                },
+              }
+            },
             in: () => ({
               gte: () => ({
                 lte: async () => ({ data: mockBookings, error: null }),
               }),
-            }),
-            eq: (col: string, val: unknown) => ({
-              maybeSingle: async () => {
-                const b = mockBookings.find((item) => item.id === Number(val))
-                return { data: b || null, error: null }
-              },
             }),
           }),
         }
@@ -142,6 +167,7 @@ test("scanCustomerWhatsAppReminders filters and sends 24h reminders using mock c
 
   const result = await scanCustomerWhatsAppReminders(mockSupabase)
 
+  // Booking 204 is pending, so only the 3 confirmed bookings should be scanned
   assert.equal(result.scanned, 3)
   // Booking 201 should be processed (will attempt send)
   // Booking 202 is >24h away -> skipped

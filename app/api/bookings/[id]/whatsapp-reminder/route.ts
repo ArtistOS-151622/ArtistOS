@@ -34,6 +34,13 @@ export async function POST(
     return NextResponse.json({ error: "Booking not found" }, { status: 404 })
   }
 
+  if (booking.status !== "confirmed") {
+    return NextResponse.json(
+      { error: "WhatsApp reminder can only be sent for confirmed bookings." },
+      { status: 400 }
+    )
+  }
+
   const result = await sendBookingNotificationWhatsApp(id, "reminder_24h", supabase)
 
   if (!result.success) {

@@ -126,6 +126,17 @@ export async function sendBookingNotificationWhatsApp(
       trigger === "one_day_reminder" ||
       trigger === "one_day_reminder_to_customer"
 
+    // 24-hour reminders should only be sent for confirmed bookings
+    if (isOneDayReminder && booking.status !== "confirmed") {
+      console.log(
+        `[WhatsApp] Booking #${bookingId} is not confirmed (status: "${booking.status}"). Skipping 24h reminder.`
+      )
+      return {
+        success: false,
+        error: "24-hour reminder can only be sent for confirmed bookings.",
+      }
+    }
+
     const isConfirmed = trigger === "confirmed" || booking.status === "confirmed"
 
     const templateName = isOneDayReminder
@@ -302,7 +313,7 @@ export async function scanCustomerWhatsAppReminders(
   const lookahead = new Date(now.getTime() + 48 * 60 * 60 * 1000)
   const lookaheadLocal = toWallClock(lookahead, APP_TIMEZONE)
 
-  // Bookings with dates starting tomorrow up to lookahead window
+  // Only scan confirmed bookings occurring tomorrow up to lookahead window
   const { data: bookings, error } = await supabase
     .from("bookings")
     .select(`
@@ -313,7 +324,7 @@ export async function scanCustomerWhatsAppReminders(
       start_time,
       status
     `)
-    .in("status", ["pending", "confirmed"])
+    .eq("status", "confirmed")
     .gte("booking_date", tomorrowLocal.date)
     .lte("booking_date", lookaheadLocal.date)
 
@@ -335,6 +346,17 @@ export async function scanCustomerWhatsAppReminders(
   }
 
   for (const booking of bookings) {
+    // Only send for confirmed bookings
+    if (booking.status !== "confirmed") {
+      result.skipped += 1
+      result.details?.push({
+        bookingId: booking.id,
+        status: "skipped",
+        reason: "Booking is not confirmed",
+      })
+      continue
+    }
+
     // Only send if the booking is strictly tomorrow (or future date, not today or past)
     if (booking.booking_date <= nowLocal.date) {
       result.skipped += 1
