@@ -204,44 +204,9 @@ export interface VerifyOtpResult {
   attemptsRemaining?: number
 }
 
-interface MemoryLockoutRecord {
-  sendCount: number
-  lockedUntil: number | null
-  lastSentAt: number
-  attempts: number
-}
-
-// In-memory fallback tracking so limits work reliably across requests
-const memoryLockoutStore = new Map<string, MemoryLockoutRecord>()
-
-function getMemoryLockout(phone: string): MemoryLockoutRecord {
-  const existing = memoryLockoutStore.get(phone)
-  if (existing) {
-    // If 1 hour passed since last session, reset window
-    if (Date.now() - existing.lastSentAt > LOCKOUT_DURATION_MS) {
-      const resetRecord: MemoryLockoutRecord = {
-        sendCount: 0,
-        lockedUntil: null,
-        lastSentAt: Date.now(),
-        attempts: 0,
-      }
-      memoryLockoutStore.set(phone, resetRecord)
-      return resetRecord
-    }
-    return existing
-  }
-  const fresh: MemoryLockoutRecord = {
-    sendCount: 0,
-    lockedUntil: null,
-    lastSentAt: Date.now(),
-    attempts: 0,
-  }
-  memoryLockoutStore.set(phone, fresh)
-  return fresh
-}
 
 /**
- * Checks if a phone number is locked or has reached maximum sends
+ * Checks if a phone number is locked or has reached maximum sends directly from database.
  */
 export async function checkPhoneLockoutStatus(phone: string): Promise<{
   isLocked: boolean
@@ -250,62 +215,59 @@ export async function checkPhoneLockoutStatus(phone: string): Promise<{
   canResend: boolean
 }> {
   const clean = phone.replace(/\D/g, "").slice(-10)
-  const mem = getMemoryLockout(clean)
-
-  if (mem.lockedUntil && mem.lockedUntil > Date.now()) {
-    const minutesLeft = Math.max(1, Math.ceil((mem.lockedUntil - Date.now()) / (60 * 1000)))
-    return { isLocked: true, minutesLeft, sendCount: mem.sendCount, canResend: false }
-  }
 
   try {
     const supabase = createAdminClient()
-    const { data: record } = await supabase
+    const { data: record, error } = await supabase
       .from("whatsapp_otps")
-      .select("*")
+      .select("send_count, locked_until, last_sent_at")
       .eq("phone", clean)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
 
-    if (record) {
-      if (record.locked_until && new Date(record.locked_until).getTime() > Date.now()) {
-        const lockMs = new Date(record.locked_until).getTime()
-        mem.lockedUntil = lockMs
-        const minutesLeft = Math.max(1, Math.ceil((lockMs - Date.now()) / (60 * 1000)))
-        return { isLocked: true, minutesLeft, sendCount: record.send_count || 2, canResend: false }
-      }
-
-      const lastSentMs = new Date(record.last_sent_at || record.created_at).getTime()
-      if (Date.now() - lastSentMs > LOCKOUT_DURATION_MS) {
-        mem.sendCount = 0
-        mem.lockedUntil = null
-        return { isLocked: false, sendCount: 0, canResend: true }
-      }
-
-      const sendCount = typeof record.send_count === "number" ? record.send_count : mem.sendCount
-      return {
-        isLocked: false,
-        sendCount,
-        canResend: sendCount < MAX_OTP_SENDS,
-      }
+    if (error || !record) {
+      return { isLocked: false, sendCount: 0, canResend: true }
     }
-  } catch (err) {
-    console.warn("[OTP DB] Error checking lockout status in DB:", err)
-  }
 
-  return {
-    isLocked: false,
-    sendCount: mem.sendCount,
-    canResend: mem.sendCount < MAX_OTP_SENDS,
+    if (record.locked_until && new Date(record.locked_until).getTime() > Date.now()) {
+      const lockMs = new Date(record.locked_until).getTime()
+      const minutesLeft = Math.max(1, Math.ceil((lockMs - Date.now()) / (60 * 1000)))
+      return { isLocked: true, minutesLeft, sendCount: record.send_count || 2, canResend: false }
+    }
+
+    const lastSentMs = new Date(record.last_sent_at || Date.now()).getTime()
+    if (Date.now() - lastSentMs > LOCKOUT_DURATION_MS) {
+      return { isLocked: false, sendCount: 0, canResend: true }
+    }
+
+    const sendCount = typeof record.send_count === "number" ? record.send_count : 1
+    return {
+      isLocked: false,
+      sendCount,
+      canResend: sendCount < MAX_OTP_SENDS,
+    }
+  } catch {
+    return { isLocked: false, sendCount: 0, canResend: true }
   }
+}
+
+export async function clearPhoneLockout(phone: string): Promise<void> {
+  const clean = phone.replace(/\D/g, "").slice(-10)
+  try {
+    const supabase = createAdminClient()
+    await supabase.from("whatsapp_otps").delete().eq("phone", clean)
+  } catch {}
 }
 
 /**
  * Saves/updates generated OTP in Supabase whatsapp_otps table using UPDATE / UPSERT.
+ * 100% Database-driven. Zero in-memory state.
  * Enforces:
- * 1. 1-hour lockout if locked.
- * 2. Max 2 OTP sends per 1-hour window.
- * 3. Updates single record per phone number.
+ * 1. Database is the SOLE source of truth (clearing or deleting DB row immediately resets status).
+ * 2. 1-hour lockout if locked_until > now().
+ * 3. Max 2 OTP sends per 1-hour window (1 initial send + 1 resend).
+ * 4. Single row per phone number (updates existing record, clears duplicates if any).
  */
 export async function persistOtpInDatabase(
   phone: string,
@@ -313,59 +275,27 @@ export async function persistOtpInDatabase(
   expiresAt: Date
 ): Promise<PersistOtpResult> {
   const clean = phone.replace(/\D/g, "").slice(-10)
-  const mem = getMemoryLockout(clean)
-
-  // 1. Check if currently locked for 1 hour
-  if (mem.lockedUntil && mem.lockedUntil > Date.now()) {
-    const minutesLeft = Math.max(1, Math.ceil((mem.lockedUntil - Date.now()) / (60 * 1000)))
-    return {
-      success: false,
-      isLocked: true,
-      lockedUntil: new Date(mem.lockedUntil),
-      sendCount: mem.sendCount,
-      canResend: false,
-      error: `This mobile number is locked for 1 hour due to multiple failed attempts. Please contact admin or try after ${minutesLeft} minute(s).`,
-    }
-  }
-
-  // 2. Check 1-hour send window reset
-  if (Date.now() - mem.lastSentAt > LOCKOUT_DURATION_MS) {
-    mem.sendCount = 0
-    mem.lockedUntil = null
-    mem.attempts = 0
-  }
-
-  // 3. Enforce maximum 2 OTP sends
-  if (mem.sendCount >= MAX_OTP_SENDS) {
-    return {
-      success: false,
-      isLocked: false,
-      sendCount: mem.sendCount,
-      canResend: false,
-      error: "Maximum OTP requests reached (2/2). Please contact admin or try again after 1 hour.",
-    }
-  }
-
-  const nextSendCount = mem.sendCount + 1
-  const canResendNext = nextSendCount < MAX_OTP_SENDS
 
   try {
     const supabase = createAdminClient()
 
-    // Find any existing records for this phone number
-    const { data: existingRecords } = await supabase
+    // Query Supabase directly (DB is the sole source of truth)
+    const { data: existingRecords, error: queryErr } = await supabase
       .from("whatsapp_otps")
       .select("id, send_count, locked_until, last_sent_at, attempts")
       .eq("phone", clean)
       .order("created_at", { ascending: false })
 
+    if (queryErr) {
+      console.warn("[OTP DB] Error querying whatsapp_otps:", queryErr.message)
+    }
+
     if (existingRecords && existingRecords.length > 0) {
       const primaryRecord = existingRecords[0]
 
-      // Check DB-level lockout
+      // 1. Check DB-level lockout
       if (primaryRecord.locked_until && new Date(primaryRecord.locked_until).getTime() > Date.now()) {
         const lockMs = new Date(primaryRecord.locked_until).getTime()
-        mem.lockedUntil = lockMs
         const minutesLeft = Math.max(1, Math.ceil((lockMs - Date.now()) / (60 * 1000)))
         return {
           success: false,
@@ -377,11 +307,11 @@ export async function persistOtpInDatabase(
         }
       }
 
-      // Check DB-level send count window
+      // 2. Check 1-hour window for send_count
       const lastSentMs = new Date(primaryRecord.last_sent_at || Date.now()).getTime()
-      let dbSendCount = primaryRecord.send_count ?? mem.sendCount
+      let dbSendCount = typeof primaryRecord.send_count === "number" ? primaryRecord.send_count : 0
       if (Date.now() - lastSentMs > LOCKOUT_DURATION_MS) {
-        dbSendCount = 0
+        dbSendCount = 0 // 1 hour has passed, reset counter
       }
 
       if (dbSendCount >= MAX_OTP_SENDS) {
@@ -394,9 +324,9 @@ export async function persistOtpInDatabase(
         }
       }
 
-      const finalSendCount = Math.max(nextSendCount, dbSendCount + 1)
+      const finalSendCount = dbSendCount + 1
 
-      // Try updating existing record with all columns
+      // 3. Update existing record
       const fullUpdate = {
         otp_hash: otpHash,
         expires_at: expiresAt.toISOString(),
@@ -413,7 +343,6 @@ export async function persistOtpInDatabase(
         .eq("id", primaryRecord.id)
 
       if (updateErr) {
-        // Fallback for when migrations haven't added send_count / locked_until columns yet
         console.warn("[OTP DB] Update with extended columns failed, falling back to base columns:", updateErr.message)
         await supabase
           .from("whatsapp_otps")
@@ -432,12 +361,6 @@ export async function persistOtpInDatabase(
         await supabase.from("whatsapp_otps").delete().in("id", duplicateIds)
       }
 
-      // Sync memory state
-      mem.sendCount = finalSendCount
-      mem.lastSentAt = Date.now()
-      mem.lockedUntil = null
-      mem.attempts = 0
-
       return {
         success: true,
         sendCount: finalSendCount,
@@ -445,6 +368,7 @@ export async function persistOtpInDatabase(
       }
     } else {
       // First time insert for this phone
+      const nextSendCount = 1
       const fullInsert = {
         phone: clean,
         otp_hash: otpHash,
@@ -459,7 +383,6 @@ export async function persistOtpInDatabase(
       const { error: insertErr } = await supabase.from("whatsapp_otps").insert(fullInsert)
 
       if (insertErr) {
-        // Fallback to base columns if migration columns not added yet
         console.warn("[OTP DB] Insert with extended columns failed, falling back to base columns:", insertErr.message)
         await supabase.from("whatsapp_otps").insert({
           phone: clean,
@@ -470,58 +393,37 @@ export async function persistOtpInDatabase(
         })
       }
 
-      mem.sendCount = nextSendCount
-      mem.lastSentAt = Date.now()
-      mem.lockedUntil = null
-      mem.attempts = 0
-
       return {
         success: true,
         sendCount: nextSendCount,
-        canResend: canResendNext,
+        canResend: true,
       }
     }
   } catch (err: unknown) {
-    console.warn("[OTP DB] Error accessing Supabase for whatsapp_otps:", err)
-    // Memory store still recorded the send
-    mem.sendCount = nextSendCount
-    mem.lastSentAt = Date.now()
-    mem.lockedUntil = null
-    mem.attempts = 0
-
+    console.error("[OTP DB] Error accessing Supabase for whatsapp_otps:", err)
     return {
-      success: true,
-      sendCount: nextSendCount,
-      canResend: canResendNext,
+      success: false,
+      error: "Database error while storing OTP. Please try again.",
+      sendCount: 0,
+      canResend: false,
     }
   }
 }
 
 /**
- * Verifies OTP against Supabase whatsapp_otps table.
+ * Verifies OTP strictly against Supabase whatsapp_otps table.
+ * 100% Database-driven. Zero in-memory state.
  * Enforces:
- * 1. 1-hour lockout check.
+ * 1. 1-hour lockout check from DB locked_until.
  * 2. Max 3 attempts per OTP code.
  * 3. If OTP #1 fails 3 times -> disables OTP and requires Resend.
- * 4. If OTP #2 fails 3 times -> locks phone number for 1 hour.
+ * 4. If OTP #2 fails 3 times -> locks phone number for 1 hour in DB.
  */
 export async function verifyOtpInDatabase(
   phone: string,
   otp: string
 ): Promise<VerifyOtpResult> {
   const clean = phone.replace(/\D/g, "").slice(-10)
-  const mem = getMemoryLockout(clean)
-
-  // 1. Check in-memory 1-hour lockout
-  if (mem.lockedUntil && mem.lockedUntil > Date.now()) {
-    const minutesLeft = Math.max(1, Math.ceil((mem.lockedUntil - Date.now()) / (60 * 1000)))
-    return {
-      valid: false,
-      isLocked: true,
-      reason: `This mobile number is locked for 1 hour due to multiple failed attempts. Please contact admin or try after ${minutesLeft} minute(s).`,
-      attemptsRemaining: 0,
-    }
-  }
 
   try {
     const supabase = createAdminClient()
@@ -535,17 +437,16 @@ export async function verifyOtpInDatabase(
 
     if (error) {
       console.warn("[OTP DB] Query failed:", error.message)
-      return { valid: false, reason: "db_error" }
+      return { valid: false, reason: "Database error. Please try again." }
     }
 
     if (!record) {
       return { valid: false, reason: "No active OTP found. Please request a new OTP." }
     }
 
-    // Check DB-level lockout
+    // 1. Check DB-level lockout
     if (record.locked_until && new Date(record.locked_until).getTime() > Date.now()) {
       const lockMs = new Date(record.locked_until).getTime()
-      mem.lockedUntil = lockMs
       const minutesLeft = Math.max(1, Math.ceil((lockMs - Date.now()) / (60 * 1000)))
       return {
         valid: false,
@@ -555,20 +456,24 @@ export async function verifyOtpInDatabase(
       }
     }
 
-    // Check expiry
+    // 2. Check expiry
     if (new Date(record.expires_at).getTime() < Date.now()) {
       return { valid: false, reason: "OTP has expired. Please request a new one." }
     }
 
-    const currentSendCount = typeof record.send_count === "number" ? record.send_count : Math.max(1, mem.sendCount)
-    const currentAttempts = typeof record.attempts === "number" ? record.attempts : mem.attempts
+    const currentSendCount = typeof record.send_count === "number" ? record.send_count : 1
+    const currentAttempts = typeof record.attempts === "number" ? record.attempts : 0
 
-    // Check if attempts already reached limit on this OTP
+    // 3. Check if attempts already reached limit on this OTP
     if (currentAttempts >= MAX_ATTEMPTS_PER_OTP) {
       if (currentSendCount >= MAX_OTP_SENDS) {
-        // Already exhausted 2nd OTP -> 1 hour lockout
-        const lockUntilMs = Date.now() + LOCKOUT_DURATION_MS
-        mem.lockedUntil = lockUntilMs
+        // Already exhausted 2nd OTP -> 1 hour lockout in DB
+        const lockUntil = new Date(Date.now() + LOCKOUT_DURATION_MS)
+        await supabase
+          .from("whatsapp_otps")
+          .update({ locked_until: lockUntil.toISOString() })
+          .eq("id", record.id)
+
         return {
           valid: false,
           isLocked: true,
@@ -588,18 +493,15 @@ export async function verifyOtpInDatabase(
 
     const inputHash = hashOtp(otp)
 
-    // Compare Hash
+    // 4. Compare Hash
     if (inputHash !== record.otp_hash) {
       const newAttempts = currentAttempts + 1
-      mem.attempts = newAttempts
 
       if (newAttempts >= MAX_ATTEMPTS_PER_OTP) {
         if (currentSendCount >= MAX_OTP_SENDS) {
-          // BOTH OTPs exhausted all 3 attempts! LOCK NUMBER FOR 1 HOUR!
+          // BOTH OTPs exhausted all 3 attempts! LOCK NUMBER FOR 1 HOUR IN DB!
           const lockUntil = new Date(Date.now() + LOCKOUT_DURATION_MS)
-          mem.lockedUntil = lockUntil.getTime()
 
-          // Update DB with lock
           try {
             await supabase
               .from("whatsapp_otps")
@@ -651,21 +553,20 @@ export async function verifyOtpInDatabase(
       }
     }
 
-    // Correct OTP verified!
-    mem.attempts = 0
-    mem.lockedUntil = null
+    // 5. Correct OTP verified!
     await supabase
       .from("whatsapp_otps")
       .update({
         verified: true,
         attempts: 0,
+        locked_until: null,
       })
       .eq("id", record.id)
 
     return { valid: true }
   } catch (err) {
     console.warn("[OTP DB] Exception verifying in DB:", err)
-    return { valid: false, reason: "db_error" }
+    return { valid: false, reason: "Database error during verification. Please try again." }
   }
 }
 
