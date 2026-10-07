@@ -53,6 +53,10 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
   const [otp, setOtp] = useState("")
   const [stateToken, setStateToken] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
+  const [sendCount, setSendCount] = useState(0)
+  const [canResend, setCanResend] = useState(true)
+  const [isLocked, setIsLocked] = useState(false)
+  const [needsResend, setNeedsResend] = useState(false)
 
   // Step 3: Studio Details (for new artists)
   const [registrationToken, setRegistrationToken] = useState<string | null>(null)
@@ -111,11 +115,17 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
 
       if (!res.ok) {
         setError(data.error || "Failed to send OTP via WhatsApp. Please try again.")
+        if (data.isLocked) setIsLocked(true)
+        if (data.canResend === false) setCanResend(false)
         return
       }
 
       setStateToken(data.stateToken || null)
       setCooldown(data.cooldownSeconds || 30)
+      setSendCount(data.sendCount || 1)
+      setCanResend(data.canResend ?? true)
+      setIsLocked(false)
+      setNeedsResend(false)
       setOtp("")
       setStep("otp")
     } catch {
@@ -127,6 +137,7 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
 
   // --- Step 2: Verify WhatsApp OTP ---
   async function handleVerifyOtp(otpValue?: string) {
+    if (isLocked || needsResend) return
     const codeToVerify = (otpValue ?? otp).trim()
     setError("")
 
@@ -152,6 +163,13 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
 
       if (!res.ok) {
         setError(data.error || "Invalid OTP. Please check the code received on WhatsApp.")
+        if (data.isLocked) {
+          setIsLocked(true)
+          setCanResend(false)
+        }
+        if (data.needsResend) {
+          setNeedsResend(true)
+        }
         return
       }
 
@@ -172,6 +190,7 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
 
   // Auto-submit OTP when 6 digits are typed
   function handleOtpChange(value: string) {
+    if (isLocked || needsResend) return
     const clean = value.replace(/\D/g, "").slice(0, 6)
     setOtp(clean)
     setError("")
@@ -395,7 +414,7 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
                       maxLength={6}
                       value={otp}
                       onChange={handleOtpChange}
-                      disabled={loading}
+                      disabled={loading || isLocked || needsResend}
                       containerClassName="gap-2 justify-center"
                     >
                       <InputOTPGroup className="gap-2">
@@ -403,13 +422,21 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
                           <InputOTPSlot
                             key={index}
                             index={index}
-                            className="size-12 rounded-xl border border-slate-200 text-lg font-bold text-[#15172e] shadow-sm transition-all focus-within:border-[#7c3aed] focus-within:ring-2 focus-within:ring-[#7c3aed]/20"
+                            className={`size-12 rounded-xl border text-lg font-bold shadow-sm transition-all ${
+                              isLocked || needsResend
+                                ? "border-red-200 bg-red-50/50 text-red-400 opacity-60"
+                                : "border-slate-200 text-[#15172e] focus-within:border-[#7c3aed] focus-within:ring-2 focus-within:ring-[#7c3aed]/20"
+                            }`}
                           />
                         ))}
                       </InputOTPGroup>
                     </InputOTP>
                     <p className="mt-3 text-xs text-[#777b95]">
-                      Enter the 6-digit code delivered to your WhatsApp
+                      {isLocked
+                        ? "Account locked due to 3 failed attempts."
+                        : needsResend
+                        ? "Current OTP disabled. Please resend to get a fresh code."
+                        : "Enter the 6-digit code delivered to your WhatsApp"}
                     </p>
                   </div>
 
@@ -422,7 +449,7 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
                   <Button
                     type="button"
                     onClick={() => handleVerifyOtp()}
-                    disabled={loading || otp.length !== 6}
+                    disabled={loading || otp.length !== 6 || isLocked || needsResend}
                     className="h-12 w-full justify-center rounded-2xl bg-[#7c3aed] text-base font-semibold text-white shadow-lg shadow-[#7c3aed]/25 hover:bg-[#6d28d9] disabled:opacity-50 transition-all"
                   >
                     {loading ? (
@@ -441,7 +468,15 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
 
                   {/* Resend OTP */}
                   <div className="pt-2 text-center">
-                    {cooldown > 0 ? (
+                    {isLocked ? (
+                      <div className="rounded-xl bg-red-50 p-2.5 text-xs font-semibold text-red-600 border border-red-200">
+                        🔒 Number locked for 1 hour. Please contact admin.
+                      </div>
+                    ) : !canResend ? (
+                      <p className="text-xs font-semibold text-slate-500">
+                        Maximum OTP limit reached (2/2). Try again after 1 hour or contact admin.
+                      </p>
+                    ) : cooldown > 0 ? (
                       <p className="text-xs font-medium text-[#777b95]">
                         Resend code via WhatsApp in{" "}
                         <span className="font-semibold text-[#7c3aed]">
@@ -452,11 +487,15 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
                       <button
                         type="button"
                         onClick={() => handleSendOtp()}
-                        disabled={loading}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#7c3aed] hover:underline disabled:opacity-50"
+                        disabled={loading || !canResend || isLocked}
+                        className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                          needsResend
+                            ? "px-3.5 py-2 rounded-xl bg-purple-600 text-white shadow-md shadow-purple-600/20 hover:bg-purple-700 animate-pulse"
+                            : "text-[#7c3aed] hover:underline"
+                        } disabled:opacity-50 transition-all`}
                       >
                         <RotateCcw className="size-3" />
-                        Resend OTP via WhatsApp
+                        {needsResend ? "Resend OTP Now (1 Resend Remaining)" : "Resend OTP via WhatsApp"}
                       </button>
                     )}
                   </div>

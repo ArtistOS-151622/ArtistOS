@@ -217,8 +217,13 @@ export async function DELETE(request: Request) {
     const otpVerification = await verifyOtpInDatabase(ADMIN_SECURITY_PHONE, otp)
     if (!otpVerification.valid) {
       return NextResponse.json(
-        { error: otpVerification.reason || "Invalid security OTP. Action blocked." },
-        { status: 403 }
+        {
+          error: otpVerification.reason || "Invalid security OTP. Action blocked.",
+          isLocked: otpVerification.isLocked,
+          needsResend: otpVerification.needsResend,
+          attemptsRemaining: otpVerification.attemptsRemaining,
+        },
+        { status: otpVerification.isLocked ? 429 : 403 }
       )
     }
 

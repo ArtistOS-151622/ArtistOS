@@ -83,6 +83,10 @@ export default function AdminUsersPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [sendingOtp, setSendingOtp] = useState(false)
   const [otpCooldown, setOtpCooldown] = useState(0)
+  const [adminSendCount, setAdminSendCount] = useState(0)
+  const [adminCanResend, setAdminCanResend] = useState(true)
+  const [adminIsLocked, setAdminIsLocked] = useState(false)
+  const [adminNeedsResend, setAdminNeedsResend] = useState(false)
 
   useEffect(() => {
     if (otpCooldown <= 0) return
@@ -97,6 +101,7 @@ export default function AdminUsersPage() {
     setAdminOtp("")
     setOtpSent(false)
     setOtpCooldown(0)
+    setAdminNeedsResend(false)
   }
 
   const handleSendAdminOtp = async () => {
@@ -107,10 +112,17 @@ export default function AdminUsersPage() {
       })
       const data = await res.json()
       if (!res.ok) {
+        if (data.isLocked) setAdminIsLocked(true)
+        if (data.canResend === false) setAdminCanResend(false)
         throw new Error(data.error || "Failed to send security OTP")
       }
       setOtpSent(true)
       setOtpCooldown(30)
+      setAdminSendCount(data.sendCount || 1)
+      setAdminCanResend(data.canResend ?? true)
+      setAdminIsLocked(false)
+      setAdminNeedsResend(false)
+      setAdminOtp("")
       toast.success(data.message || "Security OTP sent to Admin WhatsApp (+91 9313202075)")
     } catch (err) {
       console.error("Send OTP error:", err)
@@ -122,6 +134,7 @@ export default function AdminUsersPage() {
 
   const handleDeleteUser = async () => {
     if (!deleteTargetUser) return
+    if (adminIsLocked || adminNeedsResend) return
     if (!adminOtp || adminOtp.length !== 6) {
       toast.error("Please enter the 6-digit OTP sent to admin WhatsApp (+91 9313202075)")
       return
@@ -137,6 +150,13 @@ export default function AdminUsersPage() {
       })
       const data = await res.json()
       if (!res.ok) {
+        if (data.isLocked) {
+          setAdminIsLocked(true)
+          setAdminCanResend(false)
+        }
+        if (data.needsResend) {
+          setAdminNeedsResend(true)
+        }
         throw new Error(data.error || "Failed to delete artist")
       }
       toast.success(`Artist "${deleteTargetUser.profile.artist_name}" and all records deleted successfully`)
@@ -645,10 +665,24 @@ export default function AdminUsersPage() {
                     <button
                       type="button"
                       onClick={handleSendAdminOtp}
-                      disabled={otpCooldown > 0 || sendingOtp}
-                      className="text-xs text-[#7c3aed] hover:text-[#6d28d9] font-semibold disabled:text-slate-400"
+                      disabled={adminIsLocked || (!adminCanResend && otpSent) || otpCooldown > 0 || sendingOtp}
+                      className={`text-xs font-semibold transition-all ${
+                        adminIsLocked || !adminCanResend
+                          ? "text-slate-400 cursor-not-allowed"
+                          : adminNeedsResend
+                          ? "px-2.5 py-1 rounded-lg bg-purple-100 text-[#7c3aed] ring-2 ring-purple-400 hover:bg-purple-200"
+                          : "text-[#7c3aed] hover:text-[#6d28d9]"
+                      }`}
                     >
-                      {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : "Resend OTP"}
+                      {adminIsLocked
+                        ? "Locked (1hr)"
+                        : !adminCanResend
+                        ? "Max 2 OTPs reached"
+                        : adminNeedsResend
+                        ? "Resend New OTP"
+                        : otpCooldown > 0
+                        ? `Resend in ${otpCooldown}s`
+                        : "Resend OTP"}
                     </button>
                   )}
                 </div>
@@ -657,7 +691,7 @@ export default function AdminUsersPage() {
                   <Button
                     type="button"
                     onClick={handleSendAdminOtp}
-                    disabled={sendingOtp}
+                    disabled={sendingOtp || adminIsLocked}
                     className="w-full h-11 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-semibold flex items-center justify-center gap-2 shadow-md shadow-purple-600/20"
                   >
                     {sendingOtp ? (
@@ -679,14 +713,30 @@ export default function AdminUsersPage() {
                         maxLength={6}
                         placeholder="Enter 6-digit OTP"
                         value={adminOtp}
+                        disabled={adminIsLocked || adminNeedsResend || deletingId !== null}
                         onChange={(e) => setAdminOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="pl-10 h-11 text-center font-mono tracking-widest text-base rounded-xl border-slate-200 bg-slate-50 focus:bg-white"
+                        className={`pl-10 h-11 text-center font-mono tracking-widest text-base rounded-xl ${
+                          adminIsLocked || adminNeedsResend
+                            ? "border-red-200 bg-red-50/50 text-red-500 opacity-60"
+                            : "border-slate-200 bg-slate-50 focus:bg-white"
+                        }`}
                         autoFocus
                       />
                     </div>
-                    <p className="text-[11px] text-slate-500 leading-normal">
-                      Security OTP dispatched to <span className="font-semibold text-slate-700">+91 9313202075</span> via WhatsApp.
-                    </p>
+                    {adminIsLocked ? (
+                      <p className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium leading-normal">
+                        🔒 Admin number is locked for 1 hour due to 3 failed attempts on both OTP codes.
+                      </p>
+                    ) : adminNeedsResend ? (
+                      <p className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium leading-normal">
+                        ⚠️ 3 incorrect attempts. This code is disabled. Click <span className="font-semibold text-purple-700">Resend New OTP</span> above.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 leading-normal">
+                        Security OTP dispatched to <span className="font-semibold text-slate-700">+91 9313202075</span> via WhatsApp.
+                        {adminSendCount > 0 ? ` (Code ${adminSendCount} of 2)` : ""}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -708,7 +758,7 @@ export default function AdminUsersPage() {
               <Button
                 className="flex-1 h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md shadow-red-600/20"
                 onClick={handleDeleteUser}
-                disabled={!otpSent || adminOtp.length !== 6 || deletingId !== null}
+                disabled={!otpSent || adminOtp.length !== 6 || deletingId !== null || adminIsLocked || adminNeedsResend}
               >
                 {deletingId !== null ? (
                   <>

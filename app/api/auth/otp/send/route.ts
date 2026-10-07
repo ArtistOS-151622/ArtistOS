@@ -29,8 +29,19 @@ export async function POST(request: Request) {
     const otpHash = hashOtp(otp)
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000)
 
-    // Save to database
-    await persistOtpInDatabase(cleanPhone, otpHash, expiresAt)
+    // Check lockout and persist/update in database
+    const persistResult = await persistOtpInDatabase(cleanPhone, otpHash, expiresAt)
+    if (!persistResult.success) {
+      return NextResponse.json(
+        {
+          error: persistResult.error || "Unable to send OTP at this time.",
+          isLocked: persistResult.isLocked,
+          canResend: persistResult.canResend,
+          sendCount: persistResult.sendCount,
+        },
+        { status: persistResult.isLocked ? 429 : 400 }
+      )
+    }
 
     if (!testUser) {
       // Dispatch WhatsApp message only for non-test users
@@ -60,6 +71,8 @@ export async function POST(request: Request) {
         : "OTP sent successfully to your WhatsApp.",
       stateToken,
       cooldownSeconds: OTP_COOLDOWN_SECONDS,
+      sendCount: persistResult.sendCount,
+      canResend: persistResult.canResend,
     })
   } catch (err: any) {
     console.error("[OTP Send] Unexpected error:", err)

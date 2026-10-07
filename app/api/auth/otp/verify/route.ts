@@ -49,6 +49,9 @@ export async function POST(request: Request) {
     // 1. Verify OTP
     let isValidOtp = false
     let failureReason: string | undefined
+    let isLocked = false
+    let needsResend = false
+    let attemptsRemaining: number | undefined
 
     if (user?.is_test_user) {
       if (otp === TEST_USER_OTP) {
@@ -61,23 +64,33 @@ export async function POST(request: Request) {
       const dbResult = await verifyOtpInDatabase(cleanPhone, otp)
       if (dbResult.valid) {
         isValidOtp = true
-      } else if (dbResult.reason !== "db_error") {
+      } else {
         failureReason = dbResult.reason
-      }
+        isLocked = Boolean(dbResult.isLocked)
+        needsResend = Boolean(dbResult.needsResend)
+        attemptsRemaining = dbResult.attemptsRemaining
 
-      // If DB check failed or wasn't available, check the signed fallback stateToken
-      if (!isValidOtp && stateToken) {
-        if (verifyOtpStateToken(stateToken, cleanPhone, otp)) {
-          isValidOtp = true
-          failureReason = undefined
+        // If DB had a fatal error (e.g. Supabase unavailable), fallback to signed stateToken
+        if (dbResult.reason === "db_error" && stateToken) {
+          if (verifyOtpStateToken(stateToken, cleanPhone, otp)) {
+            isValidOtp = true
+            failureReason = undefined
+            isLocked = false
+            needsResend = false
+          }
         }
       }
     }
 
     if (!isValidOtp) {
       return NextResponse.json(
-        { error: failureReason || "Invalid or expired OTP. Please check the code and try again." },
-        { status: 400 }
+        {
+          error: failureReason || "Invalid or expired OTP. Please check the code and try again.",
+          isLocked,
+          needsResend,
+          attemptsRemaining,
+        },
+        { status: isLocked ? 429 : 400 }
       )
     }
 
