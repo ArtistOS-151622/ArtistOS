@@ -140,12 +140,27 @@ export async function getOrCreateQuota(
         .update({ free_storage_bytes: targetFreeBytes })
         .eq("id", existing.id)
       existing.free_storage_bytes = targetFreeBytes
-    } else if (!isFree && Number(existing.free_storage_bytes || 0) < STORAGE_FREE_TIER_BYTES) {
-      await supabase
-        .from("portfolio_storage_quotas")
-        .update({ free_storage_bytes: STORAGE_FREE_TIER_BYTES })
-        .eq("id", existing.id)
-      existing.free_storage_bytes = STORAGE_FREE_TIER_BYTES
+    } else if (!isFree) {
+      // If user is not free, check if they have an active paid plan that grants 100MB
+      const { data: activeSub } = await supabase
+        .from("user_subscriptions")
+        .select("status, platform_subscriptions(storage_quota_mb)")
+        .eq("user_id", numUserId)
+        .in("status", ["active", "pending"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const hasPaid100Mb = Boolean((activeSub?.platform_subscriptions as any)?.storage_quota_mb >= 100)
+      const allowedFreeBytes = hasPaid100Mb ? 100 * 1024 * 1024 : STORAGE_FREE_TIER_BYTES
+
+      if (Number(existing.free_storage_bytes || 0) !== allowedFreeBytes) {
+        await supabase
+          .from("portfolio_storage_quotas")
+          .update({ free_storage_bytes: allowedFreeBytes })
+          .eq("id", existing.id)
+        existing.free_storage_bytes = allowedFreeBytes
+      }
     }
     if (isFree) {
       existing.free_storage_bytes = Math.max(Number(existing.free_storage_bytes || 0), targetFreeBytes)

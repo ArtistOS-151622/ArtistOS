@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useHeaderContext } from "@/components/common/dashboard/dashboard-header-context"
-import { Loader2, X, User, Phone, MapPin, Mail, Calendar, HardDrive, IndianRupee, Briefcase, FileDigit, CalendarCheck, Crown, BadgeCheck, Clock } from "lucide-react"
+import { Loader2, X, User, Phone, MapPin, Mail, Calendar, HardDrive, IndianRupee, Briefcase, FileDigit, CalendarCheck, Crown, BadgeCheck, Clock, Trash2, AlertTriangle, KeyRound, ShieldAlert, Send } from "lucide-react"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 type UserData = {
@@ -75,6 +77,83 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
   const [togglingKey, setTogglingKey] = useState<string | null>(null)
+  const [deleteTargetUser, setDeleteTargetUser] = useState<UserData | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [adminOtp, setAdminOtp] = useState("")
+  const [otpSent, setOtpSent] = useState(false)
+  const [sendingOtp, setSendingOtp] = useState(false)
+  const [otpCooldown, setOtpCooldown] = useState(0)
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return
+    const timer = setInterval(() => {
+      setOtpCooldown((prev) => Math.max(0, prev - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [otpCooldown])
+
+  const openDeleteModal = (user: UserData) => {
+    setDeleteTargetUser(user)
+    setAdminOtp("")
+    setOtpSent(false)
+    setOtpCooldown(0)
+  }
+
+  const handleSendAdminOtp = async () => {
+    try {
+      setSendingOtp(true)
+      const res = await fetch("/api/admin/users/delete-otp", {
+        method: "POST"
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send security OTP")
+      }
+      setOtpSent(true)
+      setOtpCooldown(30)
+      toast.success(data.message || "Security OTP sent to Admin WhatsApp (+91 9313202075)")
+    } catch (err) {
+      console.error("Send OTP error:", err)
+      toast.error(err instanceof Error ? err.message : "Failed to send security OTP")
+    } finally {
+      setSendingOtp(false)
+    }
+  }
+
+  const handleDeleteUser = async () => {
+    if (!deleteTargetUser) return
+    if (!adminOtp || adminOtp.length !== 6) {
+      toast.error("Please enter the 6-digit OTP sent to admin WhatsApp (+91 9313202075)")
+      return
+    }
+
+    const id = deleteTargetUser.id
+    try {
+      setDeletingId(id)
+      const res = await fetch(`/api/admin/users`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, otp: adminOtp })
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete artist")
+      }
+      toast.success(`Artist "${deleteTargetUser.profile.artist_name}" and all records deleted successfully`)
+      setUsers(prev => prev.filter(u => u.id !== id))
+      if (selectedUser?.id === id) {
+        setSelectedUser(null)
+      }
+      setDeleteTargetUser(null)
+      setAdminOtp("")
+      setOtpSent(false)
+    } catch (err) {
+      console.error("Delete user error:", err)
+      toast.error(err instanceof Error ? err.message : "Failed to delete artist")
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const toggleUserField = async (user: UserData, field: "is_free_user" | "is_test_user") => {
     const key = `${user.id}-${field}`
@@ -221,14 +300,28 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        className="rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900"
-                        onClick={() => setSelectedUser(user)}
-                      >
-                        View Details
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          className="rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900"
+                          onClick={() => setSelectedUser(user)}
+                        >
+                          View Details
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-xl text-red-500 hover:bg-red-50 hover:text-red-700 h-9 px-2.5"
+                          title="Delete Artist"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openDeleteModal(user)
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -490,10 +583,147 @@ export default function AdminUsersPage() {
                 </div>
               </section>
 
+              {/* Danger Zone: Delete Artist */}
+              <section className="pt-4 border-t border-slate-100">
+                <Button
+                  variant="outline"
+                  className="w-full h-11 rounded-xl border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300 font-semibold flex items-center justify-center gap-2"
+                  onClick={() => openDeleteModal(selectedUser)}
+                >
+                  <Trash2 className="size-4" />
+                  Delete Artist & All Records
+                </Button>
+              </section>
+
             </div>
           </>
         )}
       </div>
+
+      {/* 2FA Delete Confirmation Modal */}
+      {deleteTargetUser && (
+        <>
+          <div
+            className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm animate-in fade-in"
+            onClick={() => {
+              if (!deletingId) {
+                setDeleteTargetUser(null)
+                setAdminOtp("")
+                setOtpSent(false)
+              }
+            }}
+          />
+          <div className="fixed left-1/2 top-1/2 z-[61] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-white p-7 shadow-2xl shadow-slate-900/20 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+            <div className="flex flex-col items-center text-center">
+              <div className="flex size-14 items-center justify-center rounded-2xl bg-red-50 mb-4">
+                <ShieldAlert className="size-7 text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">
+                Delete Artist & All Records
+              </h3>
+              <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">
+                You are about to permanently delete <span className="font-semibold text-slate-800">{deleteTargetUser.profile.artist_name}</span> ({deleteTargetUser.profile.studio_name}).
+              </p>
+
+              <div className="mt-3.5 p-3 rounded-2xl bg-red-50/70 border border-red-100 text-xs text-red-700 text-left w-full space-y-1">
+                <div className="font-semibold text-red-800">Permanent data deletion:</div>
+                <ul className="list-disc list-inside text-red-600 space-y-0.5">
+                  <li>All customers, bookings, and payments</li>
+                  <li>All services, courses, and students</li>
+                  <li>All portfolio files and photos from cloud storage</li>
+                  <li>Subscriptions and billing records</li>
+                </ul>
+              </div>
+
+              {/* 2FA OTP Step */}
+              <div className="mt-5 w-full text-left space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <KeyRound className="size-3.5 text-purple-600" /> Admin Security OTP
+                  </label>
+                  {otpSent && (
+                    <button
+                      type="button"
+                      onClick={handleSendAdminOtp}
+                      disabled={otpCooldown > 0 || sendingOtp}
+                      className="text-xs text-[#7c3aed] hover:text-[#6d28d9] font-semibold disabled:text-slate-400"
+                    >
+                      {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : "Resend OTP"}
+                    </button>
+                  )}
+                </div>
+
+                {!otpSent ? (
+                  <Button
+                    type="button"
+                    onClick={handleSendAdminOtp}
+                    disabled={sendingOtp}
+                    className="w-full h-11 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-semibold flex items-center justify-center gap-2 shadow-md shadow-purple-600/20"
+                  >
+                    {sendingOtp ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" /> Sending WhatsApp OTP...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="size-4" /> Send OTP to WhatsApp (+91 9313202075)
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="relative w-full">
+                      <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+                      <Input
+                        type="text"
+                        maxLength={6}
+                        placeholder="Enter 6-digit OTP"
+                        value={adminOtp}
+                        onChange={(e) => setAdminOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        className="pl-10 h-11 text-center font-mono tracking-widest text-base rounded-xl border-slate-200 bg-slate-50 focus:bg-white"
+                        autoFocus
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      Security OTP dispatched to <span className="font-semibold text-slate-700">+91 9313202075</span> via WhatsApp.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 h-11 rounded-xl border-slate-200"
+                onClick={() => {
+                  setDeleteTargetUser(null)
+                  setAdminOtp("")
+                  setOtpSent(false)
+                }}
+                disabled={deletingId !== null}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md shadow-red-600/20"
+                onClick={handleDeleteUser}
+                disabled={!otpSent || adminOtp.length !== 6 || deletingId !== null}
+              >
+                {deletingId !== null ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin mr-2" /> Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="size-4 mr-2" /> Verify & Delete
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
 
     </div>
   )

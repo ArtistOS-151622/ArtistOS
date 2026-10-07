@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { deleteFromR2 } from "@/lib/portfolio/files"
 import { STORAGE_FREE_TIER_BYTES } from "@/lib/portfolio/config"
+import { verifyOtpInDatabase, ADMIN_SECURITY_PHONE } from "@/lib/auth/otp"
 
 export async function GET() {
   const supabase = await createClient()
@@ -173,5 +176,160 @@ export async function PATCH(request: Request) {
   } catch (error) {
     console.error("Error updating user status:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: Request) {
+  // Use admin client with service role to bypass RLS and perform full cascade deletion
+  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createAdminClient()
+    : await createClient()
+
+  try {
+    let id: number | null = null
+    let otp: string | null = null
+    const url = new URL(request.url)
+    const queryId = url.searchParams.get("id")
+    const queryOtp = url.searchParams.get("otp")
+    if (queryId) {
+      id = Number(queryId)
+      otp = queryOtp ? String(queryOtp).trim() : null
+    } else {
+      try {
+        const body = await request.json()
+        id = Number(body.id)
+        otp = body.otp ? String(body.otp).trim() : null
+      } catch {}
+    }
+
+    if (!id || Number.isNaN(id)) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 })
+    }
+
+    if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+      return NextResponse.json(
+        { error: `Security OTP required. Please enter the 6-digit OTP sent to admin WhatsApp (+91 ${ADMIN_SECURITY_PHONE}).` },
+        { status: 400 }
+      )
+    }
+
+    // Verify OTP against ADMIN_SECURITY_PHONE in database
+    const otpVerification = await verifyOtpInDatabase(ADMIN_SECURITY_PHONE, otp)
+    if (!otpVerification.valid) {
+      return NextResponse.json(
+        { error: otpVerification.reason || "Invalid security OTP. Action blocked." },
+        { status: 403 }
+      )
+    }
+
+    // Check user exists
+    const { data: user, error: userErr } = await supabase
+      .from("users")
+      .select("id, phone")
+      .eq("id", id)
+      .maybeSingle()
+
+    if (userErr || !user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    // 1. Delete all portfolio files from Cloudflare R2
+    const { data: files } = await supabase
+      .from("portfolio_files")
+      .select("storage_path")
+      .eq("user_id", id)
+
+    const r2Keys = (files || []).map((f) => f.storage_path).filter(Boolean)
+    if (r2Keys.length > 0) {
+      try {
+        await deleteFromR2(r2Keys)
+      } catch (err) {
+        console.warn("[Admin Delete] Failed to delete some R2 keys:", err)
+      }
+    }
+
+    // 2. Unlink circular avatar/logo file references from users table
+    await supabase
+      .from("users")
+      .update({ avatar_file_id: null, studio_logo_file_id: null })
+      .eq("id", id)
+
+    // 3. Delete portfolio child records
+    await supabase.from("portfolio_files").delete().eq("user_id", id)
+    await supabase.from("portfolio_folders").delete().eq("user_id", id)
+    await supabase.from("portfolio_storage_purchases").delete().eq("user_id", id)
+    await supabase.from("portfolio_storage_quotas").delete().eq("user_id", id)
+
+    // 4. Delete bookings related child records
+    const { data: bookings } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("user_id", id)
+    const bookingIds = (bookings || []).map((b) => b.id)
+
+    if (bookingIds.length > 0) {
+      await supabase.from("booking_services").delete().in("booking_id", bookingIds)
+      await supabase.from("booking_additional_charges").delete().in("booking_id", bookingIds)
+    }
+
+    await supabase.from("booking_payments").delete().eq("user_id", id)
+    await supabase.from("booking_expenses").delete().eq("user_id", id)
+    await supabase.from("expenses").delete().eq("user_id", id)
+    await supabase.from("bookings").delete().eq("user_id", id)
+
+    // 5. Delete inquiries
+    const { data: inquiries } = await supabase
+      .from("inquiries")
+      .select("id")
+      .eq("user_id", id)
+    const inquiryIds = (inquiries || []).map((i) => i.id)
+    if (inquiryIds.length > 0) {
+      await supabase.from("inquiry_services").delete().in("inquiry_id", inquiryIds)
+    }
+    await supabase.from("inquiries").delete().eq("user_id", id)
+
+    // 6. Delete courses, students, and student_installments
+    const { data: students } = await supabase
+      .from("students")
+      .select("id")
+      .eq("user_id", id)
+    const studentIds = (students || []).map((s) => s.id)
+    if (studentIds.length > 0) {
+      await supabase.from("student_installments").delete().in("student_id", studentIds)
+    }
+    await supabase.from("students").delete().eq("user_id", id)
+    await supabase.from("courses").delete().eq("user_id", id)
+
+    // 7. Delete services and customers
+    await supabase.from("services").delete().eq("user_id", id)
+    await supabase.from("customers").delete().eq("user_id", id)
+
+    // 8. Delete notifications, pushes, broadcasts, support, settings, subscriptions
+    await supabase.from("notification_events").delete().eq("user_id", id)
+    await supabase.from("push_subscriptions").delete().eq("user_id", id)
+    await supabase.from("whatsapp_broadcast_logs").delete().eq("user_id", id)
+    await supabase.from("whatsapp_broadcast_templates").delete().eq("user_id", id)
+    await supabase.from("support_messages").delete().eq("sender_id", id)
+    await supabase.from("support_tickets").delete().eq("user_id", id)
+    await supabase.from("user_settings").delete().eq("user_id", id)
+    await supabase.from("user_subscriptions").delete().eq("user_id", id)
+    await supabase.from("platform_payments").delete().eq("user_id", id)
+
+    // 9. Delete whatsapp_otps by user phone
+    if (user.phone) {
+      await supabase.from("whatsapp_otps").delete().eq("phone", user.phone)
+    }
+
+    // 10. Delete the user row itself
+    const { error: delErr } = await supabase.from("users").delete().eq("id", id)
+    if (delErr) throw delErr
+
+    return NextResponse.json({ success: true, deletedId: id })
+  } catch (error) {
+    console.error("Error deleting artist:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to delete artist" },
+      { status: 500 }
+    )
   }
 }

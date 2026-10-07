@@ -151,6 +151,46 @@ export async function sendOtpToWhatsApp(phone: string, otp: string): Promise<Wha
   return result
 }
 
+export const ADMIN_SECURITY_PHONE = "9313202075"
+
+/**
+ * Sends Admin 2FA verification OTP to 9313202075 for deleting an artist.
+ * Uses template `artistos_welcome` with body parameter:
+ * "this is admin otp for delete artist: {{otp}}"
+ */
+export async function sendAdminDeleteOtp(otp: string): Promise<WhatsAppSendResult> {
+  const formattedPhone = formatWhatsAppPhoneNumber(ADMIN_SECURITY_PHONE)
+  if (!formattedPhone) {
+    return { success: false, error: "Invalid admin mobile number" }
+  }
+
+  // Exact requested format: "this is admin otp for delete artist: {{otp}}"
+  const adminParam = `this is admin otp for delete artist: ${otp}`
+
+  console.log(`[Admin OTP] Dispatching template "artistos_welcome" to ${formattedPhone} with param: "${adminParam}"`)
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`\n========================================`)
+    console.log(`[DEV / ADMIN] WhatsApp Delete OTP for ${ADMIN_SECURITY_PHONE}: ${otp}`)
+    console.log(`Param: "${adminParam}"`)
+    console.log(`========================================\n`)
+  }
+
+  // If token is missing in development, allow dev flow to continue without breaking
+  if (!process.env.WHATSAPP_ACCESS_TOKEN && process.env.NODE_ENV !== "production") {
+    return { success: true }
+  }
+
+  const result = await sendWhatsAppTemplate({
+    to: formattedPhone,
+    templateName: "artistos_welcome",
+    languageCode: process.env.WHATSAPP_TEMPLATE_LANG?.trim() || "en",
+    bodyParameters: [adminParam],
+  })
+
+  return result
+}
+
 /**
  * Saves generated OTP to Supabase whatsapp_otps table if available
  */
