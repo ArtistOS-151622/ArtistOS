@@ -110,7 +110,7 @@ export async function sendWhatsAppTemplate({
   };
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
     const res = await fetch(endpoint, {
@@ -151,7 +151,7 @@ export async function sendWhatsAppTemplate({
   } catch (err: any) {
     const isAbort = err?.name === "AbortError";
     const errorMsg = isAbort
-      ? "WhatsApp request timed out after 8 seconds"
+      ? "WhatsApp request timed out after 15 seconds"
       : err?.message || "Network error while connecting to Meta WhatsApp API";
 
     console.error("[WhatsApp] Send error:", errorMsg);

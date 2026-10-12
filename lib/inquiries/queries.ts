@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { sendBookingNotificationWhatsApp } from "../whatsapp/booking-notifications.ts"
 
 type InquiryServiceRow = {
   quantity: number | null
@@ -90,7 +91,7 @@ export async function convertInquiryToBooking(
       booking_date: inquiry.booking_date,
       start_time: inquiry.start_time,
       end_time: inquiry.end_time,
-      status: "pending",
+      status: "confirmed",
       additional_request: inquiry.additional_request,
     })
     .select("id")
@@ -131,6 +132,13 @@ export async function convertInquiryToBooking(
     .single()
 
   if (updateError) return { error: updateError.message }
+
+  // Send automated WhatsApp confirmation to customer if artist has WhatsApp automation (Pro plan or Free user)
+  try {
+    await sendBookingNotificationWhatsApp(booking.id, "confirmed", supabase)
+  } catch (err) {
+    console.error("[WhatsApp] Failed to dispatch booking confirmation notification for converted inquiry:", err)
+  }
 
   return {
     inquiry: formatInquiry(updatedInquiry),

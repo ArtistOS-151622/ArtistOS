@@ -169,9 +169,11 @@ export async function PATCH(
   // Send automated WhatsApp confirmation if status transitioned to 'confirmed'
   const isNewlyConfirmed = body.status === "confirmed" && checkOwn.status !== "confirmed"
   if (isNewlyConfirmed) {
-    void sendBookingNotificationWhatsApp(id, "confirmed").catch((err) => {
+    try {
+      await sendBookingNotificationWhatsApp(id, "confirmed", supabase)
+    } catch (err) {
       console.error("[WhatsApp] Failed to dispatch booking confirmation notification:", err)
-    })
+    }
   }
 
   return NextResponse.json({ booking: formatted })

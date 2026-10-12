@@ -242,11 +242,13 @@ export async function POST(request: NextRequest) {
     additional_charges: fullBooking.booking_additional_charges ?? [],
   }
 
-  // Send automated WhatsApp notification asynchronously (non-blocking)
+  // Send automated WhatsApp notification (awaited so serverless execution environment does not freeze)
   const isConfirmed = booking.status === "confirmed"
-  void sendBookingNotificationWhatsApp(booking.id, isConfirmed ? "confirmed" : "created").catch((err) => {
+  try {
+    await sendBookingNotificationWhatsApp(booking.id, isConfirmed ? "confirmed" : "created", supabase)
+  } catch (err) {
     console.error("[WhatsApp] Failed to dispatch booking notification:", err)
-  })
+  }
 
   return NextResponse.json({ booking: formatted })
 }
