@@ -116,6 +116,7 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
 
   function toggleService(serviceId: number) {
     const serviceValue = String(serviceId)
+    if (error) setError("")
     setValues((current) => ({
       ...current,
       services: current.services.includes(serviceValue)
@@ -168,6 +169,11 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
 
     if (step === "details") {
       goToServices()
+      return
+    }
+
+    if (values.services.length === 0) {
+      setError("Please select at least one service to proceed.")
       return
     }
 
@@ -542,7 +548,7 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div>
                       <h2 className="text-base font-extrabold text-slate-900">
-                        Choose Services
+                        Choose Services <span className="text-rose-500">*</span>
                       </h2>
                       <p className="text-xs text-slate-500 mt-0.5">
                         Select one or more services you would like to book.
@@ -550,10 +556,16 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                     </div>
                     <Badge
                       variant="outline"
-                      className="rounded-lg bg-purple-50 text-[#7c3aed] border-purple-200 font-bold text-xs px-2.5 py-1"
+                      className={cn(
+                        "rounded-lg font-bold text-xs px-2.5 py-1",
+                        values.services.length > 0
+                          ? "bg-purple-50 text-[#7c3aed] border-purple-200"
+                          : "bg-rose-50 text-rose-600 border-rose-200"
+                      )}
                     >
-                      {values.services.length}{" "}
-                      {values.services.length === 1 ? "Selected" : "Selected"}
+                      {values.services.length > 0
+                        ? `${values.services.length} Selected`
+                        : "Required"}
                     </Badge>
                   </div>
 
@@ -647,6 +659,11 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs text-slate-500">
                         <span>Selected Items ({selectedServices.length}):</span>
+                        {selectedServices.length === 0 && (
+                          <span className="text-xs font-semibold text-rose-600">
+                            Required *
+                          </span>
+                        )}
                       </div>
 
                       {selectedServices.length > 0 ? (
@@ -664,9 +681,11 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-400 italic">
-                          No service selected (optional)
-                        </p>
+                        <div className="rounded-xl border border-dashed border-rose-300 bg-rose-50/50 p-3 text-center">
+                          <p className="text-xs font-medium text-rose-600">
+                            Please select at least 1 service to proceed
+                          </p>
+                        </div>
                       )}
 
                       <div className="flex items-center justify-between pt-3 border-t border-slate-100">
@@ -688,8 +707,8 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                     <div className="space-y-2 pt-2">
                       <Button
                         type="submit"
-                        disabled={submitting}
-                        className="h-12 w-full rounded-2xl bg-[#7c3aed] text-white font-bold text-sm shadow-md shadow-purple-500/25 hover:bg-[#6d28d9] flex items-center justify-center gap-2"
+                        disabled={submitting || values.services.length === 0}
+                        className="h-12 w-full rounded-2xl bg-[#7c3aed] text-white font-bold text-sm shadow-md shadow-purple-500/25 hover:bg-[#6d28d9] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {submitting ? (
                           <span>Submitting Request...</span>
@@ -700,6 +719,12 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                           </>
                         )}
                       </Button>
+
+                      {values.services.length === 0 && (
+                        <p className="text-[11px] text-center text-rose-500 font-medium">
+                          Select at least one service to enable submission
+                        </p>
+                      )}
 
                       <Button
                         type="button"
