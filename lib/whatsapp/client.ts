@@ -51,6 +51,23 @@ export function formatWhatsAppPhoneNumber(rawPhone: string): string | null {
 }
 
 /**
+ * Sanitizes template parameter values to comply with Meta Cloud API rules:
+ * - No newlines or carriage returns (\n, \r)
+ * - No tab characters (\t)
+ * - No more than 4 consecutive spaces
+ * - Cannot be empty
+ */
+export function sanitizeWhatsAppParam(value: unknown, fallback = "-"): string {
+  if (value === null || value === undefined) return fallback;
+  const cleaned = String(value)
+    .replace(/[\r\n\t]+/g, ", ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/,\s*,+/g, ",")
+    .trim();
+  return cleaned || fallback;
+}
+
+/**
  * Sends a WhatsApp template message using Meta's Cloud API
  */
 export async function sendWhatsAppTemplate({
@@ -102,7 +119,7 @@ export async function sendWhatsAppTemplate({
           type: "body",
           parameters: bodyParameters.map((param) => ({
             type: "text",
-            text: String(param ?? ""),
+            text: sanitizeWhatsAppParam(param),
           })),
         },
       ],

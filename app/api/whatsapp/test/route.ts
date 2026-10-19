@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const to = body.to || "918849264807"
     const templateName =
-      body.templateName || "one_day_reminder_to_customer" // "one_day_reminder_to_customer" | "create_booking" | "booking_confirmed"
+      body.templateName || "one_day_reminder_to_customer" // "one_day_reminder_to_customer" | "create_booking" | "booking_confirmed" | "new_inquiry_received"
 
     const formattedPhone = formatWhatsAppPhoneNumber(to)
     if (!formattedPhone) {
@@ -22,16 +22,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Default test parameters matching the 7 template variables
-    const bodyParameters = body.parameters || [
-      body.customerName || "Test Customer",
-      session.artist_name || "Artist Name",
-      session.studio_name || session.artist_name || "Studio Name",
-      "30 Sept 2026",
-      "05:30 PM",
-      "Mehandi Service",
-      "500",
-    ]
+    // Default test parameters matching template requirements
+    const bodyParameters =
+      body.parameters ||
+      (templateName === "new_inquiry_received"
+        ? [
+            session.artist_name || "Artist Name",
+            body.customerName || "Test Customer",
+            body.customerPhone || "9876543210",
+            body.customerLocation || "Mumbai, Maharashtra",
+            body.requestedService || "Bridal Makeup, Hair Styling",
+            body.bookingDate || "30 Sept 2026",
+          ]
+        : [
+            body.customerName || "Test Customer",
+            session.artist_name || "Artist Name",
+            session.studio_name || session.artist_name || "Studio Name",
+            "30 Sept 2026",
+            "05:30 PM",
+            "Mehandi Service",
+            "500",
+          ])
 
     const result = await sendWhatsAppTemplate({
       to: formattedPhone,

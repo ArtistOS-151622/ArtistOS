@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { INQUIRY_SELECT_FIELDS, formatInquiry } from "@/lib/inquiries/queries"
 import { createClient } from "@/lib/supabase/server"
+import { sendInquiryNotificationWhatsApp } from "@/lib/whatsapp/inquiry-notifications"
 
 import {
   validateInquiry,
@@ -19,7 +20,7 @@ async function findActiveArtistByCode(code: string) {
 
   const { data: artist, error } = await supabase
     .from("users")
-    .select("id, artist_name, studio_name, address")
+    .select("id, artist_name, studio_name, address, phone")
     .eq("inquiry_form_code", normalizedCode)
     .maybeSingle()
 
@@ -209,6 +210,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
     .single()
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 400 })
+
+  // Trigger automated WhatsApp notification to the artist (if their plan includes WhatsApp automation)
+  try {
+    await sendInquiryNotificationWhatsApp(inquiry.id, supabase)
+  } catch (notifyErr) {
+    console.error("[Inquiry Form] Failed to trigger WhatsApp notification:", notifyErr)
+  }
 
   return NextResponse.json({ inquiry: formatInquiry(fullInquiry) })
 }
