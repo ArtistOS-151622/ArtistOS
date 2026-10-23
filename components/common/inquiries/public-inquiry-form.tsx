@@ -34,7 +34,6 @@ import {
 } from "@/components/common/inquiries/inquiry-types"
 import {
   formatDuration,
-  formatPrice,
   type ArtistService,
 } from "@/components/common/services/service-types"
 
@@ -92,14 +91,6 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
     void loadForm()
   }, [formCode])
 
-  const selectedTotal = useMemo(() => {
-    const selected = new Set(values.services)
-    return services.reduce(
-      (sum, service) =>
-        selected.has(String(service.id)) ? sum + Number(service.price) : sum,
-      0
-    )
-  }, [services, values.services])
 
   const selectedServices = useMemo(() => {
     const selected = new Set(values.services)
@@ -267,10 +258,10 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
               </span>
             </div>
             {selectedServices.length > 0 && (
-              <div className="flex items-center justify-between text-slate-500 pt-1 border-t border-slate-200/60">
-                <span>Estimated Value:</span>
-                <span className="font-bold text-emerald-600">
-                  {formatPrice(selectedTotal)}
+              <div className="flex items-start justify-between text-slate-500 pt-1 border-t border-slate-200/60 gap-2">
+                <span>Selected Services:</span>
+                <span className="font-bold text-slate-800 text-right truncate">
+                  {selectedServices.map((s) => s.service_name).join(", ")}
                 </span>
               </div>
             )}
@@ -607,10 +598,6 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                                 </div>
                               </div>
                             </div>
-
-                            <span className="font-extrabold text-sm text-slate-900 shrink-0 bg-slate-100/80 px-2.5 py-1 rounded-xl">
-                              {formatPrice(service.price)}
-                            </span>
                           </div>
                         )
                       })}
@@ -667,16 +654,14 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                       </div>
 
                       {selectedServices.length > 0 ? (
-                        <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                           {selectedServices.map((s) => (
                             <div
                               key={s.id}
-                              className="flex items-center justify-between text-xs text-slate-700"
+                              className="flex items-center gap-2 rounded-xl bg-slate-50 px-2.5 py-2 text-xs text-slate-800 border border-slate-100"
                             >
-                              <span className="truncate pr-2">{s.service_name}</span>
-                              <span className="font-bold shrink-0">
-                                {formatPrice(s.price)}
-                              </span>
+                              <span className="size-1.5 rounded-full bg-[#7c3aed] shrink-0" />
+                              <span className="truncate font-semibold">{s.service_name}</span>
                             </div>
                           ))}
                         </div>
@@ -687,15 +672,6 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                           </p>
                         </div>
                       )}
-
-                      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                        <span className="text-sm font-extrabold text-slate-900">
-                          Estimated Total:
-                        </span>
-                        <span className="text-lg font-extrabold text-emerald-600">
-                          {formatPrice(selectedTotal)}
-                        </span>
-                      </div>
                     </div>
 
                     {error ? (
