@@ -551,3 +551,33 @@
     display: none;
   }
 }
+
+/* ──────────────────────────────────────────────────────────
+   iOS Form Focus Auto-Zoom Prevention & Pinch-Zoom Blocking
+   ────────────────────────────────────────────────────────── */
+html,
+body {
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Force minimum 16px font size on touch/mobile devices so iOS Safari never auto-zooms */
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea,
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  [data-slot="input"] {
+    font-size: 16px !important;
+  }
+}
+

@@ -40,7 +40,7 @@ export function FloatingInput({
           placeholder=" "
           className={cn(
             // Base layout
-            "peer block w-full rounded-lg border bg-white px-4 h-[46px] text-sm text-slate-900",
+            "peer block w-full rounded-lg border bg-white px-4 h-[46px] text-base md:text-sm text-slate-900",
             // Border
             "border-slate-200 shadow-sm shadow-slate-200/40",
             // Transitions
@@ -139,7 +139,7 @@ export function FloatingTextarea({
           disabled={disabled}
           placeholder=" "
           className={cn(
-            "peer block w-full rounded-lg border border-slate-200 bg-white px-4 py-4 text-sm text-slate-900",
+            "peer block w-full rounded-lg border border-slate-200 bg-white px-4 py-4 text-base md:text-sm text-slate-900",
             "shadow-sm shadow-slate-200/40 outline-none transition-all duration-200 resize-none",
             "focus:border-[#7c3aed] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.10)]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50",
@@ -253,7 +253,7 @@ export function FloatingPhoneInput({
           onKeyDown={handleKeyDown}
           className={cn(
             // Base layout
-            "peer block w-full rounded-lg border bg-white px-4 h-[46px] text-sm text-slate-900 font-semibold tracking-[0.1em]",
+            "peer block w-full rounded-lg border bg-white px-4 h-[46px] text-base md:text-sm text-slate-900 font-semibold tracking-[0.1em]",
             // Border
             "border-slate-200 shadow-sm shadow-slate-200/40",
             // Transitions

@@ -13,7 +13,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         // Layout & shape
         "h-[46px] w-full min-w-0 rounded-lg border border-slate-200/80 px-4 py-1",
         // Base appearance — white with a soft drop shadow for depth
-        "bg-white text-[15px] text-foreground placeholder:text-slate-400",
+        "bg-white text-base md:text-[15px] text-foreground placeholder:text-slate-400",
         "shadow-sm shadow-slate-200/40",
         // Smooth transition on all visual properties
         "transition-all duration-200 outline-none",
@@ -65,7 +65,7 @@ function PhoneInput({
         data-slot="input"
         className={cn(
           "h-full w-full border-0 bg-transparent p-0 outline-none",
-          "text-[15px] font-semibold tracking-[0.1em] text-foreground",
+          "text-base md:text-[15px] font-semibold tracking-[0.1em] text-foreground",
           "placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400",
           "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
           className
