@@ -57,8 +57,21 @@ export function formatWhatsAppPhoneNumber(rawPhone: string): string | null {
  * - No more than 4 consecutive spaces
  * - Cannot be empty
  */
-export function sanitizeWhatsAppParam(value: unknown, fallback = "-"): string {
+export function sanitizeWhatsAppParam(
+  value: unknown,
+  fallback = "-",
+  options?: { preserveNewlines?: boolean }
+): string {
   if (value === null || value === undefined) return fallback;
+  if (options?.preserveNewlines) {
+    const cleaned = String(value)
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/\t/g, " ")
+      .replace(/[ ]{4,}/g, "   ")
+      .trim();
+    return cleaned || fallback;
+  }
   const cleaned = String(value)
     .replace(/[\r\n\t]+/g, ", ")
     .replace(/\s{2,}/g, " ")

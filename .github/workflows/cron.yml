@@ -3,6 +3,7 @@ name: Cron Jobs
 on:
   schedule:
     - cron: '*/5 * * * *' # notifications (scan & dispatch)
+    - cron: '30 23 * * *' # daily 5:00 AM IST artist WhatsApp agenda
     - cron: '0 3 * * *'   # expire-shares
   workflow_dispatch:
 
@@ -25,6 +26,21 @@ jobs:
       - name: Trigger Dispatch API
         run: |
           curl -X GET "${{ secrets.APP_URL }}/api/cron/notifications/dispatch" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail-with-body --show-error --silent
+
+  daily-agenda:
+    name: Daily 5AM Artist Agenda
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '30 23 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Daily Agenda API
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "ERROR: APP_URL secret is not set in GitHub repository secrets!"
+            exit 1
+          fi
+          curl -X GET "${{ secrets.APP_URL }}/api/cron/notifications/daily-agenda" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --fail-with-body --show-error --silent
 
