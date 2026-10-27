@@ -50,7 +50,7 @@ export function PlatformSubscriptionsTab() {
       is_featured: false,
       display_order: 0,
       has_whatsapp_automation: false,
-      storage_quota_mb: 10
+      storage_quota_mb: 100
     })
   }
 
@@ -249,7 +249,7 @@ export function PlatformSubscriptionsTab() {
                         {plan.has_whatsapp_automation ? '✓ WhatsApp Automated' : '✕ No WhatsApp Auto'}
                       </span>
                       <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                        {plan.storage_quota_mb ?? 10} MB Storage
+                        {plan.storage_quota_mb ?? (plan.name?.toLowerCase().includes('pro') ? 500 : 100)} MB Storage
                       </span>
                     </div>
                   </div>
@@ -360,10 +360,10 @@ export function PlatformSubscriptionsTab() {
                     <FloatingInput 
                       label="Storage Quota (MB)" 
                       type="number"
-                      value={editingPlan.storage_quota_mb ?? 10}
+                      value={editingPlan.storage_quota_mb ?? (editingPlan.name?.toLowerCase().includes('pro') ? 500 : 100)}
                       onChange={(e) => setEditingPlan({ ...editingPlan, storage_quota_mb: Number(e.target.value) })}
                     />
-                    <p className="text-xs text-slate-400 mt-1">Default: 10 MB for Starter, 100 MB for Pro.</p>
+                    <p className="text-xs text-slate-400 mt-1">Default: 100 MB for Starter, 500 MB for Pro.</p>
                   </div>
                 </div>
               </div>

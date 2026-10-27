@@ -44,6 +44,8 @@ type UserData = {
     free_quota: number
     purchased_quota: number
     used: number
+    custom_storage_bytes?: number | null
+    is_custom?: boolean
     active_plans: number
     total_spent: number
   }
@@ -87,6 +89,90 @@ export default function AdminUsersPage() {
   const [adminCanResend, setAdminCanResend] = useState(true)
   const [adminIsLocked, setAdminIsLocked] = useState(false)
   const [adminNeedsResend, setAdminNeedsResend] = useState(false)
+
+  // Dynamic storage quota state
+  const [storageInputGb, setStorageInputGb] = useState("")
+  const [updatingStorage, setUpdatingStorage] = useState(false)
+
+  // Sync storage input when selectedUser changes
+  useEffect(() => {
+    if (selectedUser) {
+      if (selectedUser.storage.custom_storage_bytes) {
+        const inGb = selectedUser.storage.custom_storage_bytes / (1024 * 1024 * 1024)
+        setStorageInputGb(inGb.toString())
+      } else {
+        setStorageInputGb("")
+      }
+    }
+  }, [selectedUser])
+
+  const handleUpdateStorage = async (user: UserData, customGb: number | null) => {
+    try {
+      setUpdatingStorage(true)
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: user.id,
+          custom_storage_gb: customGb,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to update storage quota")
+
+      const newBytes = customGb !== null ? Math.round(customGb * 1024 * 1024 * 1024) : null
+
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === user.id) {
+            const updatedStorage = {
+              ...u.storage,
+              custom_storage_bytes: newBytes,
+              is_custom: newBytes !== null,
+              free_quota:
+                newBytes !== null
+                  ? newBytes
+                  : u.profile.is_free_user
+                  ? 500 * 1024 * 1024
+                  : 10 * 1024 * 1024,
+            }
+            return { ...u, storage: updatedStorage }
+          }
+          return u
+        })
+      )
+
+      if (selectedUser && selectedUser.id === user.id) {
+        setSelectedUser((prev) => {
+          if (!prev) return null
+          const updatedStorage = {
+            ...prev.storage,
+            custom_storage_bytes: newBytes,
+            is_custom: newBytes !== null,
+            free_quota:
+              newBytes !== null
+                ? newBytes
+                : prev.profile.is_free_user
+                ? 500 * 1024 * 1024
+                : 10 * 1024 * 1024,
+          }
+          return { ...prev, storage: updatedStorage }
+        })
+      }
+
+      if (customGb !== null) {
+        toast.success(`Storage quota updated to ${customGb} GB`)
+      } else {
+        toast.success("Storage quota reset to plan default")
+      }
+    } catch (err: any) {
+      console.error("Storage update error:", err)
+      toast.error(err.message || "Failed to update storage quota")
+    } finally {
+      setUpdatingStorage(false)
+    }
+  }
 
   useEffect(() => {
     if (otpCooldown <= 0) return
@@ -276,13 +362,29 @@ export default function AdminUsersPage() {
                             <Crown className="size-3" />
                             {user.subscription.plan_name}
                           </div>
+                          <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium">
+                            <HardDrive className="size-3 text-slate-400" />
+                            <span>{formatBytes(user.storage.free_quota + user.storage.purchased_quota)}</span>
+                            {user.storage.is_custom && (
+                              <span className="rounded bg-purple-100 px-1 py-0.5 text-[9px] font-bold text-purple-800 uppercase tracking-tight">Custom</span>
+                            )}
+                          </div>
                           {user.subscription.days_left !== null && (
                             <div className="text-xs text-slate-400">{user.subscription.days_left}d left</div>
                           )}
                         </div>
                       ) : (
-                        <div className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
-                          Free Trial
+                        <div className="space-y-1">
+                          <div className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+                            Free Trial
+                          </div>
+                          <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium">
+                            <HardDrive className="size-3 text-slate-400" />
+                            <span>{formatBytes(user.storage.free_quota + user.storage.purchased_quota)}</span>
+                            {user.storage.is_custom && (
+                              <span className="rounded bg-purple-100 px-1 py-0.5 text-[9px] font-bold text-purple-800 uppercase tracking-tight">Custom</span>
+                            )}
+                          </div>
                         </div>
                       )}
                     </td>
@@ -565,9 +667,21 @@ export default function AdminUsersPage() {
 
               {/* Storage & Media Section */}
               <section className="space-y-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-purple-500 flex items-center gap-2">
-                  <HardDrive className="size-4" /> Storage & Media
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-purple-500 flex items-center gap-2">
+                    <HardDrive className="size-4" /> Storage & Media
+                  </h3>
+                  {selectedUser.storage.is_custom ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 border border-purple-200 px-2.5 py-0.5 text-[11px] font-bold text-purple-800">
+                      Custom: {formatBytes(selectedUser.storage.free_quota)}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+                      Plan Default ({formatBytes(selectedUser.storage.free_quota)})
+                    </span>
+                  )}
+                </div>
+
                 <div className="rounded-2xl border border-purple-100 bg-purple-50/30 p-4 space-y-4">
                   <div className="flex justify-between items-end">
                     <div>
@@ -590,7 +704,87 @@ export default function AdminUsersPage() {
                     />
                   </div>
                 </div>
-                
+
+                {/* Dynamic Storage Quota Allocation (in GB) */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-900">Dynamic Storage Allocation</div>
+                      <div className="text-[11px] text-slate-500">Directly set storage in GB or choose a preset</div>
+                    </div>
+                    {selectedUser.storage.is_custom && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={updatingStorage}
+                        onClick={() => handleUpdateStorage(selectedUser, null)}
+                        className="text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-50 h-7 px-2"
+                      >
+                        Reset to Plan Default
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0.01"
+                        placeholder="e.g. 1, 2.5, 5"
+                        value={storageInputGb}
+                        onChange={(e) => setStorageInputGb(e.target.value)}
+                        disabled={updatingStorage}
+                        className="h-10 pr-12 rounded-xl text-sm"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 select-none pointer-events-none">
+                        GB
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={updatingStorage || !storageInputGb || Number(storageInputGb) <= 0}
+                      onClick={() => handleUpdateStorage(selectedUser, Number(storageInputGb))}
+                      className="h-10 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-medium text-xs flex items-center gap-1.5"
+                    >
+                      {updatingStorage && <Loader2 className="size-3.5 animate-spin" />}
+                      Update Storage
+                    </Button>
+                  </div>
+
+                  {/* Preset Buttons */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[11px] font-medium text-slate-400 mr-1">Presets:</span>
+                    {[
+                      { label: "100 MB", gb: 0.1 },
+                      { label: "500 MB", gb: 0.5 },
+                      { label: "1 GB", gb: 1 },
+                      { label: "2 GB", gb: 2 },
+                      { label: "5 GB", gb: 5 },
+                      { label: "10 GB", gb: 10 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        disabled={updatingStorage}
+                        onClick={() => {
+                          setStorageInputGb(preset.gb.toString())
+                          handleUpdateStorage(selectedUser, preset.gb)
+                        }}
+                        className={cn(
+                          "px-2.5 py-1 text-[11px] font-medium rounded-lg border transition-all cursor-pointer",
+                          storageInputGb === preset.gb.toString()
+                            ? "bg-purple-50 border-purple-300 text-purple-700 font-semibold"
+                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-purple-50/50 hover:border-purple-200"
+                        )}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
                     <div className="text-xs font-medium text-slate-500 mb-1">Active Plans</div>

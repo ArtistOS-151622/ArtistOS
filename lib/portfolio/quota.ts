@@ -117,15 +117,34 @@ export async function getOrCreateQuota(
 ): Promise<PortfolioStorageQuotaRow> {
   const numUserId = Number(userId)
 
-  // Check if the user has free user status (100MB storage)
-  const { data: user } = await supabase
-    .from("users")
-    .select("is_free_user")
-    .eq("id", numUserId)
-    .maybeSingle()
+  // Check user custom storage override, free user status, or plan defaults
+  let isFree = false
+  let customStorageBytes: number | null = null
 
-  const isFree = Boolean(user?.is_free_user)
-  const targetFreeBytes = isFree ? 100 * 1024 * 1024 : STORAGE_FREE_TIER_BYTES
+  try {
+    const { data: user } = await supabase
+      .from("users")
+      .select("is_free_user, custom_storage_bytes")
+      .eq("id", numUserId)
+      .maybeSingle()
+
+    isFree = Boolean(user?.is_free_user)
+    if (user?.custom_storage_bytes !== null && user?.custom_storage_bytes !== undefined) {
+      customStorageBytes = Number(user.custom_storage_bytes)
+    }
+  } catch {
+    const { data: user } = await supabase
+      .from("users")
+      .select("is_free_user")
+      .eq("id", numUserId)
+      .maybeSingle()
+    isFree = Boolean(user?.is_free_user)
+  }
+
+  // Target storage calculation: Custom override > Free user (500MB) > Trial (10MB)
+  const targetFreeBytes = customStorageBytes !== null
+    ? customStorageBytes
+    : (isFree ? 500 * 1024 * 1024 : STORAGE_FREE_TIER_BYTES)
 
   const { data: existing } = await supabase
     .from("portfolio_storage_quotas")
@@ -134,25 +153,37 @@ export async function getOrCreateQuota(
     .maybeSingle()
 
   if (existing) {
-    if (isFree && Number(existing.free_storage_bytes || 0) < targetFreeBytes) {
+    if (customStorageBytes !== null) {
+      if (Number(existing.free_storage_bytes || 0) !== customStorageBytes) {
+        await supabase
+          .from("portfolio_storage_quotas")
+          .update({ free_storage_bytes: customStorageBytes })
+          .eq("id", existing.id)
+        existing.free_storage_bytes = customStorageBytes
+      }
+    } else if (isFree && Number(existing.free_storage_bytes || 0) < targetFreeBytes) {
       await supabase
         .from("portfolio_storage_quotas")
         .update({ free_storage_bytes: targetFreeBytes })
         .eq("id", existing.id)
       existing.free_storage_bytes = targetFreeBytes
     } else if (!isFree) {
-      // If user is not free, check if they have an active paid plan that grants 100MB
+      // Check active paid subscription quota
       const { data: activeSub } = await supabase
         .from("user_subscriptions")
-        .select("status, platform_subscriptions(storage_quota_mb)")
+        .select("status, platform_subscriptions(storage_quota_mb, has_whatsapp_automation)")
         .eq("user_id", numUserId)
         .in("status", ["active", "pending"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle()
 
-      const hasPaid100Mb = Boolean((activeSub?.platform_subscriptions as any)?.storage_quota_mb >= 100)
-      const allowedFreeBytes = hasPaid100Mb ? 100 * 1024 * 1024 : STORAGE_FREE_TIER_BYTES
+      const rawPlan = activeSub?.platform_subscriptions as any
+      let allowedFreeBytes = STORAGE_FREE_TIER_BYTES
+      if (activeSub && rawPlan) {
+        const mb = Number(rawPlan.storage_quota_mb) || (rawPlan.has_whatsapp_automation ? 500 : 100)
+        allowedFreeBytes = mb * 1024 * 1024
+      }
 
       if (Number(existing.free_storage_bytes || 0) !== allowedFreeBytes) {
         await supabase

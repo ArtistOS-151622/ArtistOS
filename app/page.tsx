@@ -1228,7 +1228,7 @@ function PricingCard({ plan, billingCycle = "monthly" }: { plan: PricingPlan; bi
           >
             <HardDrive className={`size-4 shrink-0 ${isFeatured ? "text-[#c4b5fd]" : "text-[#7c3aed]"}`} />
             <span>
-              <strong>{plan.storage_quota_mb ?? (isPro ? 100 : 10)} MB</strong> Cloud Storage Quota
+              <strong>{plan.storage_quota_mb ?? (isPro ? 500 : 100)} MB</strong> Cloud Storage Quota
             </span>
           </div>
 

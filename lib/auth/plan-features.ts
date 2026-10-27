@@ -1,8 +1,9 @@
 import { SupabaseClient } from "@supabase/supabase-js"
 
 export const FREE_TRIAL_DAYS = 30
-export const STARTER_STORAGE_BYTES = 10 * 1024 * 1024 // 10 MB = 10,485,760 bytes
-export const PRO_STORAGE_BYTES = 100 * 1024 * 1024 // 100 MB = 104,857,600 bytes
+export const FREE_TRIAL_STORAGE_BYTES = 10 * 1024 * 1024 // 10 MB = 10,485,760 bytes
+export const STARTER_STORAGE_BYTES = 100 * 1024 * 1024 // 100 MB = 104,857,600 bytes
+export const PRO_STORAGE_BYTES = 500 * 1024 * 1024 // 500 MB = 524,288,000 bytes
 
 export type PlanTier = "trial" | "starter" | "pro" | "free" | "test"
 
@@ -22,10 +23,12 @@ export interface UserPlanFeatures {
 
 /**
  * Determines a user's active tier and feature permissions:
- * - Starter (299/mo or 2999/yr): Full access, 10 MB storage, NO WhatsApp automated messages (create, confirm, 24h reminder)
- * - Pro (599/mo or 6999/yr): Full access, 100 MB storage, INCLUDES WhatsApp automated messages
+ * - Free Trial: 10 MB storage, NO WhatsApp automated messages
+ * - Starter (299/mo or 2999/yr): Full access, 100 MB storage, NO WhatsApp automated messages
+ * - Pro (599/mo or 6999/yr): Full access, 500 MB storage, INCLUDES WhatsApp automated messages
  * - OTP Verification: Available for everyone
  * - Test users: Full access (Pro tier features)
+ * - Custom Storage: If admin assigned custom_storage_bytes, it overrides plan defaults
  */
 export async function getUserPlanFeatures(
   supabase: SupabaseClient,
@@ -40,7 +43,7 @@ export async function getUserPlanFeatures(
         billingPeriod: "/month",
         hasWhatsAppAutomation: true,
         storageQuotaBytes: PRO_STORAGE_BYTES,
-        storageQuotaMb: 100,
+        storageQuotaMb: 500,
         isReadOnly: false,
         hasActiveSub: true,
         daysSinceSignup: 0,
@@ -50,43 +53,68 @@ export async function getUserPlanFeatures(
     }
 
     const numUserId = Number(userId)
-    const userQuery = fromUsers
-      .select("created_at, is_free_user")
-      .eq("id", numUserId)
-    const { data: user, error: userError } = typeof (userQuery as any).maybeSingle === "function"
-      ? await (userQuery as any).maybeSingle()
-      : await (userQuery as any).single()
+    let user: any = null
+    let customStorageBytes: number | null = null
+
+    const fetchUserRecord = async (columns: string) => {
+      try {
+        const query: any = fromUsers.select(columns).eq("id", numUserId)
+        if (typeof query?.maybeSingle === "function") {
+          return await query.maybeSingle()
+        }
+        if (typeof query?.single === "function") {
+          return await query.single()
+        }
+      } catch (e) {
+        return { data: null, error: e }
+      }
+      return { data: null, error: null }
+    }
+
+    // Try selecting custom_storage_bytes, fallback if column not yet migrated
+    const { data: uData1, error: uErr1 } = await fetchUserRecord("created_at, is_free_user, custom_storage_bytes")
+    if (!uErr1 && uData1) {
+      user = uData1
+      if (uData1.custom_storage_bytes !== null && uData1.custom_storage_bytes !== undefined) {
+        customStorageBytes = Number(uData1.custom_storage_bytes)
+      }
+    }
+
+    if (!user) {
+      const { data: uData2, error: uErr2 } = await fetchUserRecord("created_at, is_free_user")
+      if (uErr2 || !uData2) {
+        return {
+          planTier: "trial",
+          planName: "Unknown",
+          billingPeriod: "",
+          hasWhatsAppAutomation: false,
+          storageQuotaBytes: FREE_TRIAL_STORAGE_BYTES,
+          storageQuotaMb: 10,
+          isReadOnly: true,
+          hasActiveSub: false,
+          daysSinceSignup: 999,
+          trialDaysLeft: 0,
+          subscriptionStatus: "none",
+        }
+      }
+      user = uData2
+    }
 
     const now = new Date()
     const msPerDay = 1000 * 60 * 60 * 24
 
-    if (userError || !user) {
-      return {
-        planTier: "trial",
-        planName: "Unknown",
-        billingPeriod: "",
-        hasWhatsAppAutomation: false,
-        storageQuotaBytes: STARTER_STORAGE_BYTES,
-        storageQuotaMb: 10,
-        isReadOnly: true,
-        hasActiveSub: false,
-        daysSinceSignup: 999,
-        trialDaysLeft: 0,
-        subscriptionStatus: "none",
-      }
-    }
-
-    // 1. Free Users bypass all restrictions (Full access: 100MB storage, WhatsApp automation, no billing required)
+    // 1. Free Users bypass all restrictions (Full access: 500MB storage or custom, WhatsApp automation)
     if (user.is_free_user) {
-      // Opportunistically ensure storage quota row has 100 MB
-      syncUserStorageQuota(supabase, numUserId, PRO_STORAGE_BYTES).catch(() => {})
+      const freeBytes = customStorageBytes !== null ? customStorageBytes : PRO_STORAGE_BYTES
+      const freeMb = Math.round(freeBytes / (1024 * 1024))
+      syncUserStorageQuota(supabase, numUserId, freeBytes).catch(() => {})
       return {
         planTier: "free",
         planName: "ArtistOS Lifetime (Free)",
         billingPeriod: "",
         hasWhatsAppAutomation: true,
-        storageQuotaBytes: PRO_STORAGE_BYTES,
-        storageQuotaMb: 100,
+        storageQuotaBytes: freeBytes,
+        storageQuotaMb: freeMb,
         isReadOnly: false,
         hasActiveSub: true,
         daysSinceSignup: Math.floor((now.getTime() - new Date(user.created_at).getTime()) / msPerDay),
@@ -136,8 +164,13 @@ export async function getUserPlanFeatures(
     const billingPeriod = plan?.billing_period || "/month"
 
     const hasWhatsAppAutomation = Boolean(plan?.has_whatsapp_automation)
-    const storageQuotaMb = Number(plan?.storage_quota_mb) || (hasWhatsAppAutomation ? 100 : 10)
-    const storageQuotaBytes = storageQuotaMb * 1024 * 1024
+    const defaultStorageMb = Number(plan?.storage_quota_mb) || (hasWhatsAppAutomation ? 500 : 100)
+    const storageQuotaMb = customStorageBytes !== null
+      ? Math.round(customStorageBytes / (1024 * 1024))
+      : defaultStorageMb
+    const storageQuotaBytes = customStorageBytes !== null
+      ? customStorageBytes
+      : storageQuotaMb * 1024 * 1024
 
     let subDaysLeft = 0
     if (endDateStr) {
@@ -240,8 +273,8 @@ export async function getUserPlanFeatures(
     planName: isTrialExpired ? "Trial Expired" : "Free Trial",
     billingPeriod: "",
     hasWhatsAppAutomation: false,
-    storageQuotaBytes: STARTER_STORAGE_BYTES,
-    storageQuotaMb: 10,
+    storageQuotaBytes: customStorageBytes !== null ? customStorageBytes : FREE_TRIAL_STORAGE_BYTES,
+    storageQuotaMb: customStorageBytes !== null ? Math.round(customStorageBytes / (1024 * 1024)) : 10,
     isReadOnly: isTrialExpired,
     hasActiveSub: false,
     daysSinceSignup,
@@ -255,7 +288,7 @@ export async function getUserPlanFeatures(
     planName: "Free Trial",
     billingPeriod: "",
     hasWhatsAppAutomation: false,
-    storageQuotaBytes: STARTER_STORAGE_BYTES,
+    storageQuotaBytes: FREE_TRIAL_STORAGE_BYTES,
     storageQuotaMb: 10,
     isReadOnly: false,
     hasActiveSub: false,
@@ -268,13 +301,27 @@ export async function getUserPlanFeatures(
 
 /**
  * Updates a user's free storage quota in `portfolio_storage_quotas`
- * based on their active plan tier (10 MB vs 100 MB).
+ * based on their active plan tier or admin custom override.
  */
 export async function syncUserStorageQuota(
   supabase: SupabaseClient,
   userId: number,
   targetBytes: number
 ): Promise<void> {
+  // If user has a custom admin storage override, preserve it
+  try {
+    const { data: user } = await supabase
+      .from("users")
+      .select("custom_storage_bytes")
+      .eq("id", userId)
+      .maybeSingle()
+    if (user?.custom_storage_bytes !== null && user?.custom_storage_bytes !== undefined) {
+      targetBytes = Number(user.custom_storage_bytes)
+    }
+  } catch {
+    // Column might not exist yet
+  }
+
   const { data: existing } = await supabase
     .from("portfolio_storage_quotas")
     .select("id, free_storage_bytes")

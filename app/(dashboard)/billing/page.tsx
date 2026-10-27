@@ -331,12 +331,13 @@ export default function BillingPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-1 text-xs font-semibold text-white">
                     <HardDrive className="size-3.5" />
-                    {currentPlan.amount_inr >= 500 ||
-                    currentPlan.storage_quota_mb === 100 ||
-                    currentPlan.name?.toLowerCase().includes("pro") ||
-                    currentPlan.name?.toLowerCase().includes("free")
-                      ? "100 MB Cloud Storage"
-                      : "10 MB Cloud Storage"}
+                    {currentPlan.storage_quota_mb
+                      ? `${currentPlan.storage_quota_mb} MB Cloud Storage`
+                      : currentPlan.amount_inr >= 500 ||
+                        currentPlan.name?.toLowerCase().includes("pro") ||
+                        currentPlan.name?.toLowerCase().includes("free")
+                      ? "500 MB Cloud Storage"
+                      : "100 MB Cloud Storage"}
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-1 text-xs font-semibold text-white">
                     <CheckCircle2 className="size-3.5" />

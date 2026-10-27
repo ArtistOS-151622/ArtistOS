@@ -9,10 +9,11 @@ export async function GET() {
   const supabase = await createClient()
 
   try {
-    const { data: users, error } = await supabase
+    let usersData: any[] | null = null
+    const { data: usersWithCustom, error: customErr } = await supabase
       .from("users")
       .select(`
-        id, phone, artist_name, studio_name, address, email, created_at, updated_at, is_test_user, is_free_user,
+        id, phone, artist_name, studio_name, address, email, created_at, updated_at, is_test_user, is_free_user, custom_storage_bytes,
         customers (count),
         bookings (id, status, created_at),
         booking_payments (amount),
@@ -20,11 +21,33 @@ export async function GET() {
         services (id),
         portfolio_storage_quotas (free_storage_bytes, purchase_storage_bytes, used_storage_bytes),
         portfolio_storage_purchases (status, amount, created_at),
-        user_subscriptions (id, status, current_period_start, current_period_end, next_billing_at, platform_subscriptions (name, amount_inr, billing_period))
+        user_subscriptions (id, status, current_period_start, current_period_end, next_billing_at, platform_subscriptions (name, amount_inr, billing_period, storage_quota_mb))
       `)
       .order("created_at", { ascending: false })
 
-    if (error) throw error
+    if (!customErr && usersWithCustom) {
+      usersData = usersWithCustom
+    } else {
+      const { data: fallbackUsers, error: fallbackErr } = await supabase
+        .from("users")
+        .select(`
+          id, phone, artist_name, studio_name, address, email, created_at, updated_at, is_test_user, is_free_user,
+          customers (count),
+          bookings (id, status, created_at),
+          booking_payments (amount),
+          booking_expenses (amount),
+          services (id),
+          portfolio_storage_quotas (free_storage_bytes, purchase_storage_bytes, used_storage_bytes),
+          portfolio_storage_purchases (status, amount, created_at),
+          user_subscriptions (id, status, current_period_start, current_period_end, next_billing_at, platform_subscriptions (name, amount_inr, billing_period, storage_quota_mb))
+        `)
+        .order("created_at", { ascending: false })
+
+      if (fallbackErr) throw fallbackErr
+      usersData = fallbackUsers
+    }
+
+    const users = usersData || []
 
     const now = new Date()
 
@@ -67,14 +90,30 @@ export async function GET() {
       // Platform subscription
       const allSubs: any[] = user.user_subscriptions || []
       const activeSub = allSubs.find((s: any) => {
-        const endDateStr = s.next_billing_at
-        return s.status === 'active' && (!endDateStr || new Date(endDateStr) > now)
-      }) ?? null
-      const plan = activeSub?.platform_subscriptions ?? null
-      const endDateStr = activeSub?.next_billing_at
+        const endDateStr = s.next_billing_at || s.current_period_end
+        const isPeriodActive = !endDateStr || new Date(endDateStr) > now
+        return (s.status === 'active' || s.status === 'pending') && isPeriodActive
+      }) ?? (allSubs.find((s: any) => s.status === 'active') ?? null)
+
+      const rawPlan = activeSub?.platform_subscriptions
+      const plan = Array.isArray(rawPlan) ? rawPlan[0] : rawPlan
+
+      const endDateStr = activeSub?.next_billing_at || activeSub?.current_period_end
       const daysLeft = endDateStr
         ? Math.max(0, Math.ceil((new Date(endDateStr).getTime() - now.getTime()) / 86400000))
         : null
+
+      // Expected tier quota in bytes based on plan
+      const expectedTierBytes = user.is_free_user
+        ? 500 * 1024 * 1024
+        : plan
+          ? (Number(plan.storage_quota_mb) || (plan.name?.toLowerCase().includes("pro") ? 500 : 100)) * 1024 * 1024
+          : STORAGE_FREE_TIER_BYTES
+
+      // Only mark custom if explicitly set by admin in users.custom_storage_bytes
+      const hasExplicitCustom = user.custom_storage_bytes !== null && user.custom_storage_bytes !== undefined && Number(user.custom_storage_bytes) > 0
+      const effectiveCustomBytes = hasExplicitCustom ? Number(user.custom_storage_bytes) : null
+      const effectiveFreeQuota = effectiveCustomBytes !== null ? effectiveCustomBytes : expectedTierBytes
 
       return {
         id: user.id,
@@ -107,11 +146,11 @@ export async function GET() {
           services_offered
         },
         storage: {
-          free_quota: user.is_free_user
-            ? 100 * 1024 * 1024
-            : Math.max(Number(finalQuota.free_storage_bytes || 0), STORAGE_FREE_TIER_BYTES),
+          free_quota: effectiveFreeQuota,
           purchased_quota: Number(finalQuota.purchase_storage_bytes || 0),
           used: Number(finalQuota.used_storage_bytes || 0),
+          custom_storage_bytes: effectiveCustomBytes,
+          is_custom: Boolean(hasExplicitCustom),
           active_plans,
           total_spent: total_storage_spent
         },
@@ -136,43 +175,144 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient()
+  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createAdminClient()
+    : await createClient()
 
   try {
     const body = await request.json()
-    const { id, is_test_user, is_free_user } = body
+    const { id, is_test_user, is_free_user, custom_storage_gb } = body
 
-    if (!id || (typeof is_test_user !== 'boolean' && typeof is_free_user !== 'boolean')) {
+    if (
+      !id ||
+      (typeof is_test_user !== 'boolean' &&
+        typeof is_free_user !== 'boolean' &&
+        custom_storage_gb === undefined)
+    ) {
       return NextResponse.json({ error: "Invalid request payload" }, { status: 400 })
     }
 
-    const updates: Record<string, boolean> = {}
+    const updates: Record<string, any> = {}
     if (typeof is_test_user === 'boolean') updates.is_test_user = is_test_user
-    if (typeof is_free_user === 'boolean') {
-      updates.is_free_user = is_free_user
-      // Automatically sync portfolio storage quota to 100MB (free user) or 10MB
-      const targetQuotaBytes = is_free_user ? 100 * 1024 * 1024 : 10 * 1024 * 1024
-      await supabase
-        .from("portfolio_storage_quotas")
-        .upsert(
-          {
-            user_id: id,
-            free_storage_bytes: targetQuotaBytes,
-          },
-          { onConflict: "user_id" }
-        )
+    if (typeof is_free_user === 'boolean') updates.is_free_user = is_free_user
+
+    // Handle Custom Storage Quota in GB
+    if (custom_storage_gb !== undefined) {
+      if (custom_storage_gb === null) {
+        // Reset to plan default
+        updates.custom_storage_bytes = null
+
+        // Determine plan default storage
+        const { data: userRec } = await supabase
+          .from("users")
+          .select("is_free_user")
+          .eq("id", id)
+          .maybeSingle()
+
+        const isFree = userRec?.is_free_user || false
+        let defaultBytes = isFree ? 500 * 1024 * 1024 : STORAGE_FREE_TIER_BYTES
+
+        if (!isFree) {
+          const { data: activeSub } = await supabase
+            .from("user_subscriptions")
+            .select("platform_subscriptions(storage_quota_mb, has_whatsapp_automation)")
+            .eq("user_id", id)
+            .in("status", ["active", "pending"])
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          const planObj = activeSub?.platform_subscriptions as any
+          if (planObj) {
+            const mb = Number(planObj.storage_quota_mb) || (planObj.has_whatsapp_automation ? 500 : 100)
+            defaultBytes = mb * 1024 * 1024
+          }
+        }
+
+        await supabase
+          .from("portfolio_storage_quotas")
+          .upsert(
+            {
+              user_id: id,
+              free_storage_bytes: defaultBytes,
+            },
+            { onConflict: "user_id" }
+          )
+      } else {
+        const gbNum = Number(custom_storage_gb)
+        if (isNaN(gbNum) || gbNum <= 0) {
+          return NextResponse.json({ error: "Storage quota must be a positive number of GB" }, { status: 400 })
+        }
+        const targetBytes = Math.round(gbNum * 1024 * 1024 * 1024)
+        updates.custom_storage_bytes = targetBytes
+
+        await supabase
+          .from("portfolio_storage_quotas")
+          .upsert(
+            {
+              user_id: id,
+              free_storage_bytes: targetBytes,
+            },
+            { onConflict: "user_id" }
+          )
+      }
+    } else if (typeof is_free_user === 'boolean') {
+      // If toggled free user without a custom override, update quota to 500MB (or 10MB)
+      const { data: userRec } = await supabase
+        .from("users")
+        .select("custom_storage_bytes")
+        .eq("id", id)
+        .maybeSingle()
+
+      if (!userRec?.custom_storage_bytes) {
+        const targetQuotaBytes = is_free_user ? 500 * 1024 * 1024 : 10 * 1024 * 1024
+        await supabase
+          .from("portfolio_storage_quotas")
+          .upsert(
+            {
+              user_id: id,
+              free_storage_bytes: targetQuotaBytes,
+            },
+            { onConflict: "user_id" }
+          )
+      }
     }
 
-    const { data, error } = await supabase
-      .from("users")
-      .update(updates)
-      .eq("id", id)
-      .select("id, is_test_user, is_free_user")
-      .single()
+    // Try updating users table with updates
+    let updatedUser: any = null
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single()
 
-    if (error) throw error
+      if (error) {
+        // If column custom_storage_bytes does not exist yet on users, update without it
+        if (error.message?.includes("custom_storage_bytes")) {
+          const fallbackUpdates = { ...updates }
+          delete fallbackUpdates.custom_storage_bytes
+          if (Object.keys(fallbackUpdates).length > 0) {
+            const { data: fbData } = await supabase
+              .from("users")
+              .update(fallbackUpdates)
+              .eq("id", id)
+              .select()
+              .single()
+            updatedUser = fbData
+          }
+        } else {
+          throw error
+        }
+      } else {
+        updatedUser = data
+      }
+    } catch (err: any) {
+      console.warn("User table update notice:", err?.message)
+    }
 
-    return NextResponse.json({ success: true, user: data })
+    return NextResponse.json({ success: true, user: updatedUser })
   } catch (error) {
     console.error("Error updating user status:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

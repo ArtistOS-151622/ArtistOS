@@ -81,7 +81,7 @@ test("test user without is_free_user has general user plan features, while free 
   assert.equal(freeFeatures.planTier, "free")
   assert.equal(freeFeatures.hasWhatsAppAutomation, true)
   assert.equal(freeFeatures.storageQuotaBytes, PRO_STORAGE_BYTES)
-  assert.equal(freeFeatures.storageQuotaMb, 100)
+  assert.equal(freeFeatures.storageQuotaMb, 500)
   assert.equal(freeFeatures.isReadOnly, false)
 
   // Test User (not free) -> behaves as general user

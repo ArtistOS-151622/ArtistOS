@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { getUserPlanFeatures, PRO_STORAGE_BYTES, STARTER_STORAGE_BYTES } from "../lib/auth/plan-features.ts"
+import { getUserPlanFeatures, PRO_STORAGE_BYTES, STARTER_STORAGE_BYTES, FREE_TRIAL_STORAGE_BYTES } from "../lib/auth/plan-features.ts"
 
 test("getUserPlanFeatures: identifies free user with Pro features", async () => {
   const mockSupabase = {
@@ -25,11 +25,11 @@ test("getUserPlanFeatures: identifies free user with Pro features", async () => 
   assert.equal(features.planTier, "free")
   assert.equal(features.hasWhatsAppAutomation, true)
   assert.equal(features.storageQuotaBytes, PRO_STORAGE_BYTES)
-  assert.equal(features.storageQuotaMb, 100)
+  assert.equal(features.storageQuotaMb, 500)
   assert.equal(features.isReadOnly, false)
 })
 
-test("getUserPlanFeatures: Starter plan has 10 MB and NO WhatsApp automation", async () => {
+test("getUserPlanFeatures: Starter plan has 100 MB and NO WhatsApp automation", async () => {
   const mockSupabase = {
     from: (table: string) => {
       if (table === "users") {
@@ -62,7 +62,7 @@ test("getUserPlanFeatures: Starter plan has 10 MB and NO WhatsApp automation", a
                           amount_inr: 299,
                           billing_period: "/month",
                           has_whatsapp_automation: false,
-                          storage_quota_mb: 10,
+                          storage_quota_mb: 100,
                         },
                       },
                       error: null,
@@ -83,12 +83,12 @@ test("getUserPlanFeatures: Starter plan has 10 MB and NO WhatsApp automation", a
   assert.equal(features.planName, "Starter")
   assert.equal(features.hasWhatsAppAutomation, false)
   assert.equal(features.storageQuotaBytes, STARTER_STORAGE_BYTES)
-  assert.equal(features.storageQuotaMb, 10)
+  assert.equal(features.storageQuotaMb, 100)
   assert.equal(features.isReadOnly, false)
   assert.equal(features.hasActiveSub, true)
 })
 
-test("getUserPlanFeatures: Pro plan has 100 MB and WhatsApp automation", async () => {
+test("getUserPlanFeatures: Pro plan has 500 MB and WhatsApp automation", async () => {
   const mockSupabase = {
     from: (table: string) => {
       if (table === "users") {
@@ -121,7 +121,7 @@ test("getUserPlanFeatures: Pro plan has 100 MB and WhatsApp automation", async (
                           amount_inr: 599,
                           billing_period: "/month",
                           has_whatsapp_automation: true,
-                          storage_quota_mb: 100,
+                          storage_quota_mb: 500,
                         },
                       },
                       error: null,
@@ -142,7 +142,7 @@ test("getUserPlanFeatures: Pro plan has 100 MB and WhatsApp automation", async (
   assert.equal(features.planName, "Pro")
   assert.equal(features.hasWhatsAppAutomation, true)
   assert.equal(features.storageQuotaBytes, PRO_STORAGE_BYTES)
-  assert.equal(features.storageQuotaMb, 100)
+  assert.equal(features.storageQuotaMb, 500)
   assert.equal(features.isReadOnly, false)
   assert.equal(features.hasActiveSub, true)
 })
@@ -184,7 +184,7 @@ test("getUserPlanFeatures: Free Trial has 10 MB and NO WhatsApp automation", asy
   const features = await getUserPlanFeatures(mockSupabase, 104)
   assert.equal(features.planTier, "trial")
   assert.equal(features.hasWhatsAppAutomation, false)
-  assert.equal(features.storageQuotaBytes, STARTER_STORAGE_BYTES)
+  assert.equal(features.storageQuotaBytes, FREE_TRIAL_STORAGE_BYTES)
   assert.equal(features.storageQuotaMb, 10)
   assert.equal(features.isReadOnly, false)
   assert.equal(features.hasActiveSub, false)
@@ -336,4 +336,48 @@ test("getUserPlanFeatures: Cancelled plan after period ends enters read-only mod
   assert.equal(features.isReadOnly, true)
   assert.equal(features.hasActiveSub, false)
   assert.equal(features.subscriptionStatus, "cancelled")
+})
+
+test("getUserPlanFeatures: custom storage override takes precedence over plan defaults", async () => {
+  const customBytes = 2 * 1024 * 1024 * 1024 // 2 GB
+  const mockSupabase = {
+    from: (table: string) => {
+      if (table === "users") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: async () => ({
+                data: {
+                  created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+                  is_free_user: false,
+                  custom_storage_bytes: customBytes,
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }
+      }
+      if (table === "user_subscriptions") {
+        return {
+          select: () => ({
+            eq: () => ({
+              in: () => ({
+                order: () => ({
+                  limit: () => ({
+                    maybeSingle: async () => ({ data: null, error: null }),
+                  }),
+                }),
+              }),
+            }),
+          }),
+        }
+      }
+      return {}
+    },
+  } as any
+
+  const features = await getUserPlanFeatures(mockSupabase, 999)
+  assert.equal(features.storageQuotaBytes, customBytes)
+  assert.equal(features.storageQuotaMb, 2048)
 })
