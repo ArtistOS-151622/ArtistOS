@@ -189,16 +189,22 @@ export async function scanDailyArtistAgenda(
       continue
     }
 
-    // C. Check deduplication for today
+    const targetUrl = `/bookings?date=${targetDate}`
+
+    // C. Check deduplication for target date
     const { data: existingLog } = await supabase
       .from("notification_events")
       .select("id, status, attempts")
       .eq("user_id", artistId)
       .eq("channel", "whatsapp")
-      .in("event_type", ["today_bookings_to_artist", "artist_daily_agenda", templateName])
+      .in("event_type", [
+        "today_bookings_to_artist",
+        "artist_daily_agenda",
+        "artist_morning_summary",
+        templateName,
+      ])
       .eq("entity_type", "artist_daily_agenda")
-      .gte("created_at", startOfDay)
-      .lte("created_at", endOfDay)
+      .eq("url", targetUrl)
       .maybeSingle()
 
     if (existingLog) {
@@ -234,34 +240,31 @@ export async function scanDailyArtistAgenda(
       `${totalCount} ${totalCount === 1 ? "Booking" : "Bookings"}`
     )
 
-    // Build line-by-line schedule
-    const scheduleLines = artistBookings
-      .map((b, index) => {
-        const num = `${index + 1})`
-        const time = formatDisplayTime(b.start_time || "09:00")
-        const customer = Array.isArray(b.customer) ? b.customer[0] : b.customer
-        const customerName = customer?.customer_name?.trim() || "Customer"
-        const phone = customer?.phone?.trim() ? `(${customer.phone.trim()})` : ""
+    // Build first appointment summary for Pattern 2
+    const firstTime = formatDisplayTime(firstBooking?.start_time || "09:00")
+    const firstCustomer = Array.isArray(firstBooking?.customer)
+      ? firstBooking.customer[0]
+      : firstBooking?.customer
+    const customerName = firstCustomer?.customer_name?.trim() || "Customer"
+    const customerPhone = firstCustomer?.phone?.trim() ? ` (${firstCustomer.phone.trim()})` : ""
 
-        const services: string[] = []
-        if (Array.isArray(b.booking_services)) {
-          for (const bs of b.booking_services as any[]) {
-            const sName = bs?.service?.service_name
-            if (sName) services.push(sName)
-          }
-        }
-        const serviceStr = services.length > 0 ? services.join(", ") : "Appointment"
-        const addressStr = b.booking_address?.trim() ? `, ${b.booking_address.trim()}` : ""
+    const firstServices: string[] = []
+    if (Array.isArray(firstBooking?.booking_services)) {
+      for (const bs of firstBooking.booking_services as any[]) {
+        const sName = bs?.service?.service_name
+        if (sName) firstServices.push(sName)
+      }
+    }
+    const serviceStr = firstServices.length > 0 ? firstServices.join(", ") : "Appointment"
+    const addressStr = firstBooking?.booking_address?.trim()
+      ? `, ${firstBooking.booking_address.trim()}`
+      : ""
 
-        return `${num} ${time} - ${customerName}${phone ? ` ${phone}` : ""}\n   ${serviceStr}${addressStr}`
-      })
-      .join("\n\n")
+    const firstBookingSummary = sanitizeWhatsAppParam(
+      `${firstTime} - ${customerName}${customerPhone} - ${serviceStr}${addressStr}`
+    )
 
-    const sanitizedSchedule = sanitizeWhatsAppParam(scheduleLines, "-", {
-      preserveNewlines: true,
-    })
-
-    const bodyParameters = [artistName, formattedDate, countText, sanitizedSchedule]
+    const bodyParameters = [artistName, formattedDate, countText, firstBookingSummary]
 
     console.log(
       `[Daily Agenda] Sending "${templateName}" to artist ${formattedPhone} for ${totalCount} bookings on ${targetDate}`

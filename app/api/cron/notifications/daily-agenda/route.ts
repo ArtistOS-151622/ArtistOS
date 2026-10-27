@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
     : await createClient()
 
   try {
-    const result = await scanDailyArtistAgenda(supabase)
+    const url = new URL(request.url)
+    const customDate = url.searchParams.get("date") || undefined
+    const result = await scanDailyArtistAgenda(supabase, customDate)
 
     return NextResponse.json({
       status: true,
