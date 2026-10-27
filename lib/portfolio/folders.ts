@@ -67,11 +67,11 @@ export async function findOrCreateBookingFolder(
 
   const customerName = (booking?.customer as any)?.customer_name
   const index = await getBookingIndex(supabase, userId, bookingId)
-  const name = customerName ? `${customerName} (#${index})` : `Booking #${index}`
+  const name = customerName ? `Booking - ${customerName} (#${index})` : `Booking #${index}`
 
   const existing = await findFolderByBooking(supabase, userId, bookingId)
   if (existing) {
-    if (existing.name.startsWith("Booking #") && customerName) {
+    if ((!existing.name.startsWith("Booking - ") || existing.name.startsWith("Booking #")) && customerName) {
       const { data: updated } = await supabase
         .from("portfolio_folders")
         .update({ name })
@@ -97,6 +97,105 @@ export async function findOrCreateBookingFolder(
   if (error) {
     if (error.code === "23505") {
       const retry = await findFolderByBooking(supabase, userId, bookingId)
+      if (retry) return retry
+    }
+    throw new Error(error.message)
+  }
+
+  return data as PortfolioFolderRow
+}
+
+export async function findFolderByCourse(
+  supabase: SupabaseClient,
+  userId: number,
+  courseId: number
+): Promise<PortfolioFolderRow | null> {
+  try {
+    const { data } = await supabase
+      .from("portfolio_folders")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("course_id", courseId)
+      .maybeSingle()
+    if (data) return data as PortfolioFolderRow
+  } catch {
+    // Column might not exist yet
+  }
+  return null
+}
+
+export async function findOrCreateCourseFolder(
+  supabase: SupabaseClient,
+  userId: number,
+  courseId: number,
+  courseName: string
+): Promise<PortfolioFolderRow> {
+  const trimmedName = courseName.trim()
+
+  // 1. Try finding by course_id first
+  const existingByCourse = await findFolderByCourse(supabase, userId, courseId)
+  if (existingByCourse) {
+    if (existingByCourse.name !== trimmedName) {
+      const { data: updated } = await supabase
+        .from("portfolio_folders")
+        .update({ name: trimmedName })
+        .eq("id", existingByCourse.id)
+        .select("*")
+        .maybeSingle()
+      if (updated) return updated as PortfolioFolderRow
+    }
+    return existingByCourse
+  }
+
+  // 2. Try finding by exact name
+  const existingByName = await findFolderByName(supabase, userId, trimmedName)
+  if (existingByName) {
+    try {
+      const { data: updated } = await supabase
+        .from("portfolio_folders")
+        .update({ course_id: courseId })
+        .eq("id", existingByName.id)
+        .select("*")
+        .maybeSingle()
+      if (updated) return updated as PortfolioFolderRow
+    } catch {
+      // Ignore if course_id column is not in DB yet
+    }
+    return existingByName
+  }
+
+  // 3. Insert new folder with course_id
+  const insertPayload: Record<string, any> = {
+    user_id: userId,
+    name: trimmedName,
+    created_by: userId,
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("portfolio_folders")
+      .insert({ ...insertPayload, course_id: courseId })
+      .select("*")
+      .single()
+
+    if (!error && data) return data as PortfolioFolderRow
+    if (error && error.code === "23505") {
+      const retry = await findFolderByName(supabase, userId, trimmedName)
+      if (retry) return retry
+    }
+  } catch {
+    // Fallback if course_id column not present
+  }
+
+  const { data, error } = await supabase
+    .from("portfolio_folders")
+    .insert(insertPayload)
+    .select("*")
+    .single()
+
+  if (error) {
+    if (error.code === "23505") {
+      const retry = await findFolderByName(supabase, userId, trimmedName)
       if (retry) return retry
     }
     throw new Error(error.message)
@@ -159,12 +258,11 @@ export async function listFolders(
   const result: PortfolioFolderWithStats[] = []
 
   for (const folder of (folders ?? []) as PortfolioFolderRow[]) {
-    // Count portfolio files excluding private booking reference images
+    // Count all portfolio files in folder
     const { count } = await supabase
       .from("portfolio_files")
       .select("*", { count: "exact", head: true })
       .eq("folder_id", folder.id)
-      .neq("section", "reference")
 
     const { data: sizeData } = await supabase
       .from("portfolio_files")
@@ -178,13 +276,13 @@ export async function listFolders(
 
     const fileCount = count ?? 0
     
-    // Skip booking folders that have no deliverables uploaded yet (reference images remain under booking info only)
+    // Skip empty booking folders that have 0 files
     if (folder.booking_id !== null && fileCount === 0) {
       continue
     }
 
-    // Auto-update folder name to include Customer Name if it currently uses generic "Booking #"
-    if (folder.booking_id !== null && folder.name.startsWith("Booking #")) {
+    // Auto-update folder name to include "Booking - " prefix so user can recognize booking folders properly
+    if (folder.booking_id !== null && !folder.name.startsWith("Booking - ")) {
       const { data: booking } = await supabase
         .from("bookings")
         .select("id, customer:customers(customer_name)")
@@ -194,7 +292,7 @@ export async function listFolders(
       const customerName = (booking?.customer as any)?.customer_name
       if (customerName) {
         const index = await getBookingIndex(supabase, userId, folder.booking_id)
-        const newName = `${customerName} (#${index})`
+        const newName = `Booking - ${customerName} (#${index})`
         await supabase
           .from("portfolio_folders")
           .update({ name: newName })
@@ -203,12 +301,30 @@ export async function listFolders(
       }
     }
 
-    // Fetch up to 4 preview files for folder icon 2x2 grid preview (excluding reference images)
+    // Determine folder_type (course | reference | portfolio)
+    const { data: sectionData } = await supabase
+      .from("portfolio_files")
+      .select("section")
+      .eq("folder_id", folder.id)
+      .limit(10)
+
+    const sections = (sectionData ?? []).map((s: any) => s.section)
+    let folderType: "course" | "reference" | "portfolio" = "portfolio"
+    if (folder.course_id !== null && folder.course_id !== undefined) {
+      folderType = "course"
+    } else if (folder.booking_id !== null && folder.booking_id !== undefined) {
+      folderType = "reference"
+    } else if (sections.includes("course")) {
+      folderType = "course"
+    } else if (sections.includes("reference")) {
+      folderType = "reference"
+    }
+
+    // Fetch up to 4 preview files for folder icon 2x2 grid preview
     const { data: previewData } = await supabase
       .from("portfolio_files")
       .select("id, storage_path, mime_type")
       .eq("folder_id", folder.id)
-      .neq("section", "reference")
       .order("sort_order", { ascending: true })
       .limit(4)
 
@@ -223,6 +339,7 @@ export async function listFolders(
       file_count: fileCount,
       total_size: totalSize,
       preview_files,
+      folder_type: folderType,
       share_url: folder.is_shared
         ? buildShareUrl(folder.uuid)
         : null,

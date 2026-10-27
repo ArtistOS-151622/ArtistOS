@@ -9,6 +9,7 @@ import { useParams } from "next/navigation"
 import { HeaderPortal, PageHeader } from "@/components/common/dashboard/dashboard-header-context"
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog"
 import { PortfolioFileGrid } from "@/components/portfolio/portfolio-file-grid"
+import { getFolderBadgeInfo } from "@/components/portfolio/portfolio-folder-grid"
 import { PortfolioLightbox } from "@/components/portfolio/portfolio-lightbox"
 import { PortfolioShareModal } from "@/components/portfolio/portfolio-share-modal"
 import { PortfolioUploader } from "@/components/portfolio/portfolio-uploader"
@@ -144,13 +145,27 @@ export default function PortfolioFolderPage() {
             >
               <ArrowLeft className="size-4" />
             </Link>
-            <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
               <h2
                 className="text-base sm:text-xl font-extrabold text-slate-900 truncate max-w-[130px] min-[380px]:max-w-[180px] sm:max-w-xs md:max-w-md"
                 title={folder?.name ?? "Folder Details"}
               >
                 {folder?.name ?? "Folder Details"}
               </h2>
+              {folder && (() => {
+                const badge = getFolderBadgeInfo(folder)
+                return (
+                  <span
+                    className={cn(
+                      "inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold border shrink-0",
+                      badge.className
+                    )}
+                  >
+                    {badge.icon}
+                    {badge.label}
+                  </span>
+                )
+              })()}
               <span className="text-slate-300 font-light text-sm hidden sm:inline">|</span>
               <span className="text-xs sm:text-sm text-slate-500 font-semibold truncate shrink-0 hidden sm:inline">
                 {files.length} items

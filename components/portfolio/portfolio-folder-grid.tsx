@@ -1,7 +1,21 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { FolderOpen, LayoutGrid, Grid3x3, List, Pencil, Share2, Trash2, MoreVertical, FileText, Image as ImageIcon } from "lucide-react"
+import {
+  Bookmark,
+  FileText,
+  FolderOpen,
+  GraduationCap,
+  Grid3x3,
+  Image as ImageIcon,
+  LayoutGrid,
+  List,
+  MoreVertical,
+  Pencil,
+  Share2,
+  Sparkles,
+  Trash2,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -14,6 +28,31 @@ import type { PortfolioFolderWithStats } from "@/lib/portfolio/types"
 import { formatBytes } from "@/lib/portfolio/response"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+
+export function getFolderBadgeInfo(folder: PortfolioFolderWithStats) {
+  if (folder.course_id || folder.folder_type === "course") {
+    return {
+      label: "Course",
+      variant: "course",
+      className: "bg-purple-100 text-[#7c3aed] border-purple-200/90 shadow-xs",
+      icon: <GraduationCap className="size-2.5 mr-1 shrink-0" />,
+    }
+  }
+  if (folder.booking_id || folder.folder_type === "reference") {
+    return {
+      label: "Reference Image",
+      variant: "reference",
+      className: "bg-amber-100 text-amber-900 border-amber-200/90 shadow-xs",
+      icon: <Bookmark className="size-2.5 mr-1 shrink-0" />,
+    }
+  }
+  return {
+    label: "Portfolio",
+    variant: "portfolio",
+    className: "bg-emerald-50 text-emerald-800 border-emerald-200/90 shadow-xs",
+    icon: <Sparkles className="size-2.5 mr-1 shrink-0" />,
+  }
+}
 
 type PortfolioFolderGridProps = {
   folders: PortfolioFolderWithStats[]
@@ -137,11 +176,20 @@ export function PortfolioFolderGrid({
                     >
                       {folder.name}
                     </h3>
-                    {/* {folder.is_shared && (
-                      <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider shrink-0">
-                        Shared
-                      </span>
-                    )} */}
+                    {(() => {
+                      const badge = getFolderBadgeInfo(folder)
+                      return (
+                        <span
+                          className={cn(
+                            "inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-extrabold border shrink-0",
+                            badge.className
+                          )}
+                        >
+                          {badge.icon}
+                          {badge.label}
+                        </span>
+                      )
+                    })()}
                   </div>
                   <p className="text-xs text-slate-400 font-medium mt-0.5 truncate max-w-[200px] sm:max-w-md">
                     {folder.file_count ?? 0} items · {formatBytes(folder.total_size ?? 0)}
@@ -201,8 +249,27 @@ export function PortfolioFolderGrid({
           {folders.map((folder) => (
             <div
               key={folder.id}
-              className="group relative flex flex-col items-center text-center space-y-2  rounded-2xl transition-all duration-200"
+              className="group relative flex flex-col items-center text-center space-y-2 rounded-2xl transition-all duration-200"
             >
+              {/* Category Corner Badge (Top Left) */}
+              {(() => {
+                const badge = getFolderBadgeInfo(folder)
+                return (
+                  <div className="absolute top-1 left-1 z-20">
+                    <span
+                      className={cn(
+                        "inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-extrabold border shadow-xs leading-none tracking-tight",
+                        badge.className
+                      )}
+                      title={badge.label}
+                    >
+                      {badge.icon}
+                      {badge.label}
+                    </span>
+                  </div>
+                )
+              })()}
+
               {/* Always-visible 3-dots Menu Button (Top Right) */}
               <div className="absolute top-1 right-1 z-20">
                 <DropdownMenu>

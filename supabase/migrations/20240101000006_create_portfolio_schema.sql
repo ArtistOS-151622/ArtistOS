@@ -15,6 +15,7 @@ create table if not exists portfolio_folders (
   uuid uuid not null default gen_random_uuid() unique,
   user_id bigint not null references users(id) on delete cascade,
   booking_id bigint references bookings(id) on delete set null,
+  course_id bigint references courses(id) on delete set null,
   name varchar(255) not null,
   description text,
   is_shared boolean not null default false,

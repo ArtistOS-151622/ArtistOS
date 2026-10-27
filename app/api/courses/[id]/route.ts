@@ -129,6 +129,19 @@ export async function PATCH(
     return NextResponse.json({ error: updateError.message }, { status: 400 })
   }
 
+  // If course was renamed, sync corresponding portfolio folder name
+  if (name) {
+    try {
+      await supabase
+        .from("portfolio_folders")
+        .update({ name })
+        .eq("user_id", session.id)
+        .eq("course_id", id)
+    } catch {
+      // Column course_id might not exist yet
+    }
+  }
+
   // If service_ids were passed, update junction
   if (Array.isArray(body.service_ids)) {
     const validServiceIds = body.service_ids.map(Number).filter((n: number) => Number.isInteger(n) && n > 0)

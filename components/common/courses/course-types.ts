@@ -20,6 +20,7 @@ export type Course = {
   students_count?: number
   total_collected?: number
   total_pending?: number
+  images?: { id: number; public_url: string; original_name?: string }[]
 }
 
 export type CourseStudent = {
@@ -64,6 +65,8 @@ export type CourseFormValues = {
   start_date: string
   max_students: string
   service_ids: number[]
+  images?: File[]
+  removed_image_ids?: number[]
 }
 
 export type StudentFormValues = {

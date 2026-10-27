@@ -1,15 +1,18 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import {
   Clock,
   CreditCard,
   Edit3,
   Flower2,
   GraduationCap,
+  ImageIcon,
   MessageCircle,
   Plus,
   Trash2,
   Users,
+  X,
 } from "lucide-react"
 
 import type {
@@ -44,6 +47,42 @@ export function CourseDetailDrawer({
   onDeleteStudent,
   studioName = "Our Academy",
 }: CourseDetailDrawerProps) {
+  const [courseImages, setCourseImages] = useState<any[]>([])
+  const [loadingImages, setLoadingImages] = useState(false)
+  const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    if (!course?.id || !open) {
+      setCourseImages([])
+      setLoadingImages(false)
+      return
+    }
+
+    async function loadImages() {
+      try {
+        setLoadingImages(true)
+        const res = await fetch(`/api/courses/${course!.id}/portfolio`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (isMounted) {
+          setCourseImages(data.data?.files || [])
+        }
+      } catch (err) {
+        console.error("Failed to load course images:", err)
+      } finally {
+        if (isMounted) {
+          setLoadingImages(false)
+        }
+      }
+    }
+
+    loadImages()
+    return () => {
+      isMounted = false
+    }
+  }, [course?.id, open])
+
   if (!course || !open) return null
 
   const courseStudents = students.filter((s) => s.course_id === course.id)
@@ -150,6 +189,64 @@ We look forward to an amazing learning journey together! ✨`
           </div>
         )}
 
+        {/* Course Photos */}
+        {(loadingImages || courseImages.length > 0) && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <ImageIcon className="size-3.5 text-purple-600" /> Course Photos
+                {!loadingImages && <span className="text-slate-400">({courseImages.length})</span>}
+              </h4>
+              {loadingImages && (
+                <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+                  <span className="size-1.5 rounded-full bg-purple-500 animate-ping" />
+                  Loading photos…
+                </span>
+              )}
+            </div>
+
+            {loadingImages ? (
+              <div className="grid grid-cols-3 gap-2.5">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="h-24 rounded-xl border border-slate-200/80 bg-slate-100/90 animate-pulse flex flex-col items-center justify-center gap-1 p-2"
+                  >
+                    <div className="size-7 rounded-lg bg-slate-200/80" />
+                    <div className="h-2.5 w-14 rounded bg-slate-200/80" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2.5">
+                {courseImages.map((img) => (
+                  <div
+                    key={img.id}
+                    onClick={() =>
+                      setZoomImage({
+                        url: img.public_url,
+                        name: img.original_name || "Course Photo",
+                      })
+                    }
+                    className="group relative h-24 rounded-xl overflow-hidden border border-slate-200/80 bg-slate-100 cursor-pointer shadow-2xs hover:shadow-md transition"
+                  >
+                    <img
+                      src={img.public_url}
+                      alt={img.original_name || "Course Photo"}
+                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-medium bg-black/60 px-2 py-0.5 rounded-full transition-opacity">
+                        View
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Enrolled Students Section */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between">
@@ -239,6 +336,35 @@ We look forward to an amazing learning journey together! ✨`
           )}
         </div>
       </div>
+
+      {/* Lightbox Zoom Modal */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
+          onClick={() => setZoomImage(null)}
+        >
+          <div
+            className="relative max-w-2xl max-h-[85vh] bg-black rounded-2xl overflow-hidden shadow-2xl flex flex-col items-center border border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setZoomImage(null)}
+              className="absolute top-3 right-3 size-8 rounded-full bg-black/70 hover:bg-white hover:text-black text-white flex items-center justify-center transition-colors z-20"
+            >
+              <X className="size-4" />
+            </button>
+            <img
+              src={zoomImage.url}
+              alt={zoomImage.name}
+              className="max-h-[75vh] w-auto object-contain rounded-t-2xl"
+            />
+            <div className="p-3 text-center text-xs text-white/90 w-full bg-slate-900 truncate">
+              {zoomImage.name}
+            </div>
+          </div>
+        </div>
+      )}
     </AppModal>
   )
 }

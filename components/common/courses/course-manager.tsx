@@ -21,6 +21,10 @@ import type {
   CourseStudent,
   StudentFormValues,
 } from "@/components/common/courses/course-types"
+import {
+  uploadCourseImagesWithProgress,
+  type UploadProgressState,
+} from "@/components/common/courses/course-upload-helper"
 import { CourseCard } from "@/components/common/courses/course-card"
 import { CourseForm } from "@/components/common/courses/course-form"
 import { CourseDetailDrawer } from "@/components/common/courses/course-detail-drawer"
@@ -58,6 +62,7 @@ export function CourseManager() {
 
   const [loading, setLoading] = useState(true)
   const [formLoading, setFormLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null)
   const [error, setError] = useState("")
 
   // Active Tab: 'courses' | 'students'
@@ -118,6 +123,16 @@ export function CourseManager() {
     }
 
     setFormLoading(true)
+    const hasImagesToUpload = Boolean(values.images && values.images.length > 0)
+    const hasImagesToDelete = Boolean(values.removed_image_ids && values.removed_image_ids.length > 0)
+
+    if (hasImagesToUpload || hasImagesToDelete) {
+      setUploadProgress({
+        percentage: 10,
+        message: "Saving course details...",
+      })
+    }
+
     try {
       const url = editingCourse ? `/api/courses/${editingCourse.id}` : "/api/courses"
       const method = editingCourse ? "PATCH" : "POST"
@@ -135,12 +150,44 @@ export function CourseManager() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to save course.")
 
+      const targetCourseId = editingCourse ? editingCourse.id : (data.course?.id ?? data.id)
+
+      // 1. Delete removed images if any
+      if (hasImagesToDelete && values.removed_image_ids) {
+        setUploadProgress({
+          percentage: 20,
+          message: "Updating course images...",
+        })
+        await Promise.all(
+          values.removed_image_ids.map(async (fileId) => {
+            try {
+              await fetch(`/api/portfolio/files/${fileId}`, {
+                method: "DELETE",
+              })
+            } catch (delErr) {
+              console.error("Failed to delete removed course image:", delErr)
+            }
+          })
+        )
+      }
+
+      // 2. Upload course images with real-time progress
+      if (hasImagesToUpload && values.images && targetCourseId) {
+        await uploadCourseImagesWithProgress(
+          values.images,
+          targetCourseId,
+          setUploadProgress
+        )
+      }
+
       toast.success(editingCourse ? "Course updated successfully." : "Course created successfully.")
       setCourseModalOpen(false)
       setEditingCourse(null)
+      setUploadProgress(null)
       await loadData()
     } catch (err: any) {
       toast.error(err?.message || "Failed to save course.")
+      setUploadProgress(null)
     } finally {
       setFormLoading(false)
     }
@@ -598,6 +645,7 @@ export function CourseManager() {
         onClose={() => {
           setCourseModalOpen(false)
           setEditingCourse(null)
+          setUploadProgress(null)
         }}
         title={editingCourse ? "Edit Course" : "Create New Course"}
       >
@@ -608,8 +656,10 @@ export function CourseManager() {
           onCancel={() => {
             setCourseModalOpen(false)
             setEditingCourse(null)
+            setUploadProgress(null)
           }}
           loading={formLoading}
+          uploadProgress={uploadProgress}
         />
       </AppModal>
 

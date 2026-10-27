@@ -5,6 +5,7 @@ export type PortfolioFolderRow = {
   uuid: string
   user_id: number
   booking_id: number | null
+  course_id?: number | null
   name: string
   description: string | null
   is_shared: boolean
@@ -81,4 +82,5 @@ export type PortfolioFolderWithStats = PortfolioFolderRow & {
   total_size?: number
   share_url?: string | null
   preview_files?: { id: number; public_url: string; mime_type: string }[]
+  folder_type?: "course" | "reference" | "portfolio"
 }

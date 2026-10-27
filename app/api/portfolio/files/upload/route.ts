@@ -4,6 +4,7 @@ import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import {
   findOrCreateBookingFolder,
+  findOrCreateCourseFolder,
   findOrCreateDefaultPortfolioFolder,
 } from "@/lib/portfolio/folders"
 import {
@@ -17,7 +18,7 @@ import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
 import { sanitizeFilename, validateMagicBytes } from "@/lib/portfolio/security"
 import { createClient } from "@/lib/supabase/server"
 
-const VALID_SECTIONS = new Set(["reference", "delivery"])
+const VALID_SECTIONS = new Set(["reference", "delivery", "course"])
 
 export async function POST(request: NextRequest) {
   const session = getArtistSession(request)
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
   const file = formData.get("file")
   const folderIdValue = formData.get("folder_id")
   const bookingIdValue = formData.get("booking_id")
+  const courseIdValue = formData.get("course_id")
   const rawSection = formData.get("section")
   const setAsAvatar = formData.get("set_as_avatar") === "true"
   const setAsStudioLogo = formData.get("set_as_studio_logo") === "true"
@@ -45,8 +47,8 @@ export async function POST(request: NextRequest) {
   }
 
   // 3. Reference images must strictly be image files
-  if (section === "reference" && !mimeType.startsWith("image/")) {
-    return portfolioError("Reference images must be valid image files", 400)
+  if ((section === "reference" || section === "course") && !mimeType.startsWith("image/")) {
+    return portfolioError("Reference and course files must be valid image files", 400)
   }
 
   // 4. Sanitize file name to prevent directory traversal and XSS
@@ -76,6 +78,7 @@ export async function POST(request: NextRequest) {
 
     let folderId = folderIdValue ? Number(folderIdValue) : null
     const bookingId = bookingIdValue ? Number(bookingIdValue) : null
+    const courseId = courseIdValue ? Number(courseIdValue) : null
 
     // 8. Strict booking ownership verification
     if (bookingId) {
@@ -96,6 +99,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 9. Strict course ownership verification
+    if (courseId) {
+      const { data: courseCheck, error: courseErr } = await supabase
+        .from("courses")
+        .select("id, name")
+        .eq("id", courseId)
+        .eq("user_id", session.id)
+        .maybeSingle()
+
+      if (courseErr || !courseCheck) {
+        return portfolioError("Course not found or access denied", 403)
+      }
+
+      if (!folderId) {
+        const folder = await findOrCreateCourseFolder(supabase, session.id, courseId, courseCheck.name)
+        folderId = folder.id
+      }
+    }
+
     if (!folderId) {
       const folder = await findOrCreateDefaultPortfolioFolder(supabase, session.id)
       folderId = folder.id
@@ -111,16 +133,16 @@ export async function POST(request: NextRequest) {
 
     if (!folderCheck) return portfolioError("Folder not found or access denied", 404)
 
-    // 10. For reference photos in a booking, enforce max 3 items
-    if (section === "reference") {
+    // 10. For reference photos and course photos, enforce max 3 items
+    if (section === "reference" || section === "course") {
       const { count } = await supabase
         .from("portfolio_files")
         .select("*", { count: "exact", head: true })
         .eq("folder_id", folderId)
-        .eq("section", "reference")
+        .eq("section", section)
 
       if ((count ?? 0) >= 3) {
-        return portfolioError("Maximum of 3 reference images allowed per booking", 400)
+        return portfolioError(`Maximum of 3 ${section} images allowed`, 400)
       }
     }
 

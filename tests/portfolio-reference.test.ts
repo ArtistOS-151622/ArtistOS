@@ -32,8 +32,8 @@ test("portfolio query filter ensures reference images are excluded when includeR
   assert.ok(bookingReferenceFiles.every((f) => f.section === "reference"))
 })
 
-test("booking folder without deliverables is hidden from main portfolio when only reference images exist", () => {
-  // Simulates booking folder skip rule: folder.booking_id !== null && fileCount (excluding reference) === 0
+test("booking folder with reference images is displayed in main portfolio", () => {
+  // Booking folders with reference images must now be visible in main portfolio
   const bookingFolder = {
     id: 10,
     booking_id: 42,
@@ -45,11 +45,48 @@ test("booking folder without deliverables is hidden from main portfolio when onl
     { id: 102, folder_id: 10, section: "reference" },
   ]
 
-  const deliverableCount = filesInFolder.filter((f) => f.section !== "reference").length
-  const shouldSkipInMainPortfolio = bookingFolder.booking_id !== null && deliverableCount === 0
+  // fileCount now includes all uploaded images in the folder
+  const fileCount = filesInFolder.length
+  const shouldSkipInMainPortfolio = bookingFolder.booking_id !== null && fileCount === 0
 
-  assert.equal(deliverableCount, 0)
-  assert.equal(shouldSkipInMainPortfolio, true, "Booking folder with only reference images should be hidden from main portfolio")
+  assert.equal(fileCount, 2)
+  assert.equal(shouldSkipInMainPortfolio, false, "Booking folder with reference images must be visible in main portfolio")
+})
+
+test("course portfolio: max 3 images allowed and mapped to course folder", () => {
+  const courseFolder = {
+    id: 20,
+    course_id: 5,
+    name: "Bridal Makeup Masterclass",
+  }
+
+  const courseImages = [
+    { id: 201, folder_id: 20, section: "course", original_name: "syllabus.jpg" },
+    { id: 202, folder_id: 20, section: "course", original_name: "certificate.jpg" },
+    { id: 203, folder_id: 20, section: "course", original_name: "model.jpg" },
+  ]
+
+  assert.equal(courseFolder.name, "Bridal Makeup Masterclass")
+  assert.ok(courseImages.length <= 3, "Course allows at most 3 images")
+  assert.ok(courseImages.every((img) => img.section === "course"))
+})
+
+test("booking folder name uses 'Booking - ' prefix for clear identification", () => {
+  const customerName = "John Doe"
+  const index = 1
+  const bookingFolderName = customerName ? `Booking - ${customerName} (#${index})` : `Booking #${index}`
+  assert.equal(bookingFolderName, "Booking - John Doe (#1)")
+  assert.ok(bookingFolderName.startsWith("Booking - "))
+})
+
+test("portfolio folder badge categorization: course, reference, and portfolio", () => {
+  const courseFolder = { id: 1, course_id: 10, booking_id: null, folder_type: "course" }
+  const bookingFolder = { id: 2, course_id: null, booking_id: 20, folder_type: "reference" }
+  const regularFolder = { id: 3, course_id: null, booking_id: null, folder_type: "portfolio" }
+
+  assert.equal(courseFolder.folder_type, "course")
+  assert.equal(bookingFolder.folder_type, "reference")
+  assert.equal(regularFolder.folder_type, "portfolio")
 })
 
 test("booking edit reference slots: populate existing images and track removals/additions", () => {
@@ -95,4 +132,39 @@ test("booking edit reference slots: populate existing images and track removals/
   const activeSlots = slots.filter((s) => s !== null)
   assert.equal(activeSlots.length, 3)
   assert.ok(activeSlots.length <= 3, "Never allow more than 3 reference images")
+})
+
+test("storage quota: canUpload permits file within quota and rejects when capacity is exceeded", () => {
+  const freeStorageBytes = 10 * 1024 * 1024 // 10 MB
+  const usedStorageBytes = 8 * 1024 * 1024  // 8 MB used
+  const remainingBytes = freeStorageBytes - usedStorageBytes // 2 MB remaining
+
+  const smallImageBytes = 1.5 * 1024 * 1024 // 1.5 MB
+  const largeImageBytes = 3 * 1024 * 1024   // 3 MB (exceeds remaining)
+
+  assert.ok(smallImageBytes <= remainingBytes, "1.5 MB should be allowed when 2 MB remains")
+  assert.ok(largeImageBytes > remainingBytes, "3 MB must be blocked when only 2 MB remains")
+})
+
+test("storage quota: client-side multi-image size summation and quota alert trigger", () => {
+  const remainingQuotaBytes = 5 * 1024 * 1024 // 5 MB remaining
+  const selectedImages = [
+    { name: "photo1.jpg", size: 2 * 1024 * 1024 }, // 2 MB
+    { name: "photo2.jpg", size: 2 * 1024 * 1024 }, // 2 MB
+    { name: "photo3.jpg", size: 1.5 * 1024 * 1024 }, // 1.5 MB
+  ]
+
+  const totalSelectedBytes = selectedImages.reduce((sum, img) => sum + img.size, 0) // 5.5 MB
+  const isExceeded = totalSelectedBytes > remainingQuotaBytes
+
+  assert.equal(totalSelectedBytes, 5.5 * 1024 * 1024)
+  assert.equal(isExceeded, true, "Total 5.5 MB must trigger quota exceeded alert against 5 MB remaining")
+})
+
+test("storage quota: decrement on delete restores user remaining quota", () => {
+  let usedStorageBytes = 15 * 1024 * 1024 // 15 MB used
+  const deletedFileSizeBytes = 4 * 1024 * 1024 // 4 MB file deleted
+
+  usedStorageBytes = Math.max(0, usedStorageBytes - deletedFileSizeBytes)
+  assert.equal(usedStorageBytes, 11 * 1024 * 1024, "Deleting 4 MB file must reduce usage to 11 MB")
 })

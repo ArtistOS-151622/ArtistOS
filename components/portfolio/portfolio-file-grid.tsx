@@ -3,17 +3,20 @@
 import { useState } from "react"
 import Image from "next/image"
 import {
+  Bookmark,
+  Download,
+  Eye,
   FileArchive,
   FileAudio,
   FileImage,
   FileText,
   FileVideo,
-  Trash2,
-  Download,
-  PlayCircle,
-  Eye,
-  MoreVertical,
   FolderOpen,
+  GraduationCap,
+  MoreVertical,
+  PlayCircle,
+  Sparkles,
+  Trash2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -90,6 +93,31 @@ function FileIcon({ mimeType }: { mimeType: string }) {
     return <FileArchive className="size-8 text-amber-500" />
   }
   return <FileText className="size-8 text-slate-400" />
+}
+
+function getFileBadgeInfo(file: PortfolioFileWithUrl) {
+  if (file.section === "course") {
+    return {
+      label: "Course",
+      className: "bg-purple-900/80 text-white border-purple-400/30",
+      listClassName: "bg-purple-100 text-[#7c3aed] border-purple-200/90",
+      icon: <GraduationCap className="size-2.5 mr-1 shrink-0" />,
+    }
+  }
+  if (file.section === "reference") {
+    return {
+      label: "Reference Image",
+      className: "bg-amber-900/80 text-white border-amber-400/30",
+      listClassName: "bg-amber-100 text-amber-900 border-amber-200/90",
+      icon: <Bookmark className="size-2.5 mr-1 shrink-0" />,
+    }
+  }
+  return {
+    label: "Portfolio",
+    className: "bg-slate-900/80 text-white border-slate-700/30",
+    listClassName: "bg-emerald-50 text-emerald-800 border-emerald-200/90",
+    icon: <Sparkles className="size-2.5 mr-1 shrink-0" />,
+  }
 }
 
 function FileImageWithSkeleton({ src, alt }: { src: string; alt: string }) {
@@ -215,9 +243,25 @@ export function PortfolioFileGrid({
                   </div>
 
                   <div className="min-w-0 flex-1 overflow-hidden">
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate max-w-[160px] min-[380px]:max-w-[220px] sm:max-w-xs md:max-w-md group-hover/btn:text-[#7c3aed] transition-colors" title={file.original_name}>
-                      {file.original_name}
-                    </h4>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate max-w-[160px] min-[380px]:max-w-[220px] sm:max-w-xs md:max-w-md group-hover/btn:text-[#7c3aed] transition-colors" title={file.original_name}>
+                        {file.original_name}
+                      </h4>
+                      {(() => {
+                        const badge = getFileBadgeInfo(file)
+                        return (
+                          <span
+                            className={cn(
+                              "inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-extrabold border shrink-0",
+                              badge.listClassName
+                            )}
+                          >
+                            {badge.icon}
+                            {badge.label}
+                          </span>
+                        )
+                      })()}
+                    </div>
                     <p className="text-[11px] text-slate-400 font-medium mt-0.5 truncate">
                       {formatBytes(file.file_size ?? 0)} · {file.mime_type.split("/")[1]?.toUpperCase() || "FILE"}
                     </p>
@@ -335,6 +379,22 @@ export function PortfolioFileGrid({
                   <FileIcon mimeType={file.mime_type} />
                 </div>
               )}
+
+              {/* Category Badge on Bottom-Left Corner */}
+              {(() => {
+                const badge = getFileBadgeInfo(file)
+                return (
+                  <span
+                    className={cn(
+                      "absolute bottom-2 left-2 z-10 inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold backdrop-blur-xs border shadow-xs leading-none",
+                      badge.className
+                    )}
+                  >
+                    {badge.icon}
+                    {badge.label}
+                  </span>
+                )
+              })()}
             </button>
 
             {/* Bottom Meta Footer Card matching screenshot */}
