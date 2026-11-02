@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server"
+import { NextResponse, type NextRequest, after } from "next/server"
 
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 
@@ -166,14 +166,17 @@ export async function PATCH(
     additional_charges: fullBooking.booking_additional_charges ?? [],
   }
 
-  // Send automated WhatsApp confirmation if status transitioned to 'confirmed'
+  // Send automated WhatsApp confirmation asynchronously in background using after()
+  // so the HTTP response is returned immediately to the client without blocking (~2-4s saved).
   const isNewlyConfirmed = body.status === "confirmed" && checkOwn.status !== "confirmed"
   if (isNewlyConfirmed) {
-    try {
-      await sendBookingNotificationWhatsApp(id, "confirmed", supabase)
-    } catch (err) {
-      console.error("[WhatsApp] Failed to dispatch booking confirmation notification:", err)
-    }
+    after(async () => {
+      try {
+        await sendBookingNotificationWhatsApp(id, "confirmed", supabase)
+      } catch (err) {
+        console.error("[WhatsApp] Failed to dispatch booking confirmation notification in background:", err)
+      }
+    })
   }
 
   return NextResponse.json({ booking: formatted })

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { invalidateMaintenanceModeCache } from "@/proxy"
 
 // Get all settings
 export async function GET() {
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       }
     }
 
+    invalidateMaintenanceModeCache()
     return NextResponse.json({ status: true, message: "Settings updated successfully" })
   } catch (error) {
     console.error("Error updating platform settings:", error)

@@ -47,11 +47,37 @@ function redirectToLogin(request: NextRequest) {
   return NextResponse.redirect(url)
 }
 
+// In-memory cache for maintenance mode to eliminate remote HTTPS query tax on every page request
+let maintenanceModeCache: { isMaintenance: boolean; expiresAt: number } | null = null
+const MAINTENANCE_CACHE_TTL_MS = 30 * 1000 // 30 seconds
+
+export function invalidateMaintenanceModeCache() {
+  maintenanceModeCache = null
+}
+
+async function isMaintenanceModeActive(supabaseUrl: string, supabaseAnonKey: string): Promise<boolean> {
+  const now = Date.now()
+  if (maintenanceModeCache && maintenanceModeCache.expiresAt > now) {
+    return maintenanceModeCache.isMaintenance
+  }
+
+  try {
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } })
+    const { data } = await supabase.from('platform_settings').select('value').eq('key', 'maintenance_mode').maybeSingle()
+    const isMaintenance = data?.value === 'true'
+    maintenanceModeCache = { isMaintenance, expiresAt: now + MAINTENANCE_CACHE_TTL_MS }
+    return isMaintenance
+  } catch (e) {
+    console.error("Proxy Maintenance Check Error:", e)
+    return maintenanceModeCache?.isMaintenance ?? false
+  }
+}
+
 export async function proxy(request: NextRequest) {
   const session = request.cookies.get("artist_session")
   const { pathname } = request.nextUrl
 
-  // Maintenance Mode Check (Global)
+  // Maintenance Mode Check (Global - cached for 30s)
   if (
     !pathname.startsWith('/admin') &&
     !pathname.startsWith('/api') &&
@@ -62,14 +88,9 @@ export async function proxy(request: NextRequest) {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (supabaseUrl && supabaseAnonKey) {
-      const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } })
-      try {
-        const { data } = await supabase.from('platform_settings').select('value').eq('key', 'maintenance_mode').maybeSingle()
-        if (data?.value === 'true') {
-          return NextResponse.redirect(new URL('/maintenance', request.url))
-        }
-      } catch (e) {
-        console.error("Proxy Maintenance Check Error:", e)
+      const inMaintenance = await isMaintenanceModeActive(supabaseUrl, supabaseAnonKey)
+      if (inMaintenance) {
+        return NextResponse.redirect(new URL('/maintenance', request.url))
       }
     }
   }
@@ -143,6 +164,13 @@ export async function proxy(request: NextRequest) {
               { status: 403 }
             )
           }
+          const requestHeaders = new Headers(request.headers)
+          requestHeaders.set("x-is-read-only", "false")
+          return NextResponse.next({
+            request: {
+              headers: requestHeaders,
+            },
+          })
         } catch (e) {
           // Deliberately fails open. A Supabase blip should not stop paying
           // artists from writing; the cost is that an expired subscription can

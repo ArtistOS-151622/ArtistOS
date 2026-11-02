@@ -55,6 +55,7 @@ export function BookingManager() {
   const initialStatus = searchParams.get("status") ?? "all";
   const initialDate = searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd");
   const [date, setDate] = useState(initialDate);
+  const [countsRefreshKey, setCountsRefreshKey] = useState(0);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [values, setValues] = useState<BookingFormValues>(emptyBookingForm);
   const [formOpen, setFormOpen] = useState(false);
@@ -294,11 +295,26 @@ export function BookingManager() {
       toast.success(editing ? "Booking updated successfully" : "Booking created successfully");
 
       void mutate("/api/dashboard");
+      void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
+      setCountsRefreshKey((k) => k + 1);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("booking-updated"));
+      }
+
       if (editing) pendingScrollId.current = editing.id;
       setEditing(null);
       setValues(emptyBookingForm);
       setFormOpen(false);
       setUploadProgress(null);
+
+      const createdBookingDate = data.booking?.booking_date;
+      if (!editing && createdBookingDate && createdBookingDate !== date) {
+        setDate(createdBookingDate);
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("date", createdBookingDate);
+        nextParams.delete("page");
+        router.replace(`/bookings?${nextParams.toString()}`, { scroll: false });
+      }
 
       if (editing) {
         void fetchBookingsThrough(page, search, statusFilter);
@@ -331,6 +347,11 @@ export function BookingManager() {
       } else {
         toast.success("Booking deleted successfully");
         void mutate("/api/dashboard");
+        void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
+        setCountsRefreshKey((k) => k + 1);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("booking-updated"));
+        }
         setDeleting(null);
         void fetchBookingsThrough(page, search, statusFilter);
       }
@@ -494,6 +515,7 @@ export function BookingManager() {
         <BookingDateFilter
           selectedDate={date}
           status={statusFilter}
+          refreshTrigger={countsRefreshKey}
           onChange={(newDate) => {
             setDate(newDate);
             const nextParams = new URLSearchParams(searchParams.toString());

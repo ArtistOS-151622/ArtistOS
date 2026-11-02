@@ -19,6 +19,7 @@ import {
   subMonths,
 } from "date-fns"
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
+import useSWR from "swr"
 
 import {
   DropdownMenu,
@@ -28,14 +29,20 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
+const countsFetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error("Failed to fetch booking counts")
+  return (await res.json()) as { counts?: Array<{ date: string; count: number }> }
+}
+
 type BookingDateFilterProps = {
   selectedDate: string
   status?: string
+  refreshTrigger?: number
   onChange: (date: string) => void
 }
 
-export function BookingDateFilter({ selectedDate, status = "all", onChange }: BookingDateFilterProps) {
-  const [counts, setCounts] = useState<Record<string, number>>({})
+export function BookingDateFilter({ selectedDate, status = "all", refreshTrigger, onChange }: BookingDateFilterProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
@@ -57,38 +64,39 @@ export function BookingDateFilter({ selectedDate, status = "all", onChange }: Bo
     })
   }, [currentMonth])
 
+  const countsUrl = dates.length > 0
+    ? `/api/bookings/counts?start_date=${format(dates[0], "yyyy-MM-dd")}&end_date=${format(dates[dates.length - 1], "yyyy-MM-dd")}&status=${encodeURIComponent(status)}`
+    : null
+
+  const { data: countsData, mutate: mutateCounts } = useSWR(countsUrl, countsFetcher, {
+    revalidateOnFocus: true,
+  })
+
+  // Revalidate counts whenever the parent triggers a refresh (e.g. after booking create/update/delete)
   useEffect(() => {
-    if (dates.length === 0) return
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      void mutateCounts()
+    }
+  }, [refreshTrigger, mutateCounts])
 
-    let ignore = false
+  // Listen to global booking update events across the window (e.g. Quick Add modal)
+  useEffect(() => {
+    const handleBookingUpdate = () => {
+      void mutateCounts()
+    }
+    window.addEventListener("booking-updated", handleBookingUpdate)
+    return () => window.removeEventListener("booking-updated", handleBookingUpdate)
+  }, [mutateCounts])
 
-    async function fetchCounts() {
-      try {
-        const start = format(dates[0], "yyyy-MM-dd")
-        const end = format(dates[dates.length - 1], "yyyy-MM-dd")
-        const res = await fetch(`/api/bookings/counts?start_date=${start}&end_date=${end}&status=${encodeURIComponent(status)}`)
-
-        if (res.ok) {
-          const data = await res.json()
-          const countsMap: Record<string, number> = {}
-
-          ;(data.counts ?? []).forEach((count: { date: string; count: number }) => {
-            countsMap[count.date] = count.count
-          })
-
-          if (!ignore) setCounts(countsMap)
-        }
-      } catch (error) {
-        console.error("Failed to fetch booking counts", error)
+  const counts = useMemo(() => {
+    const countsMap: Record<string, number> = {}
+    if (countsData?.counts) {
+      for (const item of countsData.counts) {
+        countsMap[item.date] = item.count
       }
     }
-
-    void fetchCounts()
-
-    return () => {
-      ignore = true
-    }
-  }, [dates, status])
+    return countsMap
+  }, [countsData])
 
   useEffect(() => {
     if (!scrollRef.current) return

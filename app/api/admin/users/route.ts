@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { deleteFromR2 } from "@/lib/portfolio/files"
 import { STORAGE_FREE_TIER_BYTES } from "@/lib/portfolio/config"
 import { verifyOtpInDatabase, ADMIN_SECURITY_PHONE } from "@/lib/auth/otp"
+import { invalidateReadOnlyCache } from "@/lib/auth/subscription"
 
 export async function GET() {
   const supabase = await createClient()
@@ -312,6 +313,7 @@ export async function PATCH(request: Request) {
       console.warn("User table update notice:", err?.message)
     }
 
+    invalidateReadOnlyCache(id)
     return NextResponse.json({ success: true, user: updatedUser })
   } catch (error) {
     console.error("Error updating user status:", error)
@@ -469,6 +471,7 @@ export async function DELETE(request: Request) {
     const { error: delErr } = await supabase.from("users").delete().eq("id", id)
     if (delErr) throw delErr
 
+    invalidateReadOnlyCache(id)
     return NextResponse.json({ success: true, deletedId: id })
   } catch (error) {
     console.error("Error deleting artist:", error)

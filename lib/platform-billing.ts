@@ -13,6 +13,7 @@ import {
   STARTER_STORAGE_BYTES,
   syncUserStorageQuota,
 } from "@/lib/auth/plan-features"
+import { invalidateReadOnlyCache } from "@/lib/auth/subscription"
 
 function getRazorpayKeySecret(): string {
   const secret = process.env.RAZORPAY_KEY_SECRET
@@ -392,6 +393,9 @@ async function applyCompletedPlatformPayment(
     console.error("Failed to sync user storage quota after subscription:", quotaErr)
   }
 
+  // Invalidate in-memory read-only cache for this user
+  invalidateReadOnlyCache(payment.user_id)
+
   return true
 }
 
@@ -445,6 +449,8 @@ export async function extendPlatformSubscriptionToDate(
       ...(rpSubscriptionId ? { rp_subscription_id: rpSubscriptionId } : {}),
     })
     .eq("id", activeSub.id)
+
+  invalidateReadOnlyCache(userId)
 }
 
 export async function processPlatformRenewal(

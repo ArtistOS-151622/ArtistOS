@@ -10,6 +10,7 @@ import {
   type RazorpayWebhookPayload,
 } from "@/lib/razorpay-webhook-platform"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { invalidateReadOnlyCache } from "@/lib/auth/subscription"
 
 function verifyWebhookSignature(body: string, signature: string): boolean {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET
@@ -242,6 +243,10 @@ export async function POST(request: NextRequest) {
             .from("user_subscriptions")
             .update({ status: statusByEvent[eventType] ?? "active" })
             .eq("user_id", userId)
+        }
+
+        if (userId) {
+          invalidateReadOnlyCache(userId)
         }
       }
     }

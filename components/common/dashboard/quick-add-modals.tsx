@@ -140,6 +140,10 @@ export function QuickAddModals({
       // Show toast ONLY after uploads finish
       toast.success("Booking created successfully!");
       void mutate("/api/dashboard");
+      void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("booking-updated"));
+      }
       setBookingModalOpen(false);
       setBookingValues(emptyBookingForm);
       setBookingUploadProgress(null);
