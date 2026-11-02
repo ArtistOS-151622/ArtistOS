@@ -301,3 +301,90 @@ test("scanDailyArtistAgenda: skips if already sent today (deduplication)", async
   assert.equal(result.details[0].status, "skipped")
   assert.equal(result.details[0].reason, "Daily agenda already sent today")
 })
+
+test("scanDailyArtistAgenda: sends no_bookings_today_to_artist template when artist has 0 confirmed bookings today", async () => {
+  let loggedEvent: any = null
+  const targetDate = "2026-10-25"
+
+  const mockUsers = [
+    {
+      id: 10,
+      artist_name: "Maya Makeover",
+      studio_name: "Maya Studio",
+      phone: "9876501234",
+      is_free_user: true,
+    },
+  ]
+
+  const mockSupabase: any = {
+    from: (table: string) => {
+      if (table === "bookings") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                order: () => Promise.resolve({ data: [], error: null }),
+              }),
+            }),
+          }),
+        }
+      }
+      if (table === "users") {
+        const queryBuilder: any = {
+          select: (cols: string) => {
+            if (cols.includes("id, artist_name")) {
+              return Promise.resolve({ data: mockUsers, error: null })
+            }
+            return queryBuilder
+          },
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: { created_at: "2026-01-01T00:00:00Z", is_free_user: true },
+              error: null,
+            }),
+            single: async () => ({
+              data: { created_at: "2026-01-01T00:00:00Z", is_free_user: true },
+              error: null,
+            }),
+          }),
+        }
+        return queryBuilder
+      }
+      if (table === "notification_events") {
+        const queryBuilder: any = {
+          select: () => queryBuilder,
+          eq: () => queryBuilder,
+          in: () => queryBuilder,
+          gte: () => queryBuilder,
+          lte: () => queryBuilder,
+          maybeSingle: async () => ({ data: null, error: null }),
+          insert: async (data: any) => {
+            loggedEvent = data
+            return { data: { id: 2, ...data }, error: null }
+          },
+          update: async (data: any) => {
+            loggedEvent = { ...loggedEvent, ...data }
+            return { data: loggedEvent, error: null }
+          },
+        }
+        return queryBuilder
+      }
+      return {
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }),
+      }
+    },
+  }
+
+  const result = await scanDailyArtistAgenda(mockSupabase, targetDate)
+
+  assert.equal(result.scannedArtists, 1)
+  assert.equal(result.details.length, 1)
+  assert.equal(result.details[0].artistId, 10)
+  assert.equal(result.details[0].bookingsCount, 0)
+  assert.ok(loggedEvent, "Expected notification audit event to be logged")
+  assert.equal(loggedEvent.user_id, 10)
+  assert.equal(loggedEvent.event_type, "no_bookings_today_to_artist")
+  assert.equal(loggedEvent.entity_type, "artist_no_bookings_today")
+  assert.ok(loggedEvent.body.includes("no-bookings"))
+})
+

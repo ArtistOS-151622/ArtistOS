@@ -25,7 +25,21 @@ export async function POST(request: NextRequest) {
     // Default test parameters matching template requirements
     const bodyParameters =
       body.parameters ||
-      (templateName === "new_inquiry_received"
+      (templateName === "no_bookings_today_to_artist" ||
+      templateName === "artist_no_bookings_today"
+        ? [
+            session.artist_name || session.studio_name || "Artist Name",
+            body.bookingDate || "29 Oct 2026",
+          ]
+        : templateName === "today_bookings_to_artist" ||
+          templateName === "artist_daily_agenda"
+        ? [
+            session.artist_name || session.studio_name || "Artist Name",
+            body.bookingDate || "29 Oct 2026",
+            "1 Booking",
+            "10:00 AM - Test Customer (9876543210) - Bridal Makeup, Studio",
+          ]
+        : templateName === "new_inquiry_received"
         ? [
             session.artist_name || "Artist Name",
             body.customerName || "Test Customer",

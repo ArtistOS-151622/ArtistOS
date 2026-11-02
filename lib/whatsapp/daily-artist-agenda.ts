@@ -58,6 +58,8 @@ function formatDisplayTime(timeStr: string): string {
 /**
  * Scans today's confirmed bookings and sends a daily morning summary
  * via WhatsApp to eligible artists (Free users and active Pro subscribers).
+ * - If an artist has confirmed bookings today: sends `today_bookings_to_artist`.
+ * - If an artist has 0 confirmed bookings today: sends `no_bookings_today_to_artist`.
  */
 export async function scanDailyArtistAgenda(
   supabase: SupabaseClient,
@@ -109,36 +111,68 @@ export async function scanDailyArtistAgenda(
   }
 
   // 2. Group confirmed bookings by artist (user_id)
-  const bookingsByArtist = new Map<number, typeof bookings>()
+  const bookingsByArtist = new Map<number, any[]>()
   for (const booking of bookings || []) {
     const list = bookingsByArtist.get(booking.user_id) || []
     list.push(booking)
     bookingsByArtist.set(booking.user_id, list)
   }
 
+  // 3. Collect candidate artists (from users table + any embedded in bookings)
+  const artistMap = new Map<number, any>()
+  try {
+    const usersQuery = supabase
+      .from("users")
+      .select("id, artist_name, studio_name, phone, is_free_user")
+    const { data: usersData, error: usersErr } =
+      typeof (usersQuery as any)?.then === "function"
+        ? await usersQuery
+        : { data: null, error: null }
+
+    if (!usersErr && Array.isArray(usersData)) {
+      for (const u of usersData) {
+        if (u?.id && u?.phone) {
+          artistMap.set(u.id, u)
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[Daily Agenda Scanner] Warning querying users table:", err)
+  }
+
+  // Also include any artists present in today's bookings
+  for (const b of bookings || []) {
+    const rawArtist = b?.artist
+    const a = Array.isArray(rawArtist) ? rawArtist[0] : rawArtist
+    if (a?.id && !artistMap.has(a.id)) {
+      artistMap.set(a.id, a)
+    }
+  }
+
   const result: DailyAgendaScanResult = {
-    scannedArtists: bookingsByArtist.size,
+    scannedArtists: artistMap.size,
     sent: 0,
     failed: 0,
     skipped: 0,
     details: [],
   }
 
-  if (bookingsByArtist.size === 0) {
+  if (artistMap.size === 0) {
     return result
   }
 
-  const templateName =
+  const templateNameWithBookings =
     process.env.WHATSAPP_DAILY_AGENDA_TEMPLATE_NAME?.trim() || "today_bookings_to_artist"
+  const templateNameNoBookings =
+    process.env.WHATSAPP_NO_BOOKINGS_TEMPLATE_NAME?.trim() || "no_bookings_today_to_artist"
 
-  const startOfDay = `${targetDate}T00:00:00`
-  const endOfDay = `${targetDate}T23:59:59`
-
-  // 3. Process each artist
-  for (const [artistId, artistBookings] of bookingsByArtist.entries()) {
-    const firstBooking = artistBookings[0]
-    const rawArtist = firstBooking?.artist
-    const artist = Array.isArray(rawArtist) ? rawArtist[0] : rawArtist
+  // 4. Process each candidate artist
+  for (const artist of artistMap.values()) {
+    const artistId = Number(artist.id)
+    const artistBookings = bookingsByArtist.get(artistId) || []
+    const totalCount = artistBookings.length
+    const hasBookings = totalCount > 0
+    const activeTemplate = hasBookings ? templateNameWithBookings : templateNameNoBookings
 
     // A. Verify artist phone number
     const rawPhone = artist?.phone
@@ -148,7 +182,7 @@ export async function scanDailyArtistAgenda(
         artistId,
         status: "skipped",
         reason: "Artist has no phone number",
-        bookingsCount: artistBookings.length,
+        bookingsCount: totalCount,
       })
       continue
     }
@@ -160,7 +194,7 @@ export async function scanDailyArtistAgenda(
         artistId,
         status: "skipped",
         reason: "Invalid artist phone number format",
-        bookingsCount: artistBookings.length,
+        bookingsCount: totalCount,
       })
       continue
     }
@@ -173,7 +207,7 @@ export async function scanDailyArtistAgenda(
         artistId,
         status: "skipped",
         reason: `Artist on "${planFeatures.planName}" plan without WhatsApp automation`,
-        bookingsCount: artistBookings.length,
+        bookingsCount: totalCount,
       })
       continue
     }
@@ -184,7 +218,7 @@ export async function scanDailyArtistAgenda(
         artistId,
         status: "skipped",
         reason: "Artist account is in read-only mode",
-        bookingsCount: artistBookings.length,
+        bookingsCount: totalCount,
       })
       continue
     }
@@ -201,9 +235,16 @@ export async function scanDailyArtistAgenda(
         "today_bookings_to_artist",
         "artist_daily_agenda",
         "artist_morning_summary",
-        templateName,
+        "no_bookings_today_to_artist",
+        "artist_no_bookings_today",
+        templateNameWithBookings,
+        templateNameNoBookings,
       ])
-      .eq("entity_type", "artist_daily_agenda")
+      .in("entity_type", [
+        "artist_daily_agenda",
+        "artist_daily_agenda_empty",
+        "artist_no_bookings_today",
+      ])
       .eq("url", targetUrl)
       .maybeSingle()
 
@@ -214,7 +255,7 @@ export async function scanDailyArtistAgenda(
           artistId,
           status: "skipped",
           reason: "Daily agenda already sent today",
-          bookingsCount: artistBookings.length,
+          bookingsCount: totalCount,
         })
         continue
       }
@@ -224,7 +265,7 @@ export async function scanDailyArtistAgenda(
           artistId,
           status: "skipped",
           reason: "Exceeded max attempts (3)",
-          bookingsCount: artistBookings.length,
+          bookingsCount: totalCount,
         })
         continue
       }
@@ -235,56 +276,70 @@ export async function scanDailyArtistAgenda(
       artist?.artist_name?.trim() || artist?.studio_name?.trim() || "Artist"
     )
     const formattedDate = sanitizeWhatsAppParam(formatDisplayDate(targetDate))
-    const totalCount = artistBookings.length
-    const countText = sanitizeWhatsAppParam(
-      `${totalCount} ${totalCount === 1 ? "Booking" : "Bookings"}`
-    )
 
-    // Build first appointment summary for Pattern 2
-    const firstTime = formatDisplayTime(firstBooking?.start_time || "09:00")
-    const firstCustomer = Array.isArray(firstBooking?.customer)
-      ? firstBooking.customer[0]
-      : firstBooking?.customer
-    const customerName = firstCustomer?.customer_name?.trim() || "Customer"
-    const customerPhone = firstCustomer?.phone?.trim() ? ` (${firstCustomer.phone.trim()})` : ""
+    let bodyParameters: string[] = []
 
-    const firstServices: string[] = []
-    if (Array.isArray(firstBooking?.booking_services)) {
-      for (const bs of firstBooking.booking_services as any[]) {
-        const sName = bs?.service?.service_name
-        if (sName) firstServices.push(sName)
+    if (hasBookings) {
+      const countText = sanitizeWhatsAppParam(
+        `${totalCount} ${totalCount === 1 ? "Booking" : "Bookings"}`
+      )
+
+      // Build first appointment summary for Pattern 2
+      const firstBooking = artistBookings[0]
+      const firstTime = formatDisplayTime(firstBooking?.start_time || "09:00")
+      const firstCustomer = Array.isArray(firstBooking?.customer)
+        ? firstBooking.customer[0]
+        : firstBooking?.customer
+      const customerName = firstCustomer?.customer_name?.trim() || "Customer"
+      const customerPhone = firstCustomer?.phone?.trim() ? ` (${firstCustomer.phone.trim()})` : ""
+
+      const firstServices: string[] = []
+      if (Array.isArray(firstBooking?.booking_services)) {
+        for (const bs of firstBooking.booking_services as any[]) {
+          const sName = bs?.service?.service_name
+          if (sName) firstServices.push(sName)
+        }
       }
+      const serviceStr = firstServices.length > 0 ? firstServices.join(", ") : "Appointment"
+      const addressStr = firstBooking?.booking_address?.trim()
+        ? `, ${firstBooking.booking_address.trim()}`
+        : ""
+
+      const firstBookingSummary = sanitizeWhatsAppParam(
+        `${firstTime} - ${customerName}${customerPhone} - ${serviceStr}${addressStr}`
+      )
+
+      bodyParameters = [artistName, formattedDate, countText, firstBookingSummary]
+    } else {
+      // Zero bookings today: [Artist Name, Formatted Date]
+      bodyParameters = [artistName, formattedDate]
     }
-    const serviceStr = firstServices.length > 0 ? firstServices.join(", ") : "Appointment"
-    const addressStr = firstBooking?.booking_address?.trim()
-      ? `, ${firstBooking.booking_address.trim()}`
-      : ""
-
-    const firstBookingSummary = sanitizeWhatsAppParam(
-      `${firstTime} - ${customerName}${customerPhone} - ${serviceStr}${addressStr}`
-    )
-
-    const bodyParameters = [artistName, formattedDate, countText, firstBookingSummary]
 
     console.log(
-      `[Daily Agenda] Sending "${templateName}" to artist ${formattedPhone} for ${totalCount} bookings on ${targetDate}`
+      `[Daily Agenda] Sending "${activeTemplate}" to artist ${formattedPhone} for ${totalCount} bookings on ${targetDate}`
     )
 
     // E. Dispatch WhatsApp template
     const sendResult = await sendWhatsAppTemplate({
       to: formattedPhone,
-      templateName,
+      templateName: activeTemplate,
       bodyParameters,
     })
 
     // F. Log event to notification_events table
+    const eventTitle = hasBookings ? "Today's Booking Schedule" : "Daily Booking Update"
+    const eventBody = hasBookings
+      ? `WhatsApp daily agenda sent to ${formattedPhone} (${totalCount} bookings)`
+      : `WhatsApp daily no-bookings update sent to ${formattedPhone}`
+    const entityType = hasBookings ? "artist_daily_agenda" : "artist_no_bookings_today"
+
     try {
       if (existingLog?.id) {
         await supabase
           .from("notification_events")
           .update({
-            title: "Today's Booking Schedule",
-            body: `WhatsApp daily agenda sent to ${formattedPhone} (${totalCount} bookings)`,
+            title: eventTitle,
+            body: eventBody,
             status: sendResult.success ? "sent" : "failed",
             attempts: (existingLog.attempts || 1) + 1,
             last_error: sendResult.error || null,
@@ -296,16 +351,16 @@ export async function scanDailyArtistAgenda(
         await supabase.from("notification_events").insert({
           user_id: artistId,
           channel: "whatsapp",
-          event_type: templateName,
-          entity_type: "artist_daily_agenda",
+          event_type: activeTemplate,
+          entity_type: entityType,
           entity_id: artistId,
-          title: "Today's Booking Schedule",
-          body: `WhatsApp daily agenda sent to ${formattedPhone} (${totalCount} bookings)`,
+          title: eventTitle,
+          body: eventBody,
           status: sendResult.success ? "sent" : "failed",
           attempts: 1,
           last_error: sendResult.error || null,
           sent_at: sendResult.success ? new Date().toISOString() : null,
-          url: `/bookings?date=${targetDate}`,
+          url: targetUrl,
         })
       }
     } catch (auditErr) {

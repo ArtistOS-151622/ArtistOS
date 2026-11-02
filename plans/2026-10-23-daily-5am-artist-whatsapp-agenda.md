@@ -15,18 +15,15 @@ This feature automatically delivers a daily morning summary of today's confirmed
 
 Submit this exact template in **Meta Business Manager** -> **WhatsApp Manager** -> **Message Templates**.
 
-### Template Meta Settings
-* **Template Name**: `artist_daily_agenda` *(Lowercase and underscores only)*
-* **Category**: `UTILITY` *(Ensures highest approval rate & lowest cost per conversation)*
+### Template 1: With Confirmed Bookings (`today_bookings_to_artist` / `artist_daily_agenda`)
+* **Template Name**: `today_bookings_to_artist` *(or set via `WHATSAPP_DAILY_AGENDA_TEMPLATE_NAME`)*
+* **Category**: `UTILITY`
 * **Language**: `English` (`en` or `en_US`)
 
-### Template Structure
-
-#### Header (Optional - Recommended)
-* **Type**: `Text`
+#### Header
 * **Text**: `Today's Booking Schedule 📅`
 
-#### Body (Copy-Paste Text)
+#### Body
 ```text
 Good morning {{1}}! 🌅
 
@@ -39,31 +36,54 @@ Today's Schedule:
 Wishing you a great and productive day!
 ```
 
+#### Buttons
+* **Type**: `Call to Action` -> `Visit Website`
+* **Button Text**: `Open My Schedule`
+* **URL**: `https://artistos.in/bookings`
+
+---
+
+### Template 2: Zero Confirmed Bookings Today (`no_bookings_today_to_artist`)
+
+Submit this in **Meta Business Manager** -> **WhatsApp Manager** -> **Message Templates**.
+
+#### Template Meta Settings
+* **Template Name**: `no_bookings_today_to_artist` *(or set via `WHATSAPP_NO_BOOKINGS_TEMPLATE_NAME`)*
+* **Category**: `UTILITY` *(Ensures rapid automated approval & lowest rate)*
+* **Language**: `English` (`en` or `en_US`)
+
+#### Header (Optional - Recommended)
+* **Type**: `Text`
+* **Text**: `Today's Booking Update 📅`
+
+#### Body (Copy-Paste Text)
+```text
+Good morning {{1}}! 🌅
+
+You have no confirmed bookings scheduled for today, {{2}}.
+
+Wishing you a great and productive day ahead!
+```
+
 #### Footer (Optional - Recommended)
 * **Text**: `ArtistOS CRM`
 
 #### Buttons (Optional - Recommended Call-to-Action)
 * **Type**: `Call to Action`
 * **Button Type**: `Visit Website`
-* **Button Text**: `Open My Schedule`
+* **Button Text**: `Open Calendar`
 * **URL Type**: `Static`
 * **Website URL**: `https://artistos.in/bookings`
 
+#### Meta Verification Sample Values (Mandatory for Approval)
+* `{{1}}`: `Pooja Makeovers`
+* `{{2}}`: `29 Oct 2026`
+
 ---
 
-### Meta Verification Sample Values (Mandatory for Approval)
-When submitting to Meta, enter these exact sample values in the sample verification modal:
-* `{{1}}`: `Sneha Patel`
-* `{{2}}`: `24 Oct 2026`
-* `{{3}}`: `2 Bookings`
-* `{{4}}`: `1) 10:00 AM - Pooja Sharma (+91 9876543210) - Bridal Makeup, Bandra West \n 2) 03:30 PM - Riya Shah (+91 9123456780) - Party Makeup, Studio`
-
-*(Note: In Meta's sample input box, if Meta does not allow pressing Enter, enter it in one line as sample. In actual WhatsApp dispatch, ArtistOS sends it cleanly line-by-line with each customer's mobile number).*
-
 > **Crucial Meta Compliance Tips**:
-> 1. **Category**: Choose **`UTILITY`** (DO NOT select Marketing, otherwise Meta will scrutinize and charge higher rates).
-> 2. **Parameter Formatting**: Meta API parameters cannot contain newlines (`\n`). The backend will automatically format multiple bookings using clean bullet numbers and pipe separators (e.g. `1) ... | 2) ...`).
-> 3. **Approval Time**: Utility templates with clear sample values are usually approved automatically within 1 to 15 minutes by Meta AI.
+> 1. **Category**: Choose **`UTILITY`** (DO NOT select Marketing).
+> 2. **Approval Time**: Utility templates with clear sample values are usually approved automatically within 1 to 5 minutes by Meta AI.
 
 ---
 
