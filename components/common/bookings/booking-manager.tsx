@@ -263,32 +263,36 @@ export function BookingManager() {
 
       const targetBookingId = editing ? editing.id : data.booking.id;
 
-      // 1. Delete removed reference images if any were removed during edit
-      if (hasImagesToDelete) {
+      // Run image deletions and uploads in parallel if both exist
+      if (hasImagesToDelete || hasImagesToUpload) {
         setUploadProgress({
-          percentage: 20,
+          percentage: 15,
           message: "Updating reference images...",
         });
-        await Promise.all(
-          values.removed_reference_image_ids!.map(async (fileId) => {
-            try {
-              await fetch(`/api/portfolio/files/${fileId}`, {
-                method: "DELETE",
-              });
-            } catch (delErr) {
-              console.error("Failed to delete removed reference image:", delErr);
-            }
-          })
-        );
-      }
 
-      // 2. Upload reference images with real-time byte-level progress
-      if (hasImagesToUpload) {
-        await uploadReferenceImagesWithProgress(
-          values.reference_images!,
-          targetBookingId,
-          setUploadProgress
-        );
+        const deletePromise = hasImagesToDelete
+          ? Promise.all(
+              values.removed_reference_image_ids!.map(async (fileId) => {
+                try {
+                  await fetch(`/api/portfolio/files/${fileId}`, {
+                    method: "DELETE",
+                  });
+                } catch (delErr) {
+                  console.error("Failed to delete removed reference image:", delErr);
+                }
+              })
+            )
+          : Promise.resolve();
+
+        const uploadPromise = hasImagesToUpload
+          ? uploadReferenceImagesWithProgress(
+              values.reference_images!,
+              targetBookingId,
+              setUploadProgress
+            )
+          : Promise.resolve();
+
+        await Promise.all([deletePromise, uploadPromise]);
       }
 
       // Show success toast ONLY after all uploads and saves are complete
@@ -316,12 +320,21 @@ export function BookingManager() {
         router.replace(`/bookings?${nextParams.toString()}`, { scroll: false });
       }
 
+      const savedBooking = data.booking;
       if (editing) {
-        void fetchBookingsThrough(page, search, statusFilter);
+        // Optimistically update the booking in state directly without waterfall multi-page re-fetching!
+        setBookings((prev) =>
+          prev.map((b) => (b.id === savedBooking.id ? savedBooking : b))
+        );
       } else {
-        if (search !== "") {
-          setSearch("");
+        if (createdBookingDate === date) {
+          // Prepend newly created booking directly to state for instant UI update!
+          setBookings((prev) => [
+            savedBooking,
+            ...prev.filter((b) => b.id !== savedBooking.id),
+          ]);
         } else {
+          // Date switched: fetch page 1 for that new date
           void fetchBookings(1, "", statusFilter, false);
         }
       }
@@ -346,14 +359,16 @@ export function BookingManager() {
         toast.error(data.error ?? "Unable to delete booking.");
       } else {
         toast.success("Booking deleted successfully");
+        const targetId = deleting.id;
+        // Optimistically remove deleted booking from state immediately without multi-page waterfall!
+        setBookings((prev) => prev.filter((b) => b.id !== targetId));
+        setDeleting(null);
         void mutate("/api/dashboard");
         void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
         setCountsRefreshKey((k) => k + 1);
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("booking-updated"));
         }
-        setDeleting(null);
-        void fetchBookingsThrough(page, search, statusFilter);
       }
     } catch {
       toast.error("Unable to delete booking.");

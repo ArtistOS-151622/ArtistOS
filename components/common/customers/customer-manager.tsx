@@ -240,17 +240,21 @@ export function CustomerManager() {
           toast.error(data.error ?? "Unable to save customer.");
         }
       } else {
-        if (editing) pendingScrollId.current = editing.id;
-        cancelEdit();
+        const savedCustomer = data.customer;
         if (editing) {
-          void fetchCustomersThrough(page, search, sortBy);
+          pendingScrollId.current = editing.id;
+          // Optimistically update the customer directly in state without multi-page waterfall re-fetching!
+          setCustomers((prev) =>
+            prev.map((c) => (c.id === savedCustomer.id ? savedCustomer : c))
+          );
         } else {
-          if (search !== "") {
-            setSearch("");
-          } else {
-            void fetchCustomers(1, "", sortBy, false);
-          }
+          // Prepend newly created customer directly to state for instant UI feedback!
+          setCustomers((prev) => [
+            savedCustomer,
+            ...prev.filter((c) => c.id !== savedCustomer.id),
+          ]);
         }
+        cancelEdit();
       }
     } catch {
       toast.error("Unable to save customer.");
@@ -272,8 +276,10 @@ export function CustomerManager() {
       if (!res.ok) {
         toast.error(data.error ?? "Unable to delete customer.");
       } else {
+        const targetId = deleting.id;
+        // Optimistically remove customer from state immediately without multi-page waterfall!
+        setCustomers((prev) => prev.filter((c) => c.id !== targetId));
         setDeleting(null);
-        void fetchCustomersThrough(page, search, sortBy);
       }
     } catch {
       toast.error("Unable to delete customer.");

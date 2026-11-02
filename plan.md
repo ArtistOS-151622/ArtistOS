@@ -183,4 +183,4 @@ When a user triggers an action (e.g., creating a booking or saving a customer):
 - [x] **Milestone 3**: Deduplicate and cache `checkIsReadOnly` across `proxy.ts` and all route handlers *(Completed - downstream route checks hit in-memory cache in 0ms)*.
 - [ ] **Milestone 4**: Re-enable `.range(from, to)` pagination in `/api/bookings` and remove in-memory full-table sort.
 - [ ] **Milestone 5**: Execute database migration to create missing compound indexes.
-- [ ] **Milestone 6**: Implement Optimistic UI and eliminate multi-page re-fetch loops in customer and service managers.
+- [x] **Milestone 6**: Implement Optimistic UI and eliminate multi-page re-fetch loops in customer, service, and booking managers *(Completed - multi-page Promise.all re-fetch waterfalls replaced with instant direct state updates)*.

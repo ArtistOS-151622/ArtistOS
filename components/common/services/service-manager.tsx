@@ -121,17 +121,19 @@ export function ServiceManager() {
       if (!response.ok || !data.service) {
         setError(data.error ?? "Unable to save service.");
       } else {
-        if (editing) pendingScrollId.current = editing.id;
-        cancelEdit();
+        const savedService = data.service;
         if (editing) {
-          void loadServices(search, sortBy);
+          pendingScrollId.current = editing.id;
+          setServices((prev) =>
+            prev.map((s) => (s.id === savedService.id ? savedService : s))
+          );
         } else {
-          if (search !== "") {
-            setSearch("");
-          } else {
-            void loadServices("", sortBy);
-          }
+          setServices((prev) => [
+            savedService,
+            ...prev.filter((s) => s.id !== savedService.id),
+          ]);
         }
+        cancelEdit();
       }
     } catch {
       setError("Unable to save service.");
@@ -155,8 +157,9 @@ export function ServiceManager() {
       if (!response.ok) {
         setError(data.error ?? "Unable to delete service.");
       } else {
+        const targetId = deleting.id;
+        setServices((prev) => prev.filter((s) => s.id !== targetId));
         setDeleting(null);
-        void loadServices(search, sortBy);
       }
     } catch {
       setError("Unable to delete service.");
