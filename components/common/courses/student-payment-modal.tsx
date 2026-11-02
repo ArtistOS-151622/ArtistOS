@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { DollarSign } from "lucide-react"
+import { DollarSign, Loader2 } from "lucide-react"
 
 import type { CourseStudent } from "@/components/common/courses/course-types"
 import { Button } from "@/components/ui/button"
@@ -157,7 +157,14 @@ export function StudentPaymentModal({
           disabled={loading || !numAmount || numAmount > currentPending}
           className="rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10 min-w-32 font-bold"
         >
-          {loading ? "Recording..." : "Record Payment"}
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin" />
+              <span>Recording...</span>
+            </div>
+          ) : (
+            "Record Payment"
+          )}
         </Button>
       </div>
     </form>

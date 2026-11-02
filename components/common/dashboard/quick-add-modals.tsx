@@ -189,7 +189,14 @@ export function QuickAddModals({
               className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10"
               disabled={customerLoading}
             >
-              Add customer
+              {customerLoading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>Adding...</span>
+                </div>
+              ) : (
+                "Add customer"
+              )}
             </Button>
           </>
         }

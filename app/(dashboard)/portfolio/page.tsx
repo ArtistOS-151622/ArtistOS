@@ -359,7 +359,10 @@ export default function PortfolioPage() {
             onClick={() => void handleCreateFolder()}
           >
             {creating ? (
-              <Loader2 className="size-4 animate-spin" />
+              <div className="flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                <span>Creating...</span>
+              </div>
             ) : (
               "Create Folder"
             )}
@@ -390,7 +393,10 @@ export default function PortfolioPage() {
             onClick={() => void handleUpdateFolder()}
           >
             {updatingFolder ? (
-              <Loader2 className="size-4 animate-spin" />
+              <div className="flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                <span>Saving...</span>
+              </div>
             ) : (
               "Save Changes"
             )}
@@ -430,7 +436,10 @@ export default function PortfolioPage() {
               onClick={() => void confirmDeleteFolder()}
             >
               {deleting ? (
-                <Loader2 className="size-4 animate-spin" />
+                <div className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>Deleting...</span>
+                </div>
               ) : (
                 "Delete"
               )}

@@ -10,6 +10,7 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Loader2,
   Mail,
   MapPin,
   ShieldCheck,
@@ -687,7 +688,10 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                         className="h-12 w-full rounded-2xl bg-[#7c3aed] text-white font-bold text-sm shadow-md shadow-purple-500/25 hover:bg-[#6d28d9] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {submitting ? (
-                          <span>Submitting Request...</span>
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="size-4 animate-spin" />
+                            <span>Submitting Request...</span>
+                          </div>
                         ) : (
                           <>
                             <CheckCircle2 className="size-4" />

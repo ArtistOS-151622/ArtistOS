@@ -44,6 +44,7 @@ export default function PortfolioFolderPage() {
   const [shareOpen, setShareOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [search, setSearch] = useState("")
 
@@ -54,15 +55,20 @@ export default function PortfolioFolderPage() {
   }
 
   async function handleBulkDelete() {
-    await fetch("/api/portfolio/files/bulk-delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: selectedIds }),
-    })
-    setSelectedIds([])
-    setDeleteOpen(false)
-    void mutateFiles()
-    void mutateFolders()
+    setDeleting(true)
+    try {
+      await fetch("/api/portfolio/files/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      })
+      setSelectedIds([])
+      setDeleteOpen(false)
+      void mutateFiles()
+      void mutateFolders()
+    } finally {
+      setDeleting(false)
+    }
   }
 
   async function handleBulkDownload() {
@@ -350,6 +356,7 @@ export default function PortfolioFolderPage() {
         title="Delete selected files?"
         description="This will permanently remove the selected files from storage."
         confirmText="Delete"
+        loading={deleting}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={() => void handleBulkDelete()}
       />

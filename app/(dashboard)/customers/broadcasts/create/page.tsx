@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
-  Play, CheckCircle2, ChevronRight, ChevronLeft, RefreshCw,
+  Play, CheckCircle2, ChevronRight, ChevronLeft, Loader2, RefreshCw,
   ImagePlus, X, Save, Send, ChevronDown, Users, MessageSquare, Zap,
 } from "lucide-react"
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
@@ -452,7 +452,13 @@ export default function CreateBroadcastPage() {
             {step === 2 && (
               <Button onClick={handleNextToStep3} disabled={loading}
                 className="w-full sm:w-auto rounded-xl h-10 px-6 bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-md shadow-purple-900/15 text-sm">
-                {uploadingImage ? <><RefreshCw className="mr-2 size-4 animate-spin" />Uploading…</> : <>Continue to Send <ChevronRight className="ml-1.5 size-4" /></>}
+                {uploadingImage ? (
+                  <><Loader2 className="mr-2 size-4 animate-spin" />Uploading…</>
+                ) : loading ? (
+                  <><Loader2 className="mr-2 size-4 animate-spin" />Saving…</>
+                ) : (
+                  <>Continue to Send <ChevronRight className="ml-1.5 size-4" /></>
+                )}
               </Button>
             )}
             {step === 3 && (

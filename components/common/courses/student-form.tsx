@@ -4,6 +4,7 @@ import { useState } from "react"
 import {
   CreditCard,
   GraduationCap,
+  Loader2,
   Mail,
   MapPin,
   User,
@@ -368,7 +369,14 @@ export function StudentForm({
           disabled={loading}
           className="rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10 min-w-32 font-bold"
         >
-          {loading ? "Saving..." : initialData ? "Update Student" : "Enroll Student"}
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin" />
+              <span>{initialData ? "Updating..." : "Enrolling..."}</span>
+            </div>
+          ) : (
+            initialData ? "Update Student" : "Enroll Student"
+          )}
         </Button>
       </div>
     </form>

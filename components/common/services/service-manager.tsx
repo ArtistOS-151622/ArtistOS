@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Filter, Plus, ScissorsLineDashed, Search } from "lucide-react";
+import { Filter, Loader2, Plus, ScissorsLineDashed, Search } from "lucide-react";
 import { AppModal } from "@/components/common/shared/app-modal";
 import { SkeletonCard } from "@/components/common/shared/skeleton-card";
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog";
@@ -295,6 +295,7 @@ export function ServiceManager() {
         title="Delete service?"
         description={`This will remove ${deleting?.service_name ?? "this service"} from your service list.`}
         confirmText="Delete"
+        loading={loading}
         onCancel={() => setDeleting(null)}
         onConfirm={deleteService}
       />
@@ -321,7 +322,14 @@ export function ServiceManager() {
               className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10"
               disabled={loading}
             >
-              {editing ? "Update service" : "Add service"}
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>{editing ? "Updating..." : "Adding..."}</span>
+                </div>
+              ) : (
+                editing ? "Update service" : "Add service"
+              )}
             </Button>
           </>
         }

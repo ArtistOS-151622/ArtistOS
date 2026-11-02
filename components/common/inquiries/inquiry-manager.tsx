@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Filter,
   Inbox,
+  Loader2,
   Mail,
   MapPin,
   MessageCircle,
@@ -115,6 +116,7 @@ export function InquiryManager() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [actingId, setActingId] = useState<number | null>(null)
+  const [actingAction, setActingAction] = useState<"convert" | "cancel" | null>(null)
   const [formLink, setFormLink] = useState<FormLinkResponse | null>(null)
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null)
 
@@ -208,6 +210,7 @@ export function InquiryManager() {
     }
 
     setActingId(inquiry.id)
+    setActingAction("convert")
     try {
       const res = await fetch(`/api/inquiries/${inquiry.id}/convert`, {
         method: "POST",
@@ -230,6 +233,7 @@ export function InquiryManager() {
       toast.error("Unable to convert inquiry.")
     } finally {
       setActingId(null)
+      setActingAction(null)
     }
   }
 
@@ -240,6 +244,7 @@ export function InquiryManager() {
     }
 
     setActingId(inquiry.id)
+    setActingAction("cancel")
     try {
       const res = await fetch(`/api/inquiries/${inquiry.id}/cancel`, {
         method: "POST",
@@ -262,6 +267,7 @@ export function InquiryManager() {
       toast.error("Unable to cancel inquiry.")
     } finally {
       setActingId(null)
+      setActingAction(null)
     }
   }
 
@@ -466,6 +472,7 @@ export function InquiryManager() {
                 <InquiryCard
                   inquiry={inquiry}
                   loading={actingId === inquiry.id}
+                  actingAction={actingId === inquiry.id ? actingAction : null}
                   readOnly={isReadOnly}
                   onConvert={convertInquiry}
                   onCancel={cancelInquiry}
@@ -749,8 +756,17 @@ export function InquiryManager() {
                       disabled={actingId === selectedInquiry.id || isReadOnly}
                       onClick={() => cancelInquiry(selectedInquiry)}
                     >
-                      <XCircle className="size-4 mr-1.5" />
-                      <span>Cancel Lead</span>
+                      {actingId === selectedInquiry.id && actingAction === "cancel" ? (
+                        <div className="flex items-center gap-1.5">
+                          <Loader2 className="size-4 animate-spin" />
+                          <span>Cancelling...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <XCircle className="size-4 mr-1.5" />
+                          <span>Cancel Lead</span>
+                        </>
+                      )}
                     </Button>
                     <Button
                       type="button"
@@ -758,8 +774,17 @@ export function InquiryManager() {
                       disabled={actingId === selectedInquiry.id || isReadOnly}
                       onClick={() => convertInquiry(selectedInquiry)}
                     >
-                      <CheckCircle2 className="size-4 mr-1.5" />
-                      <span>Confirm & Book</span>
+                      {actingId === selectedInquiry.id && actingAction === "convert" ? (
+                        <div className="flex items-center gap-1.5">
+                          <Loader2 className="size-4 animate-spin" />
+                          <span>Confirming...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="size-4 mr-1.5" />
+                          <span>Confirm & Book</span>
+                        </>
+                      )}
                     </Button>
                   </div>
                 ) : selectedInquiry.status === "booked" && selectedInquiry.booking_id ? (

@@ -752,6 +752,8 @@ export function CourseManager() {
         onCancel={() => setDeletingCourse(null)}
         title="Delete Course?"
         description={`Are you sure you want to delete "${deletingCourse?.name}"? All enrolled student records under this course will also be removed.`}
+        confirmText="Delete Course"
+        loading={formLoading}
         onConfirm={handleDeleteCourse}
       />
 
@@ -761,6 +763,8 @@ export function CourseManager() {
         onCancel={() => setDeletingStudent(null)}
         title="Delete Student Record?"
         description={`Are you sure you want to remove "${deletingStudent?.name}" from this course?`}
+        confirmText="Delete Student"
+        loading={formLoading}
         onConfirm={handleDeleteStudent}
       />
     </div>

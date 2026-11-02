@@ -177,7 +177,14 @@ export function StoragePlansModal({
           disabled={loading || !effectiveSelectedPlanId}
           onClick={handlePurchase}
         >
-          {loading ? <Loader2 className="size-4 animate-spin" /> : "Continue to Payment"}
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin" />
+              <span>Processing...</span>
+            </div>
+          ) : (
+            "Continue to Payment"
+          )}
         </Button>
       }
     >

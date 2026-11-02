@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Filter, Plus, Search, User, MessageSquare } from "lucide-react";
+import { Filter, Loader2, Plus, Search, User, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 import { SkeletonCard } from "@/components/common/shared/skeleton-card";
@@ -441,6 +441,7 @@ export function CustomerManager() {
         title="Delete customer?"
         description={`This will permanently remove ${deleting?.customer_name ?? "this customer"} from your records.`}
         confirmText="Delete"
+        loading={loading}
         onCancel={() => setDeleting(null)}
         onConfirm={deleteCustomer}
       />
@@ -467,7 +468,14 @@ export function CustomerManager() {
               className="h-11 rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md shadow-purple-950/10"
               disabled={loading}
             >
-              {editing ? "Update customer" : "Add customer"}
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>{editing ? "Updating..." : "Adding..."}</span>
+                </div>
+              ) : (
+                editing ? "Update customer" : "Add customer"
+              )}
             </Button>
           </>
         }

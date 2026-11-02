@@ -33,6 +33,7 @@ export function UserMenu({
 }: UserMenuProps) {
   const router = useRouter()
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [displayName, setDisplayName] = useState(propName || "Artist Studio")
   const [displayInitials, setDisplayInitials] = useState(propInitials || "AS")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
@@ -78,12 +79,17 @@ export function UserMenu({
   }, [propName, propInitials, authData])
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" })
-    localStorage.removeItem("artistos-auth")
-    sessionStorage.clear()
-    setLogoutOpen(false)
-    router.replace("/login")
-    router.refresh()
+    setLoggingOut(true)
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+      localStorage.removeItem("artistos-auth")
+      sessionStorage.clear()
+      setLogoutOpen(false)
+      router.replace("/login")
+      router.refresh()
+    } finally {
+      setLoggingOut(false)
+    }
   }
 
   return (
@@ -167,6 +173,7 @@ export function UserMenu({
         title="Logout from ArtistOS?"
         description="You will return to the login page. Your dashboard data will stay safe."
         confirmText="Logout"
+        loading={loggingOut}
         onCancel={() => setLogoutOpen(false)}
         onConfirm={logout}
       />

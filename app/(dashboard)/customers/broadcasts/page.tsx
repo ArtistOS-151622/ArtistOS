@@ -31,6 +31,7 @@ export default function BroadcastsDashboardPage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [filterLang, setFilterLang] = useState<string>("All")
 
   const loadTemplates = useCallback(async () => {
@@ -50,6 +51,7 @@ export default function BroadcastsDashboardPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return
+    setDeleting(true)
     try {
       const res = await fetch(`/api/whatsapp/templates/${deleteId}`, { method: "DELETE" })
       if (res.ok) {
@@ -61,6 +63,7 @@ export default function BroadcastsDashboardPage() {
     } catch {
       toast.error("Failed to delete template")
     } finally {
+      setDeleting(false)
       setDeleteId(null)
     }
   }
@@ -284,6 +287,7 @@ export default function BroadcastsDashboardPage() {
         title="Delete Template?"
         description="Are you sure you want to delete this custom template? This action cannot be undone."
         confirmText="Delete"
+        loading={deleting}
         onCancel={() => setDeleteId(null)}
         onConfirm={handleDelete}
       />

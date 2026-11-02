@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Loader2,
   MapPin,
   MessageCircle,
   PhoneCall,
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils"
 type InquiryCardProps = {
   inquiry: Inquiry
   loading?: boolean
+  actingAction?: "convert" | "cancel" | null
   readOnly?: boolean
   onConvert: (inquiry: Inquiry) => void
   onCancel: (inquiry: Inquiry) => void
@@ -112,6 +114,7 @@ function calculateDuration(startTime?: string, endTime?: string) {
 export function InquiryCard({
   inquiry,
   loading,
+  actingAction,
   readOnly,
   onConvert,
   onCancel,
@@ -335,8 +338,17 @@ export function InquiryCard({
                 className="h-8.5 rounded-md border border-rose-200 bg-rose-50/80 text-rose-600 hover:bg-rose-600 hover:text-white transition-all text-xs font-bold px-2.5"
                 title="Cancel Lead"
               >
-                <XCircle className="size-3.5 mr-1" />
-                <span>Cancel</span>
+                {loading && actingAction === "cancel" ? (
+                  <div className="flex items-center gap-1">
+                    <Loader2 className="size-3.5 animate-spin" />
+                    <span>Cancelling...</span>
+                  </div>
+                ) : (
+                  <>
+                    <XCircle className="size-3.5 mr-1" />
+                    <span>Cancel</span>
+                  </>
+                )}
               </Button>
               <Button
                 size="sm"
@@ -345,8 +357,17 @@ export function InquiryCard({
                 className="h-8.5 rounded-md bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-all text-xs font-bold px-3 shadow-sm shadow-purple-500/20"
                 title="Confirm and Convert to Booking"
               >
-                <CheckCircle2 className="size-3.5 mr-1" />
-                <span>Confirm</span>
+                {loading && actingAction === "convert" ? (
+                  <div className="flex items-center gap-1">
+                    <Loader2 className="size-3.5 animate-spin" />
+                    <span>Confirming...</span>
+                  </div>
+                ) : (
+                  <>
+                    <CheckCircle2 className="size-3.5 mr-1" />
+                    <span>Confirm</span>
+                  </>
+                )}
               </Button>
             </>
           ) : isBooked ? (

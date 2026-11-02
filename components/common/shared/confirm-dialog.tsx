@@ -1,5 +1,5 @@
-import React from "react"
-import { AlertTriangle, HelpCircle, Trash2 } from "lucide-react"
+import React, { useState } from "react"
+import { AlertTriangle, HelpCircle, Loader2, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -12,7 +12,8 @@ type ConfirmDialogProps = {
   confirmText?: string
   cancelText?: string
   confirmVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
-  onConfirm: () => void
+  loading?: boolean
+  onConfirm: () => void | Promise<void>
   onCancel?: () => void
 }
 
@@ -24,9 +25,11 @@ export function ConfirmDialog({
   confirmText = "Confirm",
   cancelText = "Cancel",
   confirmVariant = "destructive",
+  loading: externalLoading,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const [internalLoading, setInternalLoading] = useState(false)
   if (!open) return null
 
   const isDestructive = confirmVariant === "destructive"
@@ -38,6 +41,32 @@ export function ConfirmDialog({
   const iconContainerStyle = isDestructive
     ? "bg-rose-50 border-rose-100/60 text-rose-600"
     : "bg-purple-50 border-purple-100/60 text-[#7c3aed]"
+
+  const isLoading = Boolean(externalLoading ?? internalLoading)
+
+  const handleConfirm = async () => {
+    if (isLoading) return
+    const result = onConfirm()
+    if (result instanceof Promise) {
+      setInternalLoading(true)
+      try {
+        await result
+      } finally {
+        setInternalLoading(false)
+      }
+    }
+  }
+
+  const getLoadingText = () => {
+    const lower = confirmText.toLowerCase()
+    if (lower.startsWith("del")) return "Deleting..."
+    if (lower.startsWith("remov")) return "Removing..."
+    if (lower.startsWith("log")) return "Logging out..."
+    if (lower.startsWith("sav")) return "Saving..."
+    if (lower.startsWith("updat")) return "Updating..."
+    if (lower.startsWith("creat")) return "Creating..."
+    return `${confirmText}...`
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-[2px] p-4 sm:p-6 animate-in fade-in duration-200">
@@ -62,6 +91,7 @@ export function ConfirmDialog({
           {cancelText && onCancel ? (
             <Button
               variant="outline"
+              disabled={isLoading}
               className="h-10 rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               onClick={onCancel}
             >
@@ -70,10 +100,18 @@ export function ConfirmDialog({
           ) : null}
           <Button
             variant={confirmVariant}
+            disabled={isLoading}
             className="h-10 rounded-xl"
-            onClick={onConfirm}
+            onClick={handleConfirm}
           >
-            {confirmText}
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                <span>{getLoadingText()}</span>
+              </div>
+            ) : (
+              confirmText
+            )}
           </Button>
         </div>
       </Card>

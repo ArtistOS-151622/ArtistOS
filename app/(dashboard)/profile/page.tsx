@@ -55,6 +55,7 @@ export default function ProfilePage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [plansOpen, setPlansOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
   const [canInstall, setCanInstall] = useState(false)
@@ -199,11 +200,16 @@ export default function ProfilePage() {
   }
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" })
-    localStorage.removeItem("artistos-auth")
-    sessionStorage.clear()
-    router.replace("/login")
-    router.refresh()
+    setLoggingOut(true)
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+      localStorage.removeItem("artistos-auth")
+      sessionStorage.clear()
+      router.replace("/login")
+      router.refresh()
+    } finally {
+      setLoggingOut(false)
+    }
   }
 
   if (loading) {
@@ -586,6 +592,7 @@ export default function ProfilePage() {
         title="Logout from ArtistOS?"
         description="You will return to the login page. Your dashboard data will stay safe."
         confirmText="Logout"
+        loading={loggingOut}
         onCancel={() => setLogoutOpen(false)}
         onConfirm={handleLogout}
       />
