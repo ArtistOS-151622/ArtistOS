@@ -35,8 +35,8 @@ export async function POST(
 
   if (!body.charge_name?.trim())
     return NextResponse.json({ error: "Charge name is required." }, { status: 400 })
-  if (Number(body.quantity) < 1)
-    return NextResponse.json({ error: "Quantity must be at least 1." }, { status: 400 })
+  if (!Number.isInteger(Number(body.quantity)) || Number(body.quantity) < 1)
+    return NextResponse.json({ error: "Quantity must be a whole number of at least 1." }, { status: 400 })
   if (Number(body.rate) < 0)
     return NextResponse.json({ error: "Rate cannot be negative." }, { status: 400 })
 
@@ -82,8 +82,8 @@ export async function PATCH(
 
   if (!body.charge_name?.trim())
     return NextResponse.json({ error: "Charge name is required." }, { status: 400 })
-  if (Number(body.quantity) < 1)
-    return NextResponse.json({ error: "Quantity must be at least 1." }, { status: 400 })
+  if (!Number.isInteger(Number(body.quantity)) || Number(body.quantity) < 1)
+    return NextResponse.json({ error: "Quantity must be a whole number of at least 1." }, { status: 400 })
   if (Number(body.rate) < 0)
     return NextResponse.json({ error: "Rate cannot be negative." }, { status: 400 })
 

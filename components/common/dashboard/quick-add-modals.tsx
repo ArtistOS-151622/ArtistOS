@@ -108,7 +108,16 @@ export function QuickAddModals({
       start_time: bookingValues.start_time,
       end_time: bookingValues.end_time,
       status: bookingValues.status,
-      services: bookingValues.services,
+      services: bookingValues.services.map((serviceId) => ({
+        service_id: Number(serviceId),
+        quantity: bookingValues.service_quantities[serviceId] ?? 1,
+      })),
+      additional_charges: bookingValues.additional_pricing_enabled
+        ? bookingValues.additional_charges
+        : [],
+      advance_payment: Number(bookingValues.advance_payment) || 0,
+      advance_payment_method: bookingValues.advance_payment_method,
+      advance_payment_date: bookingValues.advance_payment_date || bookingValues.booking_date,
       additional_request: bookingValues.additional_request.trim() || null,
     };
 

@@ -240,7 +240,15 @@ export function BookingManager() {
       start_time: values.start_time,
       end_time: values.end_time,
       status: values.status,
-      services: values.services,
+      services: values.services.map((serviceId) => ({
+        service_id: Number(serviceId),
+        quantity: values.service_quantities[serviceId] ?? 1,
+      })),
+      additional_charges: values.additional_pricing_enabled ? values.additional_charges : [],
+      advance_payment: Number(values.advance_payment) || 0,
+      advance_payment_id: values.advance_payment_id,
+      advance_payment_method: values.advance_payment_method,
+      advance_payment_date: values.advance_payment_date || values.booking_date,
       additional_request: values.additional_request.trim() || null,
     };
 
@@ -387,6 +395,20 @@ export function BookingManager() {
       start_time: booking.start_time.substring(0, 5), // Keep only HH:MM
       end_time: booking.end_time.substring(0, 5), // Keep only HH:MM
       services: booking.services?.map((s) => String(s.id)) ?? [],
+      service_quantities: Object.fromEntries(
+        booking.services?.map((service) => [String(service.id), service.quantity ?? 1]) ?? [],
+      ),
+      additional_pricing_enabled:
+        Boolean(booking.additional_charges?.length),
+      additional_charges: booking.additional_charges?.map((charge) => ({
+        charge_name: charge.charge_name,
+        quantity: charge.quantity,
+        rate: charge.rate,
+      })) ?? [],
+      advance_payment: booking.advance_payment ? String(booking.advance_payment.amount) : "",
+      advance_payment_id: booking.advance_payment?.id,
+      advance_payment_method: (booking.advance_payment?.payment_method as BookingFormValues["advance_payment_method"]) ?? "UPI",
+      advance_payment_date: booking.advance_payment?.payment_date ?? "",
       status: booking.status,
       additional_request: booking.additional_request ?? "",
       reference_images: [],

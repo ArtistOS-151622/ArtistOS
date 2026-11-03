@@ -13,6 +13,8 @@ import {
   Image as ImageIcon,
   UploadCloud,
   AlertTriangle,
+  Trash2,
+  IndianRupee,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,7 @@ import { FloatingDropdown } from "@/components/common/shared/floating-dropdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -490,6 +493,10 @@ export function BookingForm({
     const svc = allServices.find((s) => String(s.id) === id);
     return total + (svc?.duration_minutes || 0);
   }, 0);
+  const additionalChargesTotal = values.additional_charges.reduce(
+    (total, charge) => total + Number(charge.quantity) * Number(charge.rate),
+    0,
+  );
 
   // Toggle selected service
   const handleToggleService = (serviceId: string) => {
@@ -497,7 +504,10 @@ export function BookingForm({
     const newServices = isSelected
       ? values.services.filter((id) => id !== serviceId)
       : [...values.services, serviceId];
-    onChange({ ...values, services: newServices });
+    const serviceQuantities = { ...values.service_quantities };
+    if (isSelected) delete serviceQuantities[serviceId];
+    else serviceQuantities[serviceId] = 1;
+    onChange({ ...values, services: newServices, service_quantities: serviceQuantities });
   };
 
   // Quick-create customer
@@ -576,6 +586,10 @@ export function BookingForm({
         onChange({
           ...values,
           services: [...values.services, String(newSer.id)],
+          service_quantities: {
+            ...values.service_quantities,
+            [String(newSer.id)]: 1,
+          },
         });
         setNewServiceValues({
           service_name: "",
@@ -621,6 +635,14 @@ export function BookingForm({
           if (!values.booking_date) newErrors.booking_date = "Please fill out this field.";
           if (!values.start_time) newErrors.start_time = "Please fill out this field.";
           if (!values.end_time) newErrors.end_time = "Please fill out this field.";
+
+          if (
+            values.additional_pricing_enabled &&
+            values.additional_charges.some((charge) => !charge.charge_name.trim())
+          ) {
+            toast.error("Please enter a name for every additional charge.");
+            return;
+          }
 
           if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
@@ -863,6 +885,261 @@ export function BookingForm({
               <Plus className="size-5" />
             </Button>
           </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="grid grid-cols-[minmax(0,1fr)_104px] items-center border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Service
+            </Label>
+            <span className="text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Quantity
+            </span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {values.services.map((id) => {
+              const service = allServices.find((item) => String(item.id) === id);
+              if (!service) return null;
+              return (
+                <div key={id} className="grid grid-cols-[minmax(0,1fr)_104px] items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50/60">
+                  <span className="min-w-0 truncate text-sm font-semibold text-slate-700">
+                    {service.service_name}
+                  </span>
+                  <div className="flex justify-center">
+                    <Input
+                      id={`service-quantity-${id}`}
+                      aria-label={`${service.service_name} quantity`}
+                      type="number"
+                      min={1}
+                      step={1}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      disabled={loading}
+                      value={values.service_quantities[id] ?? 1}
+                      onKeyDown={(event) => {
+                        if ([".", ",", "-", "+", "e", "E"].includes(event.key)) event.preventDefault();
+                      }}
+                      onChange={(event) =>
+                        onChange({
+                          ...values,
+                          service_quantities: {
+                            ...values.service_quantities,
+                            [id]: Math.max(1, Math.floor(Number(event.target.value) || 1)),
+                          },
+                        })
+                      }
+                      className="h-10 w-20 rounded-xl text-center font-semibold shadow-sm"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label htmlFor="additional-pricing" className="text-sm font-semibold text-slate-800">
+                Additional charges
+              </Label>
+              <p className="mt-1 text-xs text-slate-500">
+                Add optional costs to this booking.
+              </p>
+            </div>
+            <Switch
+              id="additional-pricing"
+              checked={values.additional_pricing_enabled}
+              disabled={loading}
+              onCheckedChange={(checked) =>
+                onChange({
+                  ...values,
+                  additional_pricing_enabled: checked,
+                  additional_charges: checked ? values.additional_charges : [],
+                })
+              }
+            />
+          </div>
+
+          {values.additional_pricing_enabled ? (
+            <div className="space-y-4 border-t border-slate-200 pt-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Additional charges
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    onClick={() =>
+                      onChange({
+                        ...values,
+                        additional_charges: [
+                          ...values.additional_charges,
+                          { charge_name: "", quantity: 1, rate: 0 },
+                        ],
+                      })
+                    }
+                    className="rounded-xl"
+                  >
+                    <Plus className="mr-1.5 size-3.5" /> Add charge
+                  </Button>
+                </div>
+                {values.additional_charges.map((charge, index) => (
+                  <div
+                    key={index}
+                    className="relative grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-white p-3 pr-12 min-[480px]:grid-cols-2 sm:items-end lg:grid-cols-[minmax(130px,1.4fr)_minmax(72px,.65fr)_minmax(90px,1fr)_minmax(100px,1fr)]"
+                  >
+                    <div className="min-w-0 space-y-1.5 max-[479px]:pr-8">
+                      <Label htmlFor={`charge-name-${index}`} className="text-xs text-slate-500">Charge name</Label>
+                      <Input
+                      id={`charge-name-${index}`}
+                      placeholder="e.g. Travel fee"
+                      disabled={loading}
+                      value={charge.charge_name}
+                      onChange={(event) => {
+                        const charges = [...values.additional_charges];
+                        charges[index] = { ...charge, charge_name: event.target.value };
+                        onChange({ ...values, additional_charges: charges });
+                      }}
+                      />
+                    </div>
+                    <div className="min-w-0 space-y-1.5">
+                      <Label htmlFor={`charge-quantity-${index}`} className="text-xs text-slate-500">Quantity</Label>
+                      <Input
+                      id={`charge-quantity-${index}`}
+                      type="number"
+                      min={1}
+                      step={1}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      disabled={loading}
+                      value={charge.quantity}
+                      onKeyDown={(event) => {
+                        if ([".", ",", "-", "+", "e", "E"].includes(event.key)) event.preventDefault();
+                      }}
+                      onChange={(event) => {
+                        const charges = [...values.additional_charges];
+                        charges[index] = { ...charge, quantity: Math.max(1, Math.floor(Number(event.target.value) || 1)) };
+                        onChange({ ...values, additional_charges: charges });
+                      }}
+                      />
+                    </div>
+                    <div className="min-w-0 space-y-1.5">
+                      <Label htmlFor={`charge-rate-${index}`} className="text-xs text-slate-500">Price (₹)</Label>
+                      <Input
+                      id={`charge-rate-${index}`}
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      disabled={loading}
+                      value={charge.rate}
+                      onChange={(event) => {
+                        const charges = [...values.additional_charges];
+                        charges[index] = { ...charge, rate: Math.max(0, Number(event.target.value) || 0) };
+                        onChange({ ...values, additional_charges: charges });
+                      }}
+                      placeholder="0"
+                      />
+                    </div>
+                    <div className="min-w-0 space-y-1.5">
+                      <Label className="text-xs text-slate-500">Total</Label>
+                      <Input
+                        readOnly
+                        aria-label="Charge total"
+                        value={`₹${(Number(charge.quantity) * Number(charge.rate)).toLocaleString("en-IN")}`}
+                        className="bg-slate-50 font-semibold text-slate-700"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={loading}
+                      aria-label="Remove charge"
+                      onClick={() =>
+                        onChange({
+                          ...values,
+                          additional_charges: values.additional_charges.filter((_, itemIndex) => itemIndex !== index),
+                        })
+                      }
+                      className="absolute right-2 top-2 size-9 shrink-0 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 sm:top-1/2 sm:-translate-y-1/2"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between rounded-xl border border-purple-100 bg-purple-50 px-4 py-3">
+                  <span className="text-sm font-semibold text-purple-900">Additional charges total</span>
+                  <span className="text-base font-bold text-[#7c3aed]">
+                    ₹{additionalChargesTotal.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+          <div className="mb-4">
+            <Label className="text-sm font-semibold text-slate-800">Advance payment</Label>
+            <p className="mt-1 text-xs text-slate-500">
+              Record an advance now and show it in the booking payment history.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <FloatingInput
+              id="advance_payment"
+              label="Amount"
+              icon={<IndianRupee className="size-4" />}
+              type="number"
+              min="0"
+              step="0.01"
+              disabled={loading}
+              value={values.advance_payment}
+              onChange={(event) =>
+                onChange({
+                  ...values,
+                  advance_payment: event.target.value,
+                  advance_payment_date:
+                    Number(event.target.value) > 0 && !values.advance_payment_date
+                      ? new Date().toLocaleDateString("en-CA")
+                      : values.advance_payment_date,
+                })
+              }
+            />
+            <FloatingDropdown
+              label="Payment Method"
+              value={values.advance_payment_method}
+              hasValue={true}
+              disabled={loading || !Number(values.advance_payment)}
+            >
+              <DropdownMenuRadioGroup
+                value={values.advance_payment_method}
+                onValueChange={(method) =>
+                  onChange({
+                    ...values,
+                    advance_payment_method: method as BookingFormValues["advance_payment_method"],
+                  })
+                }
+              >
+                {["UPI", "Cash", "Check", "Bank Transfer"].map((method) => (
+                  <DropdownMenuRadioItem key={method} value={method} closeOnClick={true} className="h-10 rounded-xl px-3 text-sm cursor-pointer">
+                    {method}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </FloatingDropdown>
+            <DatePicker
+              id="advance_payment_date"
+              label="Payment Date"
+              disabled={loading || !Number(values.advance_payment)}
+              value={values.advance_payment_date}
+              onChange={(date) => onChange({ ...values, advance_payment_date: date })}
+            />
+          </div>
+        </div>
 
         {/* Estimated Time Indicator */}
         {totalEstimatedMinutes > 0 && (

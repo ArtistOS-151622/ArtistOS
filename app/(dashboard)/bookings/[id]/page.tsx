@@ -641,12 +641,10 @@ export default function BookingDetailsPage() {
     (acc, s) => acc + Number(s.price) * (s.quantity ?? 1),
     0,
   );
-  const additionalTotal = showAdditionalCharges
-    ? booking.additional_charges.reduce(
-        (acc, c) => acc + Number(c.rate) * Number(c.quantity),
-        0,
-      )
-    : 0;
+  const additionalTotal = booking.additional_charges.reduce(
+    (acc, c) => acc + Number(c.rate) * Number(c.quantity),
+    0,
+  );
 
   const subTotal = servicesTotal + additionalTotal;
   const grandTotal = Math.max(0, subTotal - booking.discount);

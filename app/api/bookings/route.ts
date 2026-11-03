@@ -13,7 +13,11 @@ type BookingInput = {
   start_time?: string
   end_time?: string
   status?: string
-  services?: (string | number)[]
+  services?: (string | number | { service_id: string | number; quantity?: number })[]
+  additional_charges?: { charge_name: string; quantity: number; rate: number }[]
+  advance_payment?: number | string
+  advance_payment_method?: string
+  advance_payment_date?: string
   additional_request?: string
 }
 
@@ -36,7 +40,16 @@ const SELECT_FIELDS = `
     service:services(id, service_name, price)
   ),
   booking_additional_charges(id, charge_name, quantity, rate)
+  ,booking_payments(id, payment_type, payment_method, amount, payment_date, remark)
 `
+
+const BOOKING_FORM_ADVANCE_REMARK = "Advance payment added during booking"
+
+function getAdvancePayment(payments: any[] | null | undefined) {
+  return payments?.find((payment) =>
+    payment.payment_type === "Advance" && payment.remark === BOOKING_FORM_ADVANCE_REMARK,
+  ) ?? payments?.find((payment) => payment.payment_type === "Advance") ?? null
+}
 
 export async function GET(request: NextRequest) {
   const session = getArtistSession(request)
@@ -145,6 +158,7 @@ export async function GET(request: NextRequest) {
       price: bs.unit_price ?? bs.service?.price ?? 0,
     })).filter((s: any) => s.id) ?? [],
     additional_charges: b.booking_additional_charges ?? [],
+    advance_payment: getAdvancePayment(b.booking_payments),
   }))
 
   const hasMore = isDateRangeQuery ? false : sortedData.length > (page * limit)
@@ -174,6 +188,16 @@ export async function POST(request: NextRequest) {
   if (!body.end_time) return NextResponse.json({ error: "End time is required." }, { status: 400 })
   if (!body.status) return NextResponse.json({ error: "Status is required." }, { status: 400 })
   if (!body.services || body.services.length === 0) return NextResponse.json({ error: "At least one service is required." }, { status: 400 })
+  if (body.services.some((service) => typeof service === "object" && (!Number.isInteger(Number(service.quantity)) || Number(service.quantity) < 1))) {
+    return NextResponse.json({ error: "Service quantity must be a whole number of at least 1." }, { status: 400 })
+  }
+  const advancePayment = Number(body.advance_payment ?? 0)
+  const validPaymentMethods = ["UPI", "Cash", "Check", "Bank Transfer"]
+  if (!Number.isFinite(advancePayment) || advancePayment < 0) return NextResponse.json({ error: "Advance payment cannot be negative." }, { status: 400 })
+  if (advancePayment > 0 && (!body.advance_payment_method || !validPaymentMethods.includes(body.advance_payment_method))) {
+    return NextResponse.json({ error: "Select a valid advance payment method." }, { status: 400 })
+  }
+  if (advancePayment > 0 && !body.advance_payment_date) return NextResponse.json({ error: "Advance payment date is required." }, { status: 400 })
 
   // Insert main booking record
   const { data: booking, error: insertError } = await supabase
@@ -195,7 +219,12 @@ export async function POST(request: NextRequest) {
 
   // Insert service relationships
   if (body.services && body.services.length > 0) {
-    const serviceIds = body.services.map(Number)
+    const normalizedServices = body.services.map((service) =>
+      typeof service === "object"
+        ? { service_id: Number(service.service_id), quantity: Math.max(1, Math.floor(Number(service.quantity) || 1)) }
+        : { service_id: Number(service), quantity: 1 },
+    )
+    const serviceIds = normalizedServices.map((service) => service.service_id)
 
     // Fetch prices for the selected services
     const { data: servicesData } = await supabase
@@ -205,10 +234,10 @@ export async function POST(request: NextRequest) {
 
     const servicePriceMap = new Map(servicesData?.map(s => [s.id, s.price]) || [])
 
-    const serviceRelations = serviceIds.map((sid) => ({
+    const serviceRelations = normalizedServices.map(({ service_id: sid, quantity }) => ({
       booking_id: booking.id,
       service_id: sid,
-      quantity: 1,
+      quantity,
       unit_price: servicePriceMap.get(sid) || 0,
     }))
 
@@ -220,6 +249,45 @@ export async function POST(request: NextRequest) {
       // Clean up the booking if services insert failed
       await supabase.from("bookings").delete().eq("id", booking.id)
       return NextResponse.json({ error: servicesError.message }, { status: 400 })
+    }
+  }
+
+  const additionalCharges = body.additional_charges ?? []
+  if (additionalCharges.some((charge) => !charge.charge_name?.trim() || !Number.isInteger(Number(charge.quantity)) || Number(charge.quantity) < 1 || Number(charge.rate) < 0)) {
+    await supabase.from("bookings").delete().eq("id", booking.id)
+    return NextResponse.json({ error: "Each additional charge requires a name, quantity of at least 1, and a non-negative rate." }, { status: 400 })
+  }
+
+  if (additionalCharges.length > 0) {
+    const { error: chargesError } = await supabase
+      .from("booking_additional_charges")
+      .insert(additionalCharges.map((charge) => ({
+        user_id: session.id,
+        booking_id: booking.id,
+        charge_name: charge.charge_name.trim(),
+        quantity: Number(charge.quantity),
+        rate: Number(charge.rate),
+      })))
+
+    if (chargesError) {
+      await supabase.from("bookings").delete().eq("id", booking.id)
+      return NextResponse.json({ error: chargesError.message }, { status: 400 })
+    }
+  }
+
+  if (advancePayment > 0) {
+    const { error: paymentError } = await supabase.from("booking_payments").insert({
+      user_id: session.id,
+      booking_id: booking.id,
+      payment_type: "Advance",
+      payment_method: body.advance_payment_method,
+      amount: advancePayment,
+      payment_date: body.advance_payment_date,
+      remark: BOOKING_FORM_ADVANCE_REMARK,
+    })
+    if (paymentError) {
+      await supabase.from("bookings").delete().eq("id", booking.id)
+      return NextResponse.json({ error: paymentError.message }, { status: 400 })
     }
   }
 
@@ -240,6 +308,7 @@ export async function POST(request: NextRequest) {
       price: bs.unit_price ?? bs.service?.price ?? 0,
     })).filter((s: any) => s.id) ?? [],
     additional_charges: fullBooking.booking_additional_charges ?? [],
+    advance_payment: getAdvancePayment(fullBooking.booking_payments),
   }
 
   // Send automated WhatsApp notification asynchronously in background using after()

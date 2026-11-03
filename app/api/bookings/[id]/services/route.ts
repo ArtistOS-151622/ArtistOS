@@ -36,6 +36,9 @@ export async function PATCH(
   if (!Array.isArray(services)) {
     return NextResponse.json({ error: "Services must be an array." }, { status: 400 })
   }
+  if (services.some((service) => !Number.isInteger(Number(service.quantity)) || Number(service.quantity) < 1)) {
+    return NextResponse.json({ error: "Service quantity must be a whole number of at least 1." }, { status: 400 })
+  }
 
   const supabase = await createClient()
 
