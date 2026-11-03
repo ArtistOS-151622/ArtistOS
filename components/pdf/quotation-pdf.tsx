@@ -51,6 +51,7 @@ const styles = StyleSheet.create({
   },
   studioInfo: {
     alignItems: "flex-end",
+    maxWidth: 320,
   },
   studioText: {
     color: colors.white,
@@ -275,6 +276,11 @@ export const QuotationPDF = ({ booking, artist, calculations, artistosLogoUrl }:
               {artist.studio_name || artist.artist_name || "Artist Studio"}
             </Text>
             {artist.phone && <Text style={[styles.studioText, { fontSize: 13 }]}>{artist.phone}</Text>}
+            {artist.address && (
+              <Text style={[styles.studioText, { textAlign: "right", lineHeight: 1.4 }]}>
+                {artist.address}
+              </Text>
+            )}
           </View>
         </View>
 

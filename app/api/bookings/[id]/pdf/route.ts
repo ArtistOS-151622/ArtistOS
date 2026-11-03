@@ -7,6 +7,46 @@ import { getPublicUrl } from "@/lib/r2/url"
 
 export const runtime = "nodejs"
 
+function sanitizeFilenamePart(value: string, fallback: string) {
+  return value
+    .trim()
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[.-]+|[.-]+$/g, "") || fallback
+}
+
+function createBookingCode(createdAt: string, bookingId: number) {
+  const source = `${createdAt}:${bookingId}`
+  let hash = 2166136261
+
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return String(hash >>> 0).slice(-6).padStart(6, "0")
+}
+
+function createQuotationFilename(
+  studioName: string | null,
+  customerName: string | null,
+  createdAt: string,
+  bookingId: number,
+) {
+  const safeStudioName = sanitizeFilenamePart(studioName || "", "Artist-Studio")
+  const customerFirstName = customerName?.trim().split(/\s+/)[0] || "Customer"
+  const safeCustomerFirstName = sanitizeFilenamePart(customerFirstName, "Customer")
+  const bookingCode = createBookingCode(createdAt, bookingId)
+
+  return `${safeStudioName}-Quotation-${safeCustomerFirstName}-${bookingCode}.pdf`
+}
+
+function createContentDisposition(filename: string) {
+  const asciiFallback = filename.replace(/[^\x20-\x7e]/g, "") || "quotation.pdf"
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+}
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = getArtistSession(request)
@@ -27,6 +67,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("bookings")
       .select(`
         id,
+        created_at,
         booking_date,
         start_time,
         end_time,
@@ -49,6 +90,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return new NextResponse("Booking not found", { status: 404 })
     }
 
+    const customer = Array.isArray(booking.customer) ? booking.customer[0] : booking.customer
+
     // Format services
     const services = booking.booking_services?.map((bs: any) => ({
       service_name: bs.service?.service_name || "Unknown Service",
@@ -67,17 +110,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const totalPaid = (payments || []).reduce((acc: number, p: any) => acc + Number(p.amount), 0)
 
-    // Calculate user_booking_index manually
-    const { count: userBookingCount } = await supabase
-      .from("bookings")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", session.id)
-      .lte("id", bookingId)
-
     // Format booking object
     const formattedBooking = {
       ...booking,
-      user_booking_index: userBookingCount ?? bookingId,
+      customer,
       services,
       additional_charges,
     }
@@ -149,12 +185,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       chunks.push(Buffer.from(chunk))
     }
     const pdfBuffer = Buffer.concat(chunks)
+    const filename = createQuotationFilename(
+      formattedArtist.studio_name,
+      customer?.customer_name || null,
+      formattedBooking.created_at,
+      formattedBooking.id,
+    )
 
     // 5. Return PDF Response
     return new NextResponse(pdfBuffer, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="Quotation-${formattedBooking.user_booking_index}.pdf"`,
+        "Content-Disposition": createContentDisposition(filename),
       },
     })
 

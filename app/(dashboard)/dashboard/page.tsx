@@ -73,6 +73,7 @@ type DashboardData = {
   }[];
   totalRevenueSum: number;
   upcomingClients: {
+    id: number;
     name: string;
     service: string;
     time: string;
@@ -633,7 +634,7 @@ export default function DashboardPage() {
 
               return (
                 <Card
-                  key={client.name + client.time}
+                  key={client.id}
                   className="group relative overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm hover:shadow-xl hover:shadow-purple-900/5 transition-all duration-300 hover:-translate-y-1"
                 >
                   {/* Subtle hover glow effect */}

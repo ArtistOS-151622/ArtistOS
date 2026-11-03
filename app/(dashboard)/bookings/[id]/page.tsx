@@ -603,7 +603,12 @@ export default function BookingDetailsPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Quotation-${booking?.user_booking_index ?? booking?.id}.pdf`;
+      const contentDisposition = response.headers.get("content-disposition");
+      const encodedFilename = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const fallbackFilename = contentDisposition?.match(/filename="([^"]+)"/i)?.[1];
+      link.download = encodedFilename
+        ? decodeURIComponent(encodedFilename)
+        : fallbackFilename || "Quotation.pdf";
       document.body.appendChild(link);
       link.click();
       link.remove();

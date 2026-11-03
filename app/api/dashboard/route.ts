@@ -289,6 +289,7 @@ export async function GET(request: NextRequest) {
       const customer = Array.isArray(b.customer) ? b.customer[0] : b.customer
       const services = b.booking_services?.map((bs: any) => bs.service?.service_name).filter(Boolean) || []
       return {
+        id: b.id,
         name: customer?.customer_name || "Unknown Client",
         service: services.length > 0 ? services.join(", ") : "No services selected",
         time: formatBookingTime(b.booking_date, b.start_time),
