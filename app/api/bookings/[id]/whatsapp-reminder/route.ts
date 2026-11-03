@@ -56,6 +56,6 @@ export async function POST(
   return NextResponse.json({
     success: true,
     bookingId: id,
-    templateName: "one_day_reminder_to_customer",
+    templateName: result.templateName ?? "one_day_reminder_to_customer",
   })
 }

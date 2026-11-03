@@ -5,7 +5,6 @@ import { APP_TIMEZONE, toWallClock, getMinutesUntilBooking } from "../notificati
 import { getUserPlanFeatures } from "../auth/plan-features.ts"
 
 export type BookingNotificationTrigger =
-  | "created"
   | "confirmed"
   | "reminder_24h"
   | "one_day_reminder"
@@ -45,13 +44,13 @@ function formatDisplayTime(timeStr: string): string {
 }
 
 /**
- * Sends automated WhatsApp notification for booking creation, confirmation, or 24h reminder
+ * Sends automated WhatsApp notification for booking confirmation or a 24h reminder.
  */
 export async function sendBookingNotificationWhatsApp(
   bookingId: number | string,
   trigger: BookingNotificationTrigger,
   existingSupabase?: SupabaseClient
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; templateName?: string }> {
   try {
     const supabase =
       existingSupabase ||
@@ -70,7 +69,7 @@ export async function sendBookingNotificationWhatsApp(
         status,
         discount,
         customer:customers(customer_name, phone),
-        artist:users(artist_name, studio_name),
+        artist:users(id, artist_name, studio_name, phone, address, google_maps_url),
         booking_services(
           quantity,
           unit_price,
@@ -117,10 +116,8 @@ export async function sendBookingNotificationWhatsApp(
       return { success: false, error: "Invalid customer phone" }
     }
 
-    // Determine template:
-    // If trigger is 24h reminder -> 'one_day_reminder_to_customer'
-    // If trigger is confirmed OR status is confirmed -> 'booking_confirmed'
-    // Otherwise -> 'create_booking'
+    // Choose the confirmation or one-day reminder template, with a location
+    // variant when the artist has saved a Google Maps URL.
     const isOneDayReminder =
       trigger === "reminder_24h" ||
       trigger === "one_day_reminder" ||
@@ -137,19 +134,18 @@ export async function sendBookingNotificationWhatsApp(
       }
     }
 
-    const isConfirmed = trigger === "confirmed" || booking.status === "confirmed"
-
+    const hasStudioLocation = Boolean(artist?.google_maps_url?.trim())
     const templateName = isOneDayReminder
-      ? "one_day_reminder_to_customer"
-      : isConfirmed
-        ? "booking_confirmed"
-        : "create_booking"
+      ? hasStudioLocation
+        ? "one_day_reminder_to_customer_with_link"
+        : "one_day_reminder_to_customer"
+      : hasStudioLocation
+        ? "booking_confirmed_with_location"
+        : "booking_confirmed"
 
     const eventTitle = isOneDayReminder
       ? "1-Day Booking Reminder"
-      : isConfirmed
-        ? "Booking Confirmed"
-        : "Booking Created"
+      : "Booking Confirmed"
 
     // 1. Customer Name
     const customerName = customer?.customer_name?.trim() || "Customer"
@@ -202,7 +198,12 @@ export async function sendBookingNotificationWhatsApp(
     // 7. Total Amount string (e.g. "500" or "1,500" — without ₹ since template already includes ₹)
     const amountText = Math.round(grandTotal).toLocaleString("en-IN")
 
-    // The 7 parameters matching Meta templates
+    // Parameters shared by the booking_confirmed and
+    // one_day_reminder_to_customer Meta templates:
+    // customer, artist, studio, date, time, services, total, studio phone, studio address.
+    const studioPhone = artist?.phone?.trim() || "Not provided"
+    const studioAddress = artist?.address?.trim() || "Not provided"
+
     const bodyParameters = [
       customerName,
       artistName,
@@ -211,7 +212,16 @@ export async function sendBookingNotificationWhatsApp(
       formattedTime,
       servicesText,
       amountText,
+      studioPhone,
+      studioAddress,
     ]
+
+    if (
+      templateName === "booking_confirmed_with_location" ||
+      templateName === "one_day_reminder_to_customer_with_link"
+    ) {
+      bodyParameters.push(artist!.google_maps_url.trim())
+    }
 
     console.log(
       `[WhatsApp] Preparing to send "${templateName}" to ${formattedPhone} for booking #${booking.id}:`,
@@ -269,7 +279,7 @@ export async function sendBookingNotificationWhatsApp(
       console.warn("[WhatsApp] Failed to save notification event audit:", auditErr)
     }
 
-    return result
+    return { ...result, templateName }
   } catch (err: any) {
     console.error("[WhatsApp] Error processing booking notification:", err)
     return {
@@ -411,18 +421,26 @@ export async function scanCustomerWhatsAppReminders(
     }
 
     // Check deduplication in notification_events
-    const { data: existingLog } = await supabase
+    const findReminderLog = (eventType: string) => supabase
       .from("notification_events")
       .select("id, status, attempts")
       .eq("user_id", booking.user_id)
       .eq("channel", "whatsapp")
-      .eq("event_type", "one_day_reminder_to_customer")
+      .eq("event_type", eventType)
       .eq("entity_type", "booking")
       .eq("entity_id", booking.id)
       .maybeSingle()
 
-    if (existingLog) {
-      if (existingLog.status === "sent") {
+    const [{ data: standardLog }, { data: locationLog }] = await Promise.all([
+      findReminderLog("one_day_reminder_to_customer"),
+      findReminderLog("one_day_reminder_to_customer_with_link"),
+    ])
+    const existingLogs = [standardLog, locationLog].filter(
+      (log): log is NonNullable<typeof log> => Boolean(log),
+    )
+
+    if (existingLogs?.length) {
+      if (existingLogs.some((log) => log.status === "sent")) {
         result.skipped += 1
         result.details?.push({
           bookingId: booking.id,
@@ -431,7 +449,7 @@ export async function scanCustomerWhatsAppReminders(
         })
         continue
       }
-      if (existingLog.status === "failed" && (existingLog.attempts || 0) >= 3) {
+      if (existingLogs.some((log) => log.status === "failed" && (log.attempts || 0) >= 3)) {
         result.skipped += 1
         result.details?.push({
           bookingId: booking.id,
@@ -444,7 +462,7 @@ export async function scanCustomerWhatsAppReminders(
 
     // Send WhatsApp reminder
     console.log(
-      `[WhatsApp Scanner] Sending 24h reminder (one_day_reminder_to_customer) for booking #${booking.id} (${diffMinutes}m until booking)`
+      `[WhatsApp Scanner] Sending 24h reminder for booking #${booking.id} (${diffMinutes}m until booking)`
     )
     const sendRes = await sendBookingNotificationWhatsApp(
       booking.id,

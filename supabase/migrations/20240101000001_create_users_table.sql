@@ -21,6 +21,7 @@ create table if not exists public.users (
   artist_name varchar(100) not null,
   studio_name varchar(100) not null,
   address varchar(255) not null,
+  google_maps_url text,
   email varchar(100),
   studio_logo_url text,
   is_test_user boolean default false,

@@ -27,6 +27,7 @@ type ProfileData = {
   studio_name: string
   email: string | null
   address: string
+  google_maps_url: string | null
   avatar_url?: string | null
   studio_logo_url?: string | null
 }
@@ -184,6 +185,7 @@ export default function ProfilePage() {
           studio_name: profile.studio_name,
           email: profile.email,
           address: profile.address,
+          google_maps_url: profile.google_maps_url,
         }),
       })
       const data = await res.json()
@@ -465,6 +467,17 @@ export default function ProfilePage() {
                   containerClassName="sm:col-span-2"
                   className="min-h-20"
                   required
+                />
+                <FloatingInput
+                  id="google_maps_url"
+                  label="Google Maps Link (Optional)"
+                  icon={<MapPin className="size-4" />}
+                  type="url"
+                  value={profile?.google_maps_url || ""}
+                  onChange={(e) =>
+                    setProfile((prev) => prev ? { ...prev, google_maps_url: e.target.value } : null)
+                  }
+                  containerClassName="sm:col-span-2 lg:col-span-3"
                 />
               </div>
 
