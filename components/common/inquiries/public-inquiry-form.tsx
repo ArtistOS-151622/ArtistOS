@@ -647,14 +647,9 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs text-slate-500">
                         <span>Selected Items ({selectedServices.length}):</span>
-                        {selectedServices.length === 0 && (
-                          <span className="text-xs font-semibold text-rose-600">
-                            Required *
-                          </span>
-                        )}
                       </div>
 
-                      {selectedServices.length > 0 ? (
+                      {selectedServices.length > 0 && (
                         <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                           {selectedServices.map((s) => (
                             <div
@@ -665,12 +660,6 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                               <span className="truncate font-semibold">{s.service_name}</span>
                             </div>
                           ))}
-                        </div>
-                      ) : (
-                        <div className="rounded-xl border border-dashed border-rose-300 bg-rose-50/50 p-3 text-center">
-                          <p className="text-xs font-medium text-rose-600">
-                            Please select at least 1 service to proceed
-                          </p>
                         </div>
                       )}
                     </div>
@@ -684,7 +673,7 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                     <div className="space-y-2 pt-2">
                       <Button
                         type="submit"
-                        disabled={submitting || values.services.length === 0}
+                        disabled={submitting}
                         className="h-12 w-full rounded-2xl bg-[#7c3aed] text-white font-bold text-sm shadow-md shadow-purple-500/25 hover:bg-[#6d28d9] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {submitting ? (
@@ -699,12 +688,6 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                           </>
                         )}
                       </Button>
-
-                      {values.services.length === 0 && (
-                        <p className="text-[11px] text-center text-rose-500 font-medium">
-                          Select at least one service to enable submission
-                        </p>
-                      )}
 
                       <Button
                         type="button"
