@@ -117,6 +117,12 @@ TIER 1 - FIX FIRST
 
 [5] POST /api/public/inquiry/f/[code]  (public inquiry form)
     File: app/api/public/inquiry/f/[code]/route.ts  (line ~215)
+    STATUS: DONE (2026-11-04). POST: WhatsApp moved to after(), validation
+    first, subscription/services/customer/duplicate checks in one parallel
+    batch (duplicate matched via customers!inner phone), customer update runs
+    alongside the inquiry insert, re-fetch dropped (form only uses inquiry.id).
+    Up to ~11 sequential calls + WhatsApp -> 4 (existing customer) or 5 (new).
+    GET: subscription check + services in parallel, 4 -> 2.
 
     Problem:
     - Waits for the WhatsApp notification to send before responding

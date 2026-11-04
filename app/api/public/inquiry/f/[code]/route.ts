@@ -1,7 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server"
+import { NextResponse, type NextRequest, after } from "next/server"
 
 import { checkIsReadOnly } from "@/lib/auth/subscription"
-import { INQUIRY_SELECT_FIELDS, formatInquiry } from "@/lib/inquiries/queries"
 import { createClient } from "@/lib/supabase/server"
 import { sendInquiryNotificationWhatsApp } from "@/lib/whatsapp/inquiry-notifications"
 
@@ -30,6 +29,9 @@ async function findActiveArtistByCode(code: string) {
   return { supabase, artist }
 }
 
+const FORM_CLOSED_ERROR = "This inquiry form is not accepting submissions right now."
+const DUPLICATE_WINDOW_MS = 24 * 60 * 60 * 1000
+
 export async function GET(_request: NextRequest, context: RouteContext) {
   const { code } = await context.params
   const result = await findActiveArtistByCode(code)
@@ -43,154 +45,137 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
   const { supabase, artist } = result
 
-  if (await checkIsReadOnly(supabase, artist.id)) {
-    return NextResponse.json({ error: "This inquiry form is not accepting submissions right now." }, { status: 403 })
-  }
+  // Subscription check and services list are independent: run them together
+  const [isReadOnly, servicesRes] = await Promise.all([
+    checkIsReadOnly(supabase, artist.id),
+    supabase
+      .from("services")
+      .select("id, service_name, duration_minutes, price")
+      .eq("user_id", artist.id)
+      .order("service_name", { ascending: true }),
+  ])
 
-  const { data: services, error: servicesError } = await supabase
-    .from("services")
-    .select("id, service_name, duration_minutes, price")
-    .eq("user_id", artist.id)
-    .order("service_name", { ascending: true })
-
-  if (servicesError) return NextResponse.json({ error: servicesError.message }, { status: 400 })
+  if (isReadOnly) return NextResponse.json({ error: FORM_CLOSED_ERROR }, { status: 403 })
+  if (servicesRes.error) return NextResponse.json({ error: servicesRes.error.message }, { status: 400 })
 
   return NextResponse.json({
     artist,
-    services: services ?? [],
+    services: servicesRes.data ?? [],
   })
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
   const { code } = await context.params
-  const result = await findActiveArtistByCode(code)
 
+  // ── 1. Validate the body before touching the database ────────────────────
+  const validated = validateInquiry((await request.json()) as PublicInquiryInput)
+  if ("error" in validated) return NextResponse.json({ error: validated.error }, { status: 400 })
+  const input = validated.data
+
+  // ── 2. Find the artist (everything else depends on it) ───────────────────
+  const result = await findActiveArtistByCode(code)
   if ("error" in result) {
     return NextResponse.json(
       { error: result.error },
       { status: result.status ?? 400 },
     )
   }
-
   const { supabase, artist } = result
-  const body = (await request.json()) as PublicInquiryInput
-  const validated = validateInquiry(body)
 
-  if ("error" in validated) return NextResponse.json({ error: validated.error }, { status: 400 })
+  // ── 3. Independent reads in parallel ─────────────────────────────────────
+  const requestedServiceIds = input.services
+  const recentWindowStart = new Date(Date.now() - DUPLICATE_WINDOW_MS).toISOString()
 
-  if (await checkIsReadOnly(supabase, artist.id)) {
-    return NextResponse.json({ error: "This inquiry form is not accepting submissions right now." }, { status: 403 })
-  }
+  const [isReadOnly, servicesRes, customerRes, duplicateRes] = await Promise.all([
+    checkIsReadOnly(supabase, artist.id),
+    requestedServiceIds.length
+      ? supabase.from("services").select("id, price").eq("user_id", artist.id).in("id", requestedServiceIds)
+      : Promise.resolve({ data: [] as { id: number; price: number }[], error: null }),
+    supabase.from("customers").select("id").eq("user_id", artist.id).eq("phone", input.phone).limit(1),
+    // Recent open inquiry from the same phone number, matched through the customer join
+    // so it can run in parallel with the customer lookup.
+    supabase
+      .from("inquiries")
+      .select("id, customer:customers!inner(phone)")
+      .eq("user_id", artist.id)
+      .eq("status", "new")
+      .eq("customer.phone", input.phone)
+      .gte("created_at", recentWindowStart)
+      .limit(1),
+  ])
 
-  const requestedServiceIds = validated.data.services
-  const { data: selectedServices, error: servicesError } = requestedServiceIds.length
-    ? await supabase
-        .from("services")
-        .select("id, price")
-        .eq("user_id", artist.id)
-        .in("id", requestedServiceIds)
-    : { data: [], error: null }
+  if (isReadOnly) return NextResponse.json({ error: FORM_CLOSED_ERROR }, { status: 403 })
 
-  if (servicesError) return NextResponse.json({ error: servicesError.message }, { status: 400 })
+  const readError = servicesRes.error ?? customerRes.error ?? duplicateRes.error
+  if (readError) return NextResponse.json({ error: readError.message }, { status: 400 })
 
-  if (requestedServiceIds.length !== (selectedServices?.length ?? 0)) {
+  const selectedServices = servicesRes.data ?? []
+  if (requestedServiceIds.length !== selectedServices.length) {
     return NextResponse.json({ error: "One or more selected services are invalid." }, { status: 400 })
   }
-
-  const { data: existingCustomer, error: customerLookupError } = await supabase
-    .from("customers")
-    .select("id")
-    .eq("user_id", artist.id)
-    .eq("phone", validated.data.phone)
-    .maybeSingle()
-
-  if (customerLookupError) {
-    return NextResponse.json({ error: customerLookupError.message }, { status: 400 })
+  if ((duplicateRes.data ?? []).length > 0) {
+    return NextResponse.json(
+      { error: "You already submitted an inquiry with this phone number. Please contact the artist for changes." },
+      { status: 409 },
+    )
   }
 
-  let customerId = existingCustomer?.id
+  // ── 4. Customer + inquiry ────────────────────────────────────────────────
+  const customerDetails = {
+    customer_name: input.customer_name,
+    alt_phone: input.alt_phone,
+    email: input.email,
+    address: input.address,
+  }
+  const inquiryDetails = {
+    user_id: artist.id,
+    booking_address: input.address,
+    booking_date: input.booking_date,
+    start_time: input.start_time,
+    end_time: input.end_time,
+    additional_request: input.additional_request,
+  }
 
-  if (customerId) {
-    const recentWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    const { data: duplicateInquiry, error: duplicateError } = await supabase
-      .from("inquiries")
-      .select("id")
-      .eq("user_id", artist.id)
-      .eq("customer_id", customerId)
-      .eq("status", "new")
-      .gte("created_at", recentWindowStart)
-      .limit(1)
-      .maybeSingle()
+  const existingCustomerId = customerRes.data?.[0]?.id as number | undefined
+  let inquiryId: number
 
-    if (duplicateError) {
-      return NextResponse.json({ error: duplicateError.message }, { status: 400 })
+  if (existingCustomerId) {
+    // Existing customer: refreshing their details and creating the inquiry are independent
+    const [updateRes, inquiryRes] = await Promise.all([
+      supabase.from("customers").update(customerDetails).eq("id", existingCustomerId).eq("user_id", artist.id),
+      supabase.from("inquiries").insert({ ...inquiryDetails, customer_id: existingCustomerId }).select("id").single(),
+    ])
+    if (inquiryRes.error) return NextResponse.json({ error: inquiryRes.error.message }, { status: 400 })
+    if (updateRes.error) {
+      await supabase.from("inquiries").delete().eq("id", inquiryRes.data.id)
+      return NextResponse.json({ error: updateRes.error.message }, { status: 400 })
     }
-
-    if (duplicateInquiry) {
-      return NextResponse.json(
-        { error: "You already submitted an inquiry with this phone number. Please contact the artist for changes." },
-        { status: 409 },
-      )
-    }
-
-    const { error: updateCustomerError } = await supabase
-      .from("customers")
-      .update({
-        customer_name: validated.data.customer_name,
-        alt_phone: validated.data.alt_phone,
-        email: validated.data.email,
-        address: validated.data.address,
-      })
-      .eq("id", customerId)
-      .eq("user_id", artist.id)
-
-    if (updateCustomerError) {
-      return NextResponse.json({ error: updateCustomerError.message }, { status: 400 })
-    }
+    inquiryId = inquiryRes.data.id
   } else {
-    const { data: createdCustomer, error: createCustomerError } = await supabase
+    const createdRes = await supabase
       .from("customers")
-      .insert({
-        user_id: artist.id,
-        customer_name: validated.data.customer_name,
-        phone: validated.data.phone,
-        alt_phone: validated.data.alt_phone,
-        email: validated.data.email,
-        address: validated.data.address,
-      })
+      .insert({ ...customerDetails, user_id: artist.id, phone: input.phone })
       .select("id")
       .single()
+    if (createdRes.error) return NextResponse.json({ error: createdRes.error.message }, { status: 400 })
 
-    if (createCustomerError) {
-      return NextResponse.json({ error: createCustomerError.message }, { status: 400 })
-    }
-
-    customerId = createdCustomer.id
+    const inquiryRes = await supabase
+      .from("inquiries")
+      .insert({ ...inquiryDetails, customer_id: createdRes.data.id })
+      .select("id")
+      .single()
+    if (inquiryRes.error) return NextResponse.json({ error: inquiryRes.error.message }, { status: 400 })
+    inquiryId = inquiryRes.data.id
   }
 
-  const { data: inquiry, error: inquiryError } = await supabase
-    .from("inquiries")
-    .insert({
-      user_id: artist.id,
-      customer_id: customerId,
-      booking_address: validated.data.address,
-      booking_date: validated.data.booking_date,
-      start_time: validated.data.start_time,
-      end_time: validated.data.end_time,
-      additional_request: validated.data.additional_request,
-    })
-    .select("id")
-    .single()
-
-  if (inquiryError) return NextResponse.json({ error: inquiryError.message }, { status: 400 })
-
-  if (selectedServices && selectedServices.length > 0) {
+  // ── 5. Selected services ─────────────────────────────────────────────────
+  if (selectedServices.length > 0) {
     const priceById = new Map(selectedServices.map((service) => [service.id, service.price]))
     const { error: inquiryServicesError } = await supabase
       .from("inquiry_services")
       .insert(
         requestedServiceIds.map((serviceId) => ({
-          inquiry_id: inquiry.id,
+          inquiry_id: inquiryId,
           service_id: serviceId,
           quantity: 1,
           unit_price: priceById.get(serviceId) ?? 0,
@@ -198,25 +183,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
       )
 
     if (inquiryServicesError) {
-      await supabase.from("inquiries").delete().eq("id", inquiry.id)
+      await supabase.from("inquiries").delete().eq("id", inquiryId)
       return NextResponse.json({ error: inquiryServicesError.message }, { status: 400 })
     }
   }
 
-  const { data: fullInquiry, error: fetchError } = await supabase
-    .from("inquiries")
-    .select(INQUIRY_SELECT_FIELDS)
-    .eq("id", inquiry.id)
-    .single()
+  // ── 6. Notify the artist after the response is sent ──────────────────────
+  // The WhatsApp send makes its own DB and network calls; the customer shouldn't wait for it.
+  after(async () => {
+    try {
+      await sendInquiryNotificationWhatsApp(inquiryId, supabase)
+    } catch (notifyErr) {
+      console.error("[Inquiry Form] Failed to trigger WhatsApp notification:", notifyErr)
+    }
+  })
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 400 })
-
-  // Trigger automated WhatsApp notification to the artist (if their plan includes WhatsApp automation)
-  try {
-    await sendInquiryNotificationWhatsApp(inquiry.id, supabase)
-  } catch (notifyErr) {
-    console.error("[Inquiry Form] Failed to trigger WhatsApp notification:", notifyErr)
-  }
-
-  return NextResponse.json({ inquiry: formatInquiry(fullInquiry) })
+  // The public form only needs the new inquiry's id, so there is no re-fetch.
+  return NextResponse.json({ inquiry: { id: inquiryId, status: "new" } })
 }
