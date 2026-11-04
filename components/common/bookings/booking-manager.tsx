@@ -41,16 +41,13 @@ import { cn } from "@/lib/utils";
 type BookingsResponse = {
   bookings?: Booking[];
   booking?: Booking;
-  hasMore?: boolean;
   error?: string;
 };
 
 export function BookingManager() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const didInitialFetch = useRef(false);
   const pendingScrollId = useRef<number | null>(null);
-  const initialPage = Math.max(1, Number(searchParams.get("page")) || 1);
   const initialSearch = searchParams.get("search") ?? "";
   const initialStatus = searchParams.get("status") ?? "all";
   const initialDate = searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd");
@@ -68,15 +65,12 @@ export function BookingManager() {
   // View state
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
-  // Search, filter and pagination states
+  // Search and filter states (the list shows one day, so there is no pagination)
   const [search, setSearch] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState(initialStatus);
-  const [page, setPage] = useState(initialPage);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    if (loading || loadingMore || pendingScrollId.current === null) return;
+    if (loading || pendingScrollId.current === null) return;
 
     const targetId = pendingScrollId.current;
     const target = document.querySelector(
@@ -87,16 +81,13 @@ export function BookingManager() {
 
     pendingScrollId.current = null;
     target.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [bookings, loading, loadingMore]);
+  }, [bookings, loading]);
 
-  function replaceListUrl(pageNum: number, searchVal: string, statusVal: string) {
+  function replaceListUrl(searchVal: string, statusVal: string) {
     const nextParams = new URLSearchParams(searchParams.toString());
 
-    if (pageNum > 1) {
-      nextParams.set("page", String(pageNum));
-    } else {
-      nextParams.delete("page");
-    }
+    // Drop the legacy ?page= param from old links/bookmarks.
+    nextParams.delete("page");
 
     if (searchVal.trim()) {
       nextParams.set("search", searchVal.trim());
@@ -122,92 +113,34 @@ export function BookingManager() {
     router.replace(`/bookings${query ? `?${query}` : ""}`, { scroll: false });
   }
 
-  // Fetch bookings from api
-  async function fetchBookings(
-    pageNum: number,
-    searchVal: string,
-    statusVal: string,
-    append = false,
-    syncUrl = true,
-  ) {
-    if (pageNum === 1) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
+  // Fetch the selected day's bookings from the api
+  async function fetchBookings(searchVal: string, statusVal: string) {
+    setLoading(true);
 
     try {
       const res = await fetch(
-        `/api/bookings?page=${pageNum}&search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}&start_date=${date}&end_date=${date}`,
+        `/api/bookings?search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}&start_date=${date}&end_date=${date}`,
       );
       const data = (await res.json()) as BookingsResponse;
 
       if (!res.ok) {
         toast.error(data.error ?? "Unable to load bookings.");
       } else {
-        const fetched = data.bookings ?? [];
-        setBookings((prev) => (append ? [...prev, ...fetched] : fetched));
-        setHasMore(data.hasMore ?? false);
-        setPage(pageNum);
-        if (syncUrl) replaceListUrl(pageNum, searchVal, statusVal);
+        setBookings(data.bookings ?? []);
+        replaceListUrl(searchVal, statusVal);
       }
     } catch {
       toast.error("Unable to load bookings.");
     } finally {
       setInitialLoading(false);
       setLoading(false);
-      setLoadingMore(false);
-    }
-  }
-
-  async function fetchBookingsThrough(
-    pageNum: number,
-    searchVal: string,
-    statusVal: string,
-  ) {
-    setLoading(true);
-
-    try {
-      const responses = await Promise.all(
-        Array.from({ length: pageNum }, (_, index) =>
-          fetch(
-            `/api/bookings?page=${index + 1}&search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}&start_date=${date}&end_date=${date}`,
-          ),
-        ),
-      );
-      const payloads = (await Promise.all(
-        responses.map((res) => res.json()),
-      )) as BookingsResponse[];
-      const failedIndex = responses.findIndex((res) => !res.ok);
-
-      if (failedIndex !== -1) {
-        toast.error(payloads[failedIndex]?.error ?? "Unable to load bookings.");
-        return;
-      }
-
-      setBookings(payloads.flatMap((payload) => payload.bookings ?? []));
-      setHasMore(payloads[payloads.length - 1]?.hasMore ?? false);
-      setPage(pageNum);
-      replaceListUrl(pageNum, searchVal, statusVal);
-    } catch {
-      toast.error("Unable to load bookings.");
-    } finally {
-      setInitialLoading(false);
-      setLoading(false);
-      setLoadingMore(false);
     }
   }
 
   // Debounced search effect
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (!didInitialFetch.current) {
-        didInitialFetch.current = true;
-        void fetchBookingsThrough(initialPage, search, statusFilter);
-        return;
-      }
-
-      void fetchBookings(1, search, statusFilter, false);
+      void fetchBookings(search, statusFilter);
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
@@ -342,8 +275,8 @@ export function BookingManager() {
             ...prev.filter((b) => b.id !== savedBooking.id),
           ]);
         } else {
-          // Date switched: fetch page 1 for that new date
-          void fetchBookings(1, "", statusFilter, false);
+          // Date switched: load that day's bookings
+          void fetchBookings("", statusFilter);
         }
       }
     } catch {
@@ -585,18 +518,6 @@ export function BookingManager() {
             ))}
           </div>
 
-          {hasMore ? (
-            <div className="flex justify-center pt-4">
-              <Button
-                variant="outline"
-                className="h-11 rounded-2xl px-6 bg-white hover:bg-slate-50 border border-slate-100 shadow-sm"
-                onClick={() => void fetchBookings(page + 1, search, statusFilter, true)}
-                disabled={loadingMore}
-              >
-                {loadingMore ? "Loading..." : "Load more"}
-              </Button>
-            </div>
-          ) : null}
         </>
       ) : (
         <Card className="rounded-[1.5rem] border-dashed border-slate-200 bg-white/80 shadow-md shadow-purple-950/5 backdrop-blur">

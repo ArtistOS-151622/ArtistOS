@@ -65,6 +65,13 @@ TIER 1 - FIX FIRST
 
 [3] GET /api/bookings  (bookings list)
     File: app/api/bookings/route.ts  (GET, line ~54)
+    STATUS: DONE (2026-11-04). Correction to the original audit: both callers
+    (bookings page = 1 day, calendar = month +/- 14 days) always send a date
+    range, so the "load everything" path was unused, not a live slowdown.
+    Fixed: start_date/end_date now required (max 100 days), search is one query
+    via customers!inner (was 2), unused count removed, sorting done in the DB,
+    search text sanitized (commas/parentheses broke the filter). Client: removed
+    dead page/"Load more" logic that could show bookings twice on ?page=2.
 
     Problem:
     - Database pagination is commented out (lines ~104-111). Every page request

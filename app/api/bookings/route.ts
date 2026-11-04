@@ -19,7 +19,7 @@ import {
   type ServiceRow,
 } from "@/lib/bookings/booking-input"
 
-const SELECT_FIELDS = `
+const BOOKING_LIST_FIELDS = `
   id,
   user_id,
   customer_id,
@@ -31,132 +31,94 @@ const SELECT_FIELDS = `
   additional_request,
   created_at,
   discount,
-  customer:customers(customer_name, phone, email),
   booking_services:booking_services(
     quantity,
     unit_price,
     service:services(id, service_name, price)
   ),
-  booking_additional_charges(id, charge_name, quantity, rate)
-  ,booking_payments(id, payment_type, payment_method, amount, payment_date, remark)
+  booking_additional_charges(id, charge_name, quantity, rate),
+  booking_payments(id, payment_type, payment_method, amount, payment_date, remark)
 `
+// When searching, the customer join must be !inner so the customer filter also filters bookings.
+const SELECT_FIELDS = `${BOOKING_LIST_FIELDS}, customer:customers(customer_name, phone, email)`
+const SELECT_FIELDS_SEARCH = `${BOOKING_LIST_FIELDS}, customer:customers!inner(customer_name, phone, email)`
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+/** Calendar asks for month ± 14 days (~62 days); this leaves headroom while blocking huge ranges. */
+const MAX_RANGE_DAYS = 100
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+type BookingListRow = Record<string, unknown> & {
+  booking_date: string
+  booking_services: { quantity: number | null; unit_price: number | null; service: ServiceRow | null }[] | null
+  booking_additional_charges: ChargeRow[] | null
+  booking_payments: PaymentRow[] | null
+}
+
+/** Characters that would break or change a PostgREST `.or()` filter string. */
+function sanitizeSearch(value: string) {
+  return value.replace(/[,()"\\*]/g, " ").replace(/\s+/g, " ").trim()
+}
 
 export async function GET(request: NextRequest) {
   const session = getArtistSession(request)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
-  const search = searchParams.get("search")?.trim() || ""
+  const search = sanitizeSearch(searchParams.get("search") ?? "")
   const status = searchParams.get("status")?.trim() || "all"
-  const startDate = searchParams.get("start_date")
-  const endDate = searchParams.get("end_date")
+  const startDate = searchParams.get("start_date") ?? ""
+  const endDate = searchParams.get("end_date") ?? ""
 
-  const isDateRangeQuery = startDate && endDate
+  // A date range is required so a request can never load an artist's entire booking history.
+  if (!DATE_PATTERN.test(startDate) || !DATE_PATTERN.test(endDate)) {
+    return badRequest("start_date and end_date are required (YYYY-MM-DD).")
+  }
+  const rangeDays = (Date.parse(endDate) - Date.parse(startDate)) / MS_PER_DAY
+  if (!Number.isFinite(rangeDays) || rangeDays < 0) return badRequest("end_date must be on or after start_date.")
+  if (rangeDays > MAX_RANGE_DAYS) return badRequest(`Date range cannot exceed ${MAX_RANGE_DAYS} days.`)
 
-  const page = Math.max(1, Number(searchParams.get("page")) || 1)
-  const limit = 20
-  const from = (page - 1) * limit
-  const to = from + limit - 1
+  // Ranges entirely in the past list newest first; anything touching today or later lists soonest first.
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+  const ascending = endDate >= todayStr
 
   const supabase = await createClient()
 
-  let customerIds: number[] = []
-  if (search) {
-    const { data: matchedCustomers } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("user_id", session.id)
-      .or(`customer_name.ilike.%${search}%,phone.ilike.%${search}%`)
-
-    customerIds = matchedCustomers?.map((c) => c.id) ?? []
-    if (customerIds.length === 0) {
-      return NextResponse.json({ bookings: [], hasMore: false })
-    }
-  }
-
   let query = supabase
     .from("bookings")
-    .select(SELECT_FIELDS, { count: "exact" })
+    .select(search ? SELECT_FIELDS_SEARCH : SELECT_FIELDS)
     .eq("user_id", session.id)
+    .gte("booking_date", startDate)
+    .lte("booking_date", endDate)
 
   if (search) {
-    query = query.in("customer_id", customerIds)
+    query = query.or(`customer_name.ilike.%${search}%,phone.ilike.%${search}%`, { referencedTable: "customer" })
   }
-
   if (status !== "all") {
     query = query.eq("status", status)
   }
 
-  if (isDateRangeQuery) {
-    query = query.gte("booking_date", startDate).lte("booking_date", endDate)
-  }
+  const { data, error } = await query
+    .order("booking_date", { ascending })
+    .order("start_time", { ascending })
 
-  // We remove the db-level order and range to perform custom sorting in-memory
-  // query = query
-  //   .order("booking_date", { ascending: false })
-  //   .order("start_time", { ascending: false })
+  if (error) return badRequest(error.message)
 
-  // if (!isDateRangeQuery) {
-  //   query = query.range(from, to)
-  // }
-
-  const { data, count, error } = await query
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-
-  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD for IST (since user's timezone seems to be +05:30)
-
-  const futureBookings = [];
-  const pastBookings = [];
-
-  for (const b of data ?? []) {
-    if (b.booking_date >= todayStr) {
-      futureBookings.push(b);
-    } else {
-      pastBookings.push(b);
-    }
-  }
-
-  // Future: ASC by date, ASC by time (nearest future first)
-  futureBookings.sort((a, b) => {
-    if (a.booking_date !== b.booking_date) {
-      return a.booking_date.localeCompare(b.booking_date);
-    }
-    return (a.start_time || "").localeCompare(b.start_time || "");
-  });
-
-  // Past: DESC by date, DESC by time (nearest past first)
-  pastBookings.sort((a, b) => {
-    if (a.booking_date !== b.booking_date) {
-      return b.booking_date.localeCompare(a.booking_date);
-    }
-    return (b.start_time || "").localeCompare(a.start_time || "");
-  });
-
-  const sortedData = [...futureBookings, ...pastBookings];
-
-  let paginatedData = sortedData;
-  if (!isDateRangeQuery) {
-    paginatedData = sortedData.slice(from, to + 1);
-  }
-
-  const formatted = paginatedData.map((b: any) => ({
+  const formatted = ((data ?? []) as unknown as BookingListRow[]).map((b) => ({
     ...b,
-    services: b.booking_services?.map((bs: any) => ({
-      ...bs.service,
-      quantity: bs.quantity ?? 1,
-      price: bs.unit_price ?? bs.service?.price ?? 0,
-    })).filter((s: any) => s.id) ?? [],
+    services: (b.booking_services ?? [])
+      .filter((bs) => bs.service?.id)
+      .map((bs) => ({
+        ...bs.service,
+        quantity: bs.quantity ?? 1,
+        price: bs.unit_price ?? bs.service?.price ?? 0,
+      })),
     additional_charges: b.booking_additional_charges ?? [],
     advance_payment: getAdvancePayment(b.booking_payments),
   }))
 
-  const hasMore = isDateRangeQuery ? false : sortedData.length > (page * limit)
-
-  return NextResponse.json({
-    bookings: formatted,
-    hasMore,
-  })
+  // Kept for response compatibility; results are bounded by the date range, not paginated.
+  return NextResponse.json({ bookings: formatted, hasMore: false })
 }
 
 function badRequest(error: string) {
