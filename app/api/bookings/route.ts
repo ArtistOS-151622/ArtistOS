@@ -5,21 +5,19 @@ import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 import { sendBookingNotificationWhatsApp } from "@/lib/whatsapp/booking-notifications"
-
-type BookingInput = {
-  customer_id?: string | number
-  booking_address?: string
-  booking_date?: string
-  start_time?: string
-  end_time?: string
-  status?: string
-  services?: (string | number | { service_id: string | number; quantity?: number })[]
-  additional_charges?: { charge_name: string; quantity: number; rate: number }[]
-  advance_payment?: number | string
-  advance_payment_method?: string
-  advance_payment_date?: string
-  additional_request?: string
-}
+import {
+  BOOKING_FORM_ADVANCE_REMARK,
+  BOOKING_ROW_FIELDS,
+  CHARGE_FIELDS,
+  PAYMENT_FIELDS,
+  formatBookingResponse,
+  getAdvancePayment,
+  validateBookingInput,
+  type BookingInput,
+  type ChargeRow,
+  type PaymentRow,
+  type ServiceRow,
+} from "@/lib/bookings/booking-input"
 
 const SELECT_FIELDS = `
   id,
@@ -42,14 +40,6 @@ const SELECT_FIELDS = `
   booking_additional_charges(id, charge_name, quantity, rate)
   ,booking_payments(id, payment_type, payment_method, amount, payment_date, remark)
 `
-
-const BOOKING_FORM_ADVANCE_REMARK = "Advance payment added during booking"
-
-function getAdvancePayment(payments: any[] | null | undefined) {
-  return payments?.find((payment) =>
-    payment.payment_type === "Advance" && payment.remark === BOOKING_FORM_ADVANCE_REMARK,
-  ) ?? payments?.find((payment) => payment.payment_type === "Advance") ?? null
-}
 
 export async function GET(request: NextRequest) {
   const session = getArtistSession(request)
@@ -169,12 +159,6 @@ export async function GET(request: NextRequest) {
   })
 }
 
-const VALID_BOOKING_STATUSES = ["pending", "confirmed", "completed", "cancelled"]
-const VALID_PAYMENT_METHODS = ["UPI", "Cash", "Check", "Bank Transfer"]
-
-const BOOKING_ROW_FIELDS =
-  "id, user_id, customer_id, booking_address, booking_date, start_time, end_time, status, additional_request, created_at, discount"
-
 function badRequest(error: string) {
   return NextResponse.json({ error }, { status: 400 })
 }
@@ -183,43 +167,10 @@ export async function POST(request: NextRequest) {
   const session = getArtistSession(request)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = (await request.json()) as BookingInput
-
   // ── 1. Validate everything before touching the database ──────────────────
-  const customerId = Number(body.customer_id)
-  if (!body.customer_id || !Number.isInteger(customerId)) return badRequest("Customer is required.")
-  if (!body.booking_address?.trim()) return badRequest("Booking address is required.")
-  if (!body.booking_date) return badRequest("Booking date is required.")
-  if (!body.start_time) return badRequest("Start time is required.")
-  if (!body.end_time) return badRequest("End time is required.")
-  if (!body.status) return badRequest("Status is required.")
-  if (!VALID_BOOKING_STATUSES.includes(body.status)) return badRequest("Invalid booking status.")
-  if (!body.services || body.services.length === 0) return badRequest("At least one service is required.")
-  if (body.services.some((service) => typeof service === "object" && (!Number.isInteger(Number(service.quantity)) || Number(service.quantity) < 1))) {
-    return badRequest("Service quantity must be a whole number of at least 1.")
-  }
-
-  const normalizedServices = body.services.map((service) =>
-    typeof service === "object"
-      ? { service_id: Number(service.service_id), quantity: Math.max(1, Math.floor(Number(service.quantity) || 1)) }
-      : { service_id: Number(service), quantity: 1 },
-  )
-  const serviceIds = normalizedServices.map((service) => service.service_id)
-  if (serviceIds.some((sid) => !Number.isInteger(sid))) return badRequest("One or more selected services are invalid.")
-  // booking_services has PRIMARY KEY (booking_id, service_id), so duplicates would fail on insert
-  if (new Set(serviceIds).size !== serviceIds.length) return badRequest("Each service can only be added once. Use quantity instead.")
-
-  const additionalCharges = body.additional_charges ?? []
-  if (additionalCharges.some((charge) => !charge.charge_name?.trim() || !Number.isInteger(Number(charge.quantity)) || Number(charge.quantity) < 1 || !Number.isFinite(Number(charge.rate)) || Number(charge.rate) < 0)) {
-    return badRequest("Each additional charge requires a name, quantity of at least 1, and a non-negative rate.")
-  }
-
-  const advancePayment = Number(body.advance_payment ?? 0)
-  if (!Number.isFinite(advancePayment) || advancePayment < 0) return badRequest("Advance payment cannot be negative.")
-  if (advancePayment > 0 && (!body.advance_payment_method || !VALID_PAYMENT_METHODS.includes(body.advance_payment_method))) {
-    return badRequest("Select a valid advance payment method.")
-  }
-  if (advancePayment > 0 && !body.advance_payment_date) return badRequest("Advance payment date is required.")
+  const parsed = validateBookingInput((await request.json()) as BookingInput)
+  if ("error" in parsed) return badRequest(parsed.error)
+  const input = parsed.data
 
   const supabase = await createClient()
 
@@ -231,11 +182,11 @@ export async function POST(request: NextRequest) {
       .from("services")
       .select("id, service_name, price")
       .eq("user_id", session.id)
-      .in("id", serviceIds),
+      .in("id", input.serviceIds),
     supabase
       .from("customers")
       .select("customer_name, phone, email")
-      .eq("id", customerId)
+      .eq("id", input.bookingFields.customer_id)
       .eq("user_id", session.id)
       .maybeSingle(),
   ])
@@ -246,63 +197,48 @@ export async function POST(request: NextRequest) {
   if (servicesRes.error) return badRequest(servicesRes.error.message)
   if (customerRes.error) return badRequest(customerRes.error.message)
   if (!customerRes.data) return badRequest("Customer not found.")
-  if ((servicesRes.data ?? []).length !== serviceIds.length) return badRequest("One or more selected services are invalid.")
+  if ((servicesRes.data ?? []).length !== input.serviceIds.length) return badRequest("One or more selected services are invalid.")
 
-  const serviceMap = new Map(servicesRes.data.map((s) => [s.id, s]))
+  const serviceMap = new Map((servicesRes.data as ServiceRow[]).map((s) => [s.id, s]))
 
   // ── 3. Insert the booking ────────────────────────────────────────────────
   const { data: booking, error: insertError } = await supabase
     .from("bookings")
-    .insert({
-      user_id: session.id,
-      customer_id: customerId,
-      booking_address: body.booking_address.trim(),
-      booking_date: body.booking_date,
-      start_time: body.start_time,
-      end_time: body.end_time,
-      status: body.status,
-      additional_request: body.additional_request?.trim() || null,
-    })
+    .insert({ user_id: session.id, ...input.bookingFields })
     .select(BOOKING_ROW_FIELDS)
     .single()
 
   if (insertError) return badRequest(insertError.message)
 
   // ── 4. Child rows in parallel; each insert returns what the response needs ─
-  const serviceRelations = normalizedServices.map(({ service_id: sid, quantity }) => ({
+  const serviceRows = input.services.map(({ service_id, quantity }) => ({
     booking_id: booking.id,
-    service_id: sid,
+    service_id,
     quantity,
-    unit_price: serviceMap.get(sid)?.price ?? 0,
+    unit_price: serviceMap.get(service_id)?.price ?? 0,
   }))
 
   const [servicesInsert, chargesInsert, paymentInsert] = await Promise.all([
-    supabase.from("booking_services").insert(serviceRelations),
-    additionalCharges.length > 0
+    supabase.from("booking_services").insert(serviceRows),
+    input.additionalCharges.length > 0
       ? supabase
           .from("booking_additional_charges")
-          .insert(additionalCharges.map((charge) => ({
-            user_id: session.id,
-            booking_id: booking.id,
-            charge_name: charge.charge_name.trim(),
-            quantity: Number(charge.quantity),
-            rate: Number(charge.rate),
-          })))
-          .select("id, charge_name, quantity, rate")
+          .insert(input.additionalCharges.map((charge) => ({ ...charge, user_id: session.id, booking_id: booking.id })))
+          .select(CHARGE_FIELDS)
       : Promise.resolve({ data: [], error: null }),
-    advancePayment > 0
+    input.advancePayment > 0
       ? supabase
           .from("booking_payments")
           .insert({
             user_id: session.id,
             booking_id: booking.id,
             payment_type: "Advance",
-            payment_method: body.advance_payment_method,
-            amount: advancePayment,
-            payment_date: body.advance_payment_date,
+            payment_method: input.advancePaymentMethod,
+            amount: input.advancePayment,
+            payment_date: input.advancePaymentDate,
             remark: BOOKING_FORM_ADVANCE_REMARK,
           })
-          .select("id, payment_type, payment_method, amount, payment_date, remark")
+          .select(PAYMENT_FIELDS)
       : Promise.resolve({ data: [], error: null }),
   ])
 
@@ -314,29 +250,14 @@ export async function POST(request: NextRequest) {
   }
 
   // ── 5. Build the response from what we already have (no re-fetch) ────────
-  const bookingServices = serviceRelations.map((relation) => {
-    const service = serviceMap.get(relation.service_id)
-    return {
-      quantity: relation.quantity,
-      unit_price: relation.unit_price,
-      service: service ? { id: service.id, service_name: service.service_name, price: service.price } : null,
-    }
-  })
-  const bookingAdditionalCharges = chargesInsert.data ?? []
-  const bookingPayments = paymentInsert.data ?? []
-
-  const formatted = {
-    ...booking,
+  const formatted = formatBookingResponse({
+    booking,
     customer: customerRes.data,
-    booking_services: bookingServices,
-    booking_additional_charges: bookingAdditionalCharges,
-    booking_payments: bookingPayments,
-    services: bookingServices
-      .filter((bs) => bs.service)
-      .map((bs) => ({ ...bs.service, quantity: bs.quantity, price: bs.unit_price })),
-    additional_charges: bookingAdditionalCharges,
-    advance_payment: getAdvancePayment(bookingPayments),
-  }
+    serviceRows,
+    serviceMap,
+    charges: (chargesInsert.data ?? []) as ChargeRow[],
+    payments: (paymentInsert.data ?? []) as PaymentRow[],
+  })
 
   // Send automated WhatsApp notification asynchronously in background using after()
   // so the HTTP response is returned immediately to the client without blocking (~2-4s saved).

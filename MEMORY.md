@@ -93,6 +93,7 @@
 
 | Date | Lesson |
 |---|---|
+| 2026-11-04 | Booking create/edit share validation + response shaping in `lib/bookings/booking-input.ts`. `booking_services` PK is `(booking_id, service_id)` and all booking child tables `ON DELETE CASCADE`. Edit syncs services via upsert + delete-removed, never delete-all-then-insert. |
 | 2026-08-17 | `proxy.ts` not `middleware.ts` — tripped up every new agent session before this file existed. |
 | 2026-08-16 | `next_billing_at` from Razorpay API must be fetched fresh on renewal webhooks — local DB value lags behind. |
 | 2026-08-15 | `supabase migration repair` required before first `db push` on production env for historical migrations. |

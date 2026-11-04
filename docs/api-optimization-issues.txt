@@ -44,6 +44,11 @@ TIER 1 - FIX FIRST
 
 [2] PATCH /api/bookings/[id]  (edit booking)
     File: app/api/bookings/[id]/route.ts  (PATCH, line ~55)
+    STATUS: DONE (2026-11-04) - validate first, one parallel read batch, one
+    parallel write batch, no re-fetch, unused user_booking_index count removed.
+    Up to 15 sequential steps -> 3. Services now upsert + delete-removed (never
+    left with zero services); charges insert-then-delete (old charges kept if
+    insert fails). Edits now require at least one service, same as create.
 
     Problem:
     - About 11-13 database calls in a row: ownership check -> update booking ->
@@ -192,8 +197,7 @@ CORRECTNESS ISSUES FOUND DURING THE AUDIT (not speed, but worth fixing)
 -------------------------------------------------------------------------------
 
 [A] POST /api/bookings does not check ownership of services or customer.
-    STATUS: FIXED (2026-11-04) in POST /api/bookings. PATCH /api/bookings/[id]
-    still has the same gap.
+    STATUS: FIXED (2026-11-04) in POST /api/bookings and PATCH /api/bookings/[id].
     File: app/api/bookings/route.ts  (line ~230)
     The service-price lookup has no .eq("user_id", session.id), and customer_id
     is not verified to belong to the artist. Someone could create a booking
