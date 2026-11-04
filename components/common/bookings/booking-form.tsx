@@ -76,7 +76,7 @@ type BookingFormProps = {
   values: BookingFormValues;
   loading?: boolean;
   submitText?: string;
-  onChange: (values: BookingFormValues) => void;
+  onChange: React.Dispatch<React.SetStateAction<BookingFormValues>>;
   onSubmit: () => void;
   onCancel?: () => void;
   formId?: string;
@@ -166,13 +166,15 @@ export function BookingForm({
   // Sync quota exceeded state
   useEffect(() => {
     onQuotaExceededChange?.(isQuotaExceeded);
-    if (values.storage_quota_exceeded !== isQuotaExceeded) {
-      onChange({
-        ...values,
-        storage_quota_exceeded: isQuotaExceeded,
-      });
-    }
-  }, [isQuotaExceeded, values, onChange, onQuotaExceededChange]);
+    onChange((currentValues) =>
+      currentValues.storage_quota_exceeded === isQuotaExceeded
+        ? currentValues
+        : {
+            ...currentValues,
+            storage_quota_exceeded: isQuotaExceeded,
+          },
+    );
+  }, [isQuotaExceeded, onChange, onQuotaExceededChange]);
 
   // Sync / fetch reference images
   useEffect(() => {
@@ -219,8 +221,11 @@ export function BookingForm({
         });
         setSlots(loadedSlots);
 
-        onChange({
-          ...values,
+        // The request may finish after the user has edited other fields. Merge
+        // only the reference-image state into the latest form draft so those
+        // edits are not replaced by the values captured when loading started.
+        onChange((currentValues) => ({
+          ...currentValues,
           existing_reference_images: refFiles.map((rf: any) => ({
             id: rf.id,
             file_name: rf.file_name,
@@ -230,7 +235,7 @@ export function BookingForm({
           })),
           reference_images: [],
           removed_reference_image_ids: [],
-        });
+        }));
       } catch (err) {
         console.error("Failed to load booking reference images:", err);
       } finally {
