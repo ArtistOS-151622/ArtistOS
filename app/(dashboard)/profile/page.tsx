@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { QuotaInfo, StoragePlanRow } from "@/lib/portfolio/types"
+import { GOOGLE_MAPS_URL_ERROR, isGoogleMapsUrl } from "@/lib/validation/google-maps-url"
 
 type ProfileData = {
   id: number
@@ -169,6 +170,9 @@ export default function ProfilePage() {
     if (!profile.artist_name?.trim()) newErrors.artist_name = "Please fill out this field."
     if (!profile.studio_name?.trim()) newErrors.studio_name = "Please fill out this field."
     if (!profile.address?.trim()) newErrors.address = "Please fill out this field."
+    if (profile.google_maps_url?.trim() && !isGoogleMapsUrl(profile.google_maps_url)) {
+      newErrors.google_maps_url = GOOGLE_MAPS_URL_ERROR
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setFormErrors(newErrors)
@@ -474,9 +478,13 @@ export default function ProfilePage() {
                   icon={<MapPin className="size-4" />}
                   type="url"
                   value={profile?.google_maps_url || ""}
-                  onChange={(e) =>
+                  error={formErrors.google_maps_url}
+                  onChange={(e) => {
+                    if (formErrors.google_maps_url) {
+                      setFormErrors((prev) => ({ ...prev, google_maps_url: "" }))
+                    }
                     setProfile((prev) => prev ? { ...prev, google_maps_url: e.target.value } : null)
-                  }
+                  }}
                   containerClassName="sm:col-span-2 lg:col-span-3"
                 />
               </div>

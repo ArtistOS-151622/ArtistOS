@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { enrichFile } from "@/lib/portfolio/files"
 import { getOrCreateQuota, QuotaService } from "@/lib/portfolio/quota"
+import { GOOGLE_MAPS_URL_ERROR, isGoogleMapsUrl } from "@/lib/validation/google-maps-url"
 import {
   createArtistToken,
   getArtistSession,
@@ -84,14 +85,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const mapsUrl = google_maps_url?.trim() || null
-    if (mapsUrl) {
-      try {
-        const parsed = new URL(mapsUrl)
-        const allowedHosts = ["google.com", "www.google.com", "maps.google.com", "maps.app.goo.gl", "goo.gl"]
-        if (parsed.protocol !== "https:" || !allowedHosts.includes(parsed.hostname)) throw new Error("Invalid host")
-      } catch {
-        return NextResponse.json({ error: "Enter a valid HTTPS Google Maps link." }, { status: 400 })
-      }
+    if (mapsUrl && !isGoogleMapsUrl(mapsUrl)) {
+      return NextResponse.json({ error: GOOGLE_MAPS_URL_ERROR }, { status: 400 })
     }
 
     const supabase = await createClient()
