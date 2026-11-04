@@ -1,0 +1,212 @@
+ArtistOS - API Optimization Issues
+==================================
+Audit date: 2026-11-03
+Scope: every route under app/api/ plus the shared helpers they call.
+Excluded on purpose: caching and database indexes (not needed at current scale).
+
+"Round trip" below = one call from the API server to the database. They are
+slow mainly because they run one after another, each waiting for the last.
+
+
+-------------------------------------------------------------------------------
+TIER 1 - FIX FIRST
+-------------------------------------------------------------------------------
+
+[1] POST /api/bookings  (create booking)
+    File: app/api/bookings/route.ts  (POST, line ~172)
+    STATUS: DONE (2026-11-04) - Option A: validate first, parallel reads,
+    parallel child inserts, no re-fetch. 8 sequential steps -> 3.
+    Also fixes [A] for this route. Still not atomic (see Option B / RPC).
+
+    Problem:
+    - Up to 8 database calls, all one after another:
+        checkIsReadOnly (2 queries when not remembered)
+        -> insert booking
+        -> fetch service prices
+        -> insert booking_services
+        -> insert booking_additional_charges
+        -> insert booking_payments (advance)
+        -> re-fetch the full booking
+    - The additional-charges check (line ~256) runs AFTER the booking is
+      inserted, so bad input causes an insert and then a delete.
+    - The "rollback" is a manual delete. If that delete also fails, half-created
+      data is left behind.
+
+    Fix:
+    - Validate all input before touching the database.
+    - Run the read-only check and the service-price fetch together (Promise.all).
+    - After the booking insert, run the services / charges / payment inserts
+      together (Promise.all).
+    - Skip the final re-fetch: build the response from the inserted data.
+    - BEST: one Postgres function `create_booking`, called with supabase.rpc().
+      That is 1 call instead of 6-8, and it all succeeds or fails together.
+
+
+[2] PATCH /api/bookings/[id]  (edit booking)
+    File: app/api/bookings/[id]/route.ts  (PATCH, line ~55)
+
+    Problem:
+    - About 11-13 database calls in a row: ownership check -> update booking ->
+      read existing services -> delete services -> fetch prices -> insert
+      services -> delete charges -> insert charges -> look up advance payment ->
+      update/insert/delete advance -> re-fetch booking -> count bookings for
+      user_booking_index.
+
+    Fix:
+    - BEST: same Postgres-function approach as [1] (`update_booking`).
+    - Minimum: run three groups in parallel (services sync, charges sync,
+      advance-payment sync), and run the final re-fetch and the count together.
+
+
+[3] GET /api/bookings  (bookings list)
+    File: app/api/bookings/route.ts  (GET, line ~54)
+
+    Problem:
+    - Database pagination is commented out (lines ~104-111). Every page request
+      loads EVERY booking the artist has ever made, with customer, services,
+      charges and payments attached, then sorts and slices 20 in memory.
+    - Asks for count: "exact" and never uses it.
+    - Search makes 2 calls in a row (find matching customers, then bookings).
+
+    Fix:
+    - Paginate in the database while keeping "upcoming first, then past":
+        1. Count future bookings with a count-only query (head: true).
+        2. Fetch future bookings (date ascending) or past bookings (date
+           descending) with .range() and an adjusted offset.
+    - Remove the unused count: "exact".
+    - Search: filter through the joined customer table in one query
+      (customer:customers!inner(...)) instead of two calls.
+
+
+[4] GET /api/portfolio/folders  ->  listFolders()
+    File: lib/portfolio/folders.ts  (listFolders, line ~235)
+
+    Problem:
+    - One query per folder: each folder triggers 4-7 more queries, one at a time:
+        file count, every file's size (just to add them up), section names,
+        preview images, and for booking folders: booking lookup, booking-number
+        count, and an UPDATE (a write inside a GET).
+    - 30 folders = roughly 150 database calls.
+
+    Fix:
+    - One query for all files across the artist's folders
+      (.in("folder_id", folderIds)), then group in JS to get count, total size,
+      folder type and the first 4 previews.
+    - Move the "Booking - <name> (#n)" rename into findOrCreateBookingFolder,
+      which already runs when booking folders are created. GET should not write.
+
+
+[5] POST /api/public/inquiry/f/[code]  (public inquiry form)
+    File: app/api/public/inquiry/f/[code]/route.ts  (line ~215)
+
+    Problem:
+    - Waits for the WhatsApp notification to send before responding
+      (await sendInquiryNotificationWhatsApp). Adds about 2-4 seconds.
+    - About 9 database calls in a row.
+
+    Fix:
+    - Move the WhatsApp send into after(), same as bookings already do.
+    - Run the customer lookup and duplicate-inquiry check in parallel with the
+      services lookup.
+
+
+-------------------------------------------------------------------------------
+TIER 2 - REAL GAINS, LESS URGENT
+-------------------------------------------------------------------------------
+
+[6] GET /api/bookings/[id]/detail
+    File: app/api/bookings/[id]/detail/route.ts  (lines ~39-53)
+    Problem: booking fetch and booking-number count run one after the other.
+    Fix: run them together with Promise.all.
+
+[7] Booking sub-routes: payments, expenses, additional-charges, services,
+    expense-categories
+    Files: app/api/bookings/[id]/{payments,expenses,additional-charges,
+           services,expense-categories}/route.ts
+    Problem: checkIsReadOnly and verifyBookingOwnership run one after the other.
+    Fix: run them together with Promise.all.
+
+[8] PUT /api/portfolio/folders/reorder  and  PUT /api/portfolio/files/reorder
+    Files: lib/portfolio/folders.ts (updateFolderSortOrder, line ~442)
+           lib/portfolio/files.ts   (updateFileSortOrder, line ~245)
+    Problem: one UPDATE per item, one at a time.
+    Fix: a single upsert of {id, sort_order} rows, or at least Promise.all.
+
+[9] GET /api/reports/payments
+    File: app/api/reports/payments/route.ts  (line ~104)
+    Problem: the "pending bookings" query loads every non-cancelled booking with
+    all related data, and runs on almost every request
+    (condition: view === "pending" || !search). It also waits for the payments
+    query to finish first.
+    Fix: run it only when view === "pending", and in parallel with the payments
+    query.
+
+[10] GET /api/reports/customers
+    File: app/api/reports/customers/route.ts
+    Problem: loads every customer with all their bookings, services, charges and
+    payments. No pagination.
+    Fix: do the per-customer totals in a SQL view or function, or paginate.
+
+[11] GET /api/dashboard
+    File: app/api/dashboard/route.ts
+    Problem: loads a full year of bookings with services and charges to total
+    revenue in JS. The satisfaction query loads all completed/cancelled rows
+    just to count them.
+    Fix: use 2 count-only queries (head: true) for satisfaction; do revenue
+    totals in SQL.
+
+[12] POST /api/customers
+    File: app/api/customers/route.ts  (POST, line ~92)
+    Problem: 3 calls in a row: duplicate-phone check -> insert -> re-fetch from
+    the customer_stats view.
+    Fix: drop the re-fetch and return booking_count: 0 for a new customer.
+    A unique-constraint error can replace the pre-check.
+
+
+-------------------------------------------------------------------------------
+TIER 3 - ADMIN AND BACKGROUND JOBS (LOW TRAFFIC)
+-------------------------------------------------------------------------------
+
+[13] GET /api/admin/users
+    File: app/api/admin/users/route.ts  (line ~14)
+    Problem: loads every user's bookings, payments and expenses (close to the
+    whole database) just to count them in JS. On error it re-runs an almost
+    identical heavy query.
+    Fix: count embeds (bookings(count)) or a SQL view for the totals.
+
+[14] DELETE /api/admin/users
+    File: app/api/admin/users/route.ts  (lines ~399-471)
+    Problem: about 30 deletes one after another.
+    Fix: group independent deletes with Promise.all, or use ON DELETE CASCADE
+    foreign keys, or one Postgres function.
+
+[15] expireShares (cron: /api/cron/portfolio/expire-shares)
+    File: lib/portfolio/folders.ts  (expireShares, line ~414)
+    Problem: one UPDATE per expired share in a loop.
+    Fix: one Postgres function that updates them all at once using
+    gen_random_uuid().
+
+
+-------------------------------------------------------------------------------
+CORRECTNESS ISSUES FOUND DURING THE AUDIT (not speed, but worth fixing)
+-------------------------------------------------------------------------------
+
+[A] POST /api/bookings does not check ownership of services or customer.
+    STATUS: FIXED (2026-11-04) in POST /api/bookings. PATCH /api/bookings/[id]
+    still has the same gap.
+    File: app/api/bookings/route.ts  (line ~230)
+    The service-price lookup has no .eq("user_id", session.id), and customer_id
+    is not verified to belong to the artist. Someone could create a booking
+    using another artist's service IDs or customer.
+
+[B] GET payments / GET expenses run checkIsReadOnly.
+    Files: app/api/bookings/[id]/payments/route.ts (GET)
+           app/api/bookings/[id]/expenses/route.ts (GET)
+    Artists with an expired subscription cannot even VIEW their payments and
+    expenses. Read-only mode should still allow reads.
+
+[C] POST payments / POST expenses do NOT run checkIsReadOnly.
+    Files: app/api/bookings/[id]/payments/route.ts (POST)
+           app/api/bookings/[id]/expenses/route.ts (POST)
+    Expired accounts can still add payments and expenses. This is the opposite
+    of what the GET does.

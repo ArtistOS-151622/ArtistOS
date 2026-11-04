@@ -1,4 +1,4 @@
-const CACHE_NAME = "artistos-pwa-v2"
+const CACHE_NAME = "artistos-pwa-v3"
 const APP_SHELL = ["/", "/login", "/signup", "/icons/icon-192x192.png", "/icons/icon-180x180.png"]
 
 self.addEventListener("install", (event) => {
@@ -29,6 +29,13 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return
+
+  const url = new URL(event.request.url)
+  // Only handle same-origin page/asset requests. API calls and third-party
+  // requests go straight to the network: the offline fallback below would
+  // otherwise answer a failed /api/* call with the cached home page HTML.
+  if (url.origin !== self.location.origin) return
+  if (url.pathname.startsWith("/api/")) return
 
   event.respondWith(
     fetch(event.request)
