@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const to = body.to || "918849264807"
     const templateName =
-      body.templateName || "one_day_reminder_to_customer" // "one_day_reminder_to_customer" | "create_booking" | "booking_confirmed" | "new_inquiry_received"
+      body.templateName || "one_day_reminder_to_customer"
 
     const formattedPhone = formatWhatsAppPhoneNumber(to)
     if (!formattedPhone) {
@@ -56,7 +56,16 @@ export async function POST(request: NextRequest) {
             "05:30 PM",
             "Mehandi Service",
             "500",
+            session.phone || "9876543210",
+            body.studioAddress || "Studio Address, Mumbai",
           ])
+
+    if (
+      ["booking_confirmed_with_location", "one_day_reminder_to_customer_with_link"].includes(templateName) &&
+      bodyParameters.length === 9
+    ) {
+      bodyParameters.push(body.googleMapsUrl || "https://maps.app.goo.gl/example")
+    }
 
     const result = await sendWhatsAppTemplate({
       to: formattedPhone,

@@ -223,14 +223,15 @@ export async function POST(request: NextRequest) {
 
   // Send automated WhatsApp notification asynchronously in background using after()
   // so the HTTP response is returned immediately to the client without blocking (~2-4s saved).
-  const isConfirmed = booking.status === "confirmed"
-  after(async () => {
-    try {
-      await sendBookingNotificationWhatsApp(booking.id, isConfirmed ? "confirmed" : "created", supabase)
-    } catch (err) {
-      console.error("[WhatsApp] Failed to dispatch booking notification in background:", err)
-    }
-  })
+  if (booking.status === "confirmed") {
+    after(async () => {
+      try {
+        await sendBookingNotificationWhatsApp(booking.id, "confirmed", supabase)
+      } catch (err) {
+        console.error("[WhatsApp] Failed to dispatch booking confirmation in background:", err)
+      }
+    })
+  }
 
   return NextResponse.json({ booking: formatted })
 }

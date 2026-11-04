@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { enrichFile } from "@/lib/portfolio/files"
 import { getOrCreateQuota, QuotaService } from "@/lib/portfolio/quota"
+import { GOOGLE_MAPS_URL_ERROR, isGoogleMapsUrl } from "@/lib/validation/google-maps-url"
 import {
   createArtistToken,
   getArtistSession,
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("users")
-      .select("id, phone, artist_name, studio_name, email, address, avatar_file_id, studio_logo_file_id")
+      .select("id, phone, artist_name, studio_name, email, address, google_maps_url, avatar_file_id, studio_logo_file_id")
       .eq("id", session.id)
       .maybeSingle()
 
@@ -74,13 +75,18 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
 
     // Extract the allowed fields to update. Note: 'phone' is strictly excluded.
-    const { artist_name, studio_name, email, address } = body
+    const { artist_name, studio_name, email, address, google_maps_url } = body
 
     if (!artist_name || !studio_name || !address) {
       return NextResponse.json(
         { error: "Artist name, studio name, and address are required" },
         { status: 400 }
       )
+    }
+
+    const mapsUrl = google_maps_url?.trim() || null
+    if (mapsUrl && !isGoogleMapsUrl(mapsUrl)) {
+      return NextResponse.json({ error: GOOGLE_MAPS_URL_ERROR }, { status: 400 })
     }
 
     const supabase = await createClient()
@@ -92,9 +98,10 @@ export async function PUT(request: NextRequest) {
         studio_name,
         email,
         address,
+        google_maps_url: mapsUrl,
       })
       .eq("id", session.id)
-      .select("id, phone, artist_name, studio_name, email, address")
+      .select("id, phone, artist_name, studio_name, email, address, google_maps_url")
       .maybeSingle()
 
     if (error) {
