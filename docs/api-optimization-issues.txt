@@ -7,6 +7,13 @@ Excluded on purpose: caching and database indexes (not needed at current scale).
 "Round trip" below = one call from the API server to the database. They are
 slow mainly because they run one after another, each waiting for the last.
 
+!! MEASURED 2026-11-04: each Supabase round trip takes 0.35 - 4 seconds, even
+   for a query that returns no rows (project butujigidytputyedsaw). Network to
+   the Cloudflare edge (Mumbai) is ~60 ms; the rest is time spent waiting for
+   Supabase to answer. A healthy project answers in ~50-250 ms. Check in the
+   Supabase dashboard: project region, compute size, and Reports -> CPU /
+   Disk IO budget. Every sequential DB call in this list costs ~1 s until fixed.
+
 
 -------------------------------------------------------------------------------
 TIER 1 - FIX FIRST
@@ -169,6 +176,11 @@ TIER 2 - REAL GAINS, LESS URGENT
 
 [12] POST /api/customers
     File: app/api/customers/route.ts  (POST, line ~92)
+    STATUS: DONE (2026-11-04) - validate first, subscription + duplicate check
+    in parallel, re-fetch dropped (booking_count: 0). Up to 5 sequential DB
+    calls -> 2. PATCH /api/customers/[id] got the same parallel checks (4 -> 2).
+    Still open: GET /api/customers reads the customer_stats view, which groups
+    ALL customers of ALL artists before filtering by user_id.
     Problem: 3 calls in a row: duplicate-phone check -> insert -> re-fetch from
     the customer_stats view.
     Fix: drop the re-fetch and return booking_count: 0 for a new customer.

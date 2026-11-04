@@ -89,30 +89,30 @@ export async function POST(request: NextRequest) {
   const session = getArtistSession(request)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const supabase = await createClient()
-
-  if (await checkIsReadOnly(supabase, session.id)) {
-    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to create customers." }, { status: 403 })
-  }
-
+  // Validate before touching the database
   const body = (await request.json()) as CustomerInput
   const result = validateCustomer(body)
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 })
 
-  // Pre-check for duplicate phone number for the same artist
-  const { data: existingCustomer, error: checkError } = await supabase
-    .from("customers")
-    .select("id")
-    .eq("user_id", session.id)
-    .eq("phone", result.data.phone)
-    .maybeSingle()
+  const supabase = await createClient()
 
-  if (checkError) return NextResponse.json({ error: checkError.message }, { status: 400 })
-  if (existingCustomer) {
-    return NextResponse.json(
-      { error: "phone_exists" },
-      { status: 400 }
-    )
+  // Subscription check and duplicate-phone check are independent: run them together
+  const [isReadOnly, duplicateRes] = await Promise.all([
+    checkIsReadOnly(supabase, session.id),
+    supabase
+      .from("customers")
+      .select("id")
+      .eq("user_id", session.id)
+      .eq("phone", result.data.phone)
+      .limit(1),
+  ])
+
+  if (isReadOnly) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to create customers." }, { status: 403 })
+  }
+  if (duplicateRes.error) return NextResponse.json({ error: duplicateRes.error.message }, { status: 400 })
+  if ((duplicateRes.data ?? []).length > 0) {
+    return NextResponse.json({ error: "phone_exists" }, { status: 400 })
   }
 
   const { data: inserted, error } = await supabase
@@ -123,15 +123,6 @@ export async function POST(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  // Re-fetch from the stats view so the response includes booking_count
-  const { data, error: fetchError } = await supabase
-    .from("customer_stats")
-    .select(READ_FIELDS)
-    .eq("id", inserted.id)
-    .eq("user_id", session.id)
-    .single()
-
-  if (fetchError) return NextResponse.json({ customer: inserted })
-
-  return NextResponse.json({ customer: data })
+  // A brand-new customer has no bookings, so no need to re-fetch from the customer_stats view
+  return NextResponse.json({ customer: { ...inserted, booking_count: 0 } })
 }

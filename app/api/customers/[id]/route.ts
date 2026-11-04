@@ -60,25 +60,24 @@ export async function PATCH(
 
   const supabase = await createClient()
 
-  if (await checkIsReadOnly(supabase, session.id)) {
+  // Subscription check and duplicate-phone check are independent: run them together
+  const [isReadOnly, duplicateRes] = await Promise.all([
+    checkIsReadOnly(supabase, session.id),
+    supabase
+      .from("customers")
+      .select("id")
+      .eq("user_id", session.id)
+      .eq("phone", result.data.phone)
+      .neq("id", id)
+      .limit(1),
+  ])
+
+  if (isReadOnly) {
     return NextResponse.json({ error: "Your subscription has expired. Please upgrade to edit customers." }, { status: 403 })
   }
-
-  // Pre-check for duplicate phone number for another customer of the same artist
-  const { data: existingCustomer, error: checkError } = await supabase
-    .from("customers")
-    .select("id")
-    .eq("user_id", session.id)
-    .eq("phone", result.data.phone)
-    .neq("id", id)
-    .maybeSingle()
-
-  if (checkError) return NextResponse.json({ error: checkError.message }, { status: 400 })
-  if (existingCustomer) {
-    return NextResponse.json(
-      { error: "phone_exists" },
-      { status: 400 }
-    )
+  if (duplicateRes.error) return NextResponse.json({ error: duplicateRes.error.message }, { status: 400 })
+  if ((duplicateRes.data ?? []).length > 0) {
+    return NextResponse.json({ error: "phone_exists" }, { status: 400 })
   }
 
   const { data, error } = await supabase
