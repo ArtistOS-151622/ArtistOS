@@ -7,7 +7,7 @@ export default function BookingsPage() {
   return (
     <>
       <PageHeader
-        title="Booking"
+        title="Bookings"
         description="Manage your schedule, appointment list, service assignments, and booking status in one place."
       />
       <Suspense fallback={<AppLoader label="Loading bookings" className="min-h-[52vh] rounded-[2rem] bg-white/45" />}>
