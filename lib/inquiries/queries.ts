@@ -62,20 +62,31 @@ export function formatInquiry(row: InquiryRow & Record<string, unknown>) {
   }
 }
 
-export async function convertInquiryToBooking(
+/** Loads one inquiry (with customer + services) owned by the artist. */
+export async function getInquiryForUser(
   supabase: SupabaseClient,
   inquiryId: number,
   userId: number,
 ) {
-  const { data: inquiry, error: inquiryError } = await supabase
+  return supabase
     .from("inquiries")
     .select(INQUIRY_SELECT_FIELDS)
     .eq("id", inquiryId)
     .eq("user_id", userId)
-    .single()
+    .maybeSingle()
+}
 
-  if (inquiryError) return { error: inquiryError.message }
-  if (!inquiry) return { error: "Inquiry not found." }
+type LoadedInquiry = NonNullable<Awaited<ReturnType<typeof getInquiryForUser>>["data"]>
+
+/**
+ * Converts an already-loaded inquiry into a confirmed booking.
+ * Sequential steps: insert booking -> (insert services || mark inquiry booked).
+ */
+export async function convertInquiryToBooking(
+  supabase: SupabaseClient,
+  inquiry: LoadedInquiry,
+  userId: number,
+) {
   if (inquiry.status === "cancelled") return { error: "Cancelled inquiries cannot be converted." }
   if (inquiry.status === "booked" && inquiry.booking_id) {
     return { inquiry: formatInquiry(inquiry), booking_id: inquiry.booking_id }
@@ -98,43 +109,59 @@ export async function convertInquiryToBooking(
 
   if (bookingError) return { error: bookingError.message }
 
-  const services = (inquiry.inquiry_services ?? []).filter(
-    (item: InquiryServiceRow) => {
-      const service = Array.isArray(item.service) ? item.service[0] : item.service
-      return service?.id
-    },
-  )
-  if (services.length > 0) {
-    const { error: servicesError } = await supabase
-      .from("booking_services")
-      .insert(
-        services.map((item: InquiryServiceRow) => ({
-          booking_id: booking.id,
-          service_id: (Array.isArray(item.service) ? item.service[0] : item.service)!.id,
-          quantity: item.quantity ?? 1,
-          unit_price: item.unit_price ?? (Array.isArray(item.service) ? item.service[0] : item.service)?.price ?? 0,
-        })),
-      )
+  const serviceRows = (inquiry.inquiry_services ?? []).flatMap((item: InquiryServiceRow) => {
+    const service = Array.isArray(item.service) ? item.service[0] : item.service
+    if (!service?.id) return []
+    return [{
+      booking_id: booking.id,
+      service_id: service.id,
+      quantity: item.quantity ?? 1,
+      unit_price: item.unit_price ?? service.price ?? 0,
+    }]
+  })
 
-    if (servicesError) {
-      await supabase.from("bookings").delete().eq("id", booking.id)
-      return { error: servicesError.message }
-    }
+  // Services insert and inquiry update are independent: run them together.
+  // The update only applies while the inquiry is still unconverted, so a double
+  // click can't link two bookings to one inquiry.
+  const [servicesRes, updateRes] = await Promise.all([
+    serviceRows.length > 0
+      ? supabase.from("booking_services").insert(serviceRows)
+      : Promise.resolve({ error: null }),
+    supabase
+      .from("inquiries")
+      .update({ status: "booked", booking_id: booking.id })
+      .eq("id", inquiry.id)
+      .eq("user_id", userId)
+      .neq("status", "cancelled")
+      .is("booking_id", null)
+      .select("status, booking_id, updated_at")
+      .maybeSingle(),
+  ])
+
+  const failure =
+    servicesRes.error?.message ??
+    updateRes.error?.message ??
+    (!updateRes.data ? "This inquiry was already converted or cancelled." : null)
+
+  if (failure) {
+    // Undo: remove the new booking (its services cascade) and, if the inquiry
+    // was already marked booked by this request, put it back.
+    await Promise.all([
+      supabase.from("bookings").delete().eq("id", booking.id),
+      updateRes.data
+        ? supabase
+            .from("inquiries")
+            .update({ status: inquiry.status, booking_id: null })
+            .eq("id", inquiry.id)
+            .eq("user_id", userId)
+        : Promise.resolve({ error: null }),
+    ])
+    return { error: failure }
   }
 
-  const { data: updatedInquiry, error: updateError } = await supabase
-    .from("inquiries")
-    .update({ status: "booked", booking_id: booking.id })
-    .eq("id", inquiryId)
-    .eq("user_id", userId)
-    .select(INQUIRY_SELECT_FIELDS)
-    .single()
-
-  if (updateError) return { error: updateError.message }
-
-
+  // Build the response from what we already have instead of re-fetching with joins
   return {
-    inquiry: formatInquiry(updatedInquiry),
+    inquiry: formatInquiry({ ...inquiry, ...updateRes.data }),
     booking_id: booking.id,
   }
 }

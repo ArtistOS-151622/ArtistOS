@@ -140,6 +140,17 @@ TIER 1 - FIX FIRST
       services lookup.
 
 
+[5b] POST /api/inquiries/[id]/convert  (found 2026-11-04, ~8 s reported)
+    Files: app/api/inquiries/[id]/convert/route.ts, lib/inquiries/queries.ts
+    STATUS: DONE (2026-11-04). Was: subscription check (0-2) -> load inquiry ->
+    insert booking -> insert services -> update inquiry with full joined
+    re-select, all sequential. Now: subscription + load in parallel -> insert
+    booking -> services insert || inquiry update in parallel; response built in
+    memory. Up to 6 sequential calls -> 3. Also guards against double-click:
+    the inquiry update only applies while booking_id is null; otherwise the new
+    booking is removed. tests/inquiry-convert.test.ts updated (3 tests).
+
+
 -------------------------------------------------------------------------------
 TIER 2 - REAL GAINS, LESS URGENT
 -------------------------------------------------------------------------------

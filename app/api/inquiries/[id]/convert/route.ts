@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest, after } from "next/server"
 
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
-import { convertInquiryToBooking } from "@/lib/inquiries/queries"
+import { convertInquiryToBooking, getInquiryForUser } from "@/lib/inquiries/queries"
 import { createClient } from "@/lib/supabase/server"
 import { sendBookingNotificationWhatsApp } from "@/lib/whatsapp/booking-notifications"
 
@@ -22,11 +22,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   const supabase = await createClient()
 
-  if (await checkIsReadOnly(supabase, session.id)) {
+  // Subscription check and loading the inquiry are independent: run them together
+  const [isReadOnly, inquiryRes] = await Promise.all([
+    checkIsReadOnly(supabase, session.id),
+    getInquiryForUser(supabase, inquiryId, session.id),
+  ])
+
+  if (isReadOnly) {
     return NextResponse.json({ error: "Your subscription has expired. Please upgrade to create bookings." }, { status: 403 })
   }
+  if (inquiryRes.error) return NextResponse.json({ error: inquiryRes.error.message }, { status: 400 })
+  if (!inquiryRes.data) return NextResponse.json({ error: "Inquiry not found." }, { status: 404 })
 
-  const result = await convertInquiryToBooking(supabase, inquiryId, session.id)
+  const result = await convertInquiryToBooking(supabase, inquiryRes.data, session.id)
 
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: 400 })
