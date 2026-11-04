@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         session.id,
         Number(folderId),
         section,
-        false
+        true
       )
       return portfolioSuccess("Files loaded", { files })
     }

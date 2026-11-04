@@ -63,7 +63,9 @@ export async function listFilesInFolder(
   if (section) {
     query = query.eq("section", section)
   } else if (!includeReference) {
-    query = query.neq("section", "reference")
+    // PostgreSQL comparisons do not match NULL, and regular portfolio uploads
+    // use a NULL section. Include those files while excluding reference images.
+    query = query.or("section.is.null,section.neq.reference")
   }
 
   const { data, error } = await query
