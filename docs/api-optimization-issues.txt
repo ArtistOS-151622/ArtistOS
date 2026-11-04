@@ -99,6 +99,11 @@ TIER 1 - FIX FIRST
 
 [4] GET /api/portfolio/folders  ->  listFolders()
     File: lib/portfolio/folders.ts  (listFolders, line ~235)
+    STATUS: DONE (2026-11-04). Folders + all of the artist's files load in one
+    parallel step; count, size, folder type and previews computed in memory.
+    Files are paged past Supabase's 1000-row limit (extra pages in parallel).
+    Legacy booking-folder rename kept but batched (one-time per folder).
+    ~4-7 sequential calls PER FOLDER -> 1 step (2 queries) in the normal case.
 
     Problem:
     - One query per folder: each folder triggers 4-7 more queries, one at a time:

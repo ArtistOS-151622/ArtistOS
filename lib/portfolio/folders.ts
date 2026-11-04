@@ -232,6 +232,93 @@ export async function findOrCreateDefaultPortfolioFolder(
   return data as PortfolioFolderRow
 }
 
+/** Supabase/PostgREST returns at most 1000 rows per request by default. */
+const FILES_PAGE_SIZE = 1000
+const PREVIEW_FILE_COUNT = 4
+
+type FolderFileStatsRow = {
+  id: number
+  folder_id: number | null
+  file_size: number | string | null
+  section: string | null
+  storage_path: string
+  mime_type: string
+}
+
+/**
+ * Loads every portfolio file of the artist (only the columns needed for folder stats),
+ * paging past the 1000-row limit. Most artists fit in the first page.
+ */
+async function fetchAllFileStats(supabase: SupabaseClient, userId: number): Promise<FolderFileStatsRow[]> {
+  const columns = "id, folder_id, file_size, section, storage_path, mime_type"
+  const baseQuery = () =>
+    supabase
+      .from("portfolio_files")
+      .select(columns, { count: "exact" })
+      .eq("user_id", userId)
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true })
+
+  const first = await baseQuery().range(0, FILES_PAGE_SIZE - 1)
+  if (first.error) throw new Error(first.error.message)
+
+  const rows = (first.data ?? []) as FolderFileStatsRow[]
+  const total = first.count ?? rows.length
+  if (total <= FILES_PAGE_SIZE) return rows
+
+  // Remaining pages are independent: fetch them together
+  const pageStarts: number[] = []
+  for (let start = FILES_PAGE_SIZE; start < total; start += FILES_PAGE_SIZE) pageStarts.push(start)
+  const pages = await Promise.all(pageStarts.map((start) => baseQuery().range(start, start + FILES_PAGE_SIZE - 1)))
+  for (const page of pages) {
+    if (page.error) throw new Error(page.error.message)
+    rows.push(...((page.data ?? []) as FolderFileStatsRow[]))
+  }
+  return rows
+}
+
+/**
+ * Legacy booking folders were created before the "Booking - <customer> (#n)" naming.
+ * Renames them in one batch. Once renamed, later loads skip this entirely.
+ */
+async function renameLegacyBookingFolders(
+  supabase: SupabaseClient,
+  userId: number,
+  folders: PortfolioFolderRow[]
+): Promise<void> {
+  const legacy = folders.filter((f) => f.booking_id !== null && !f.name.startsWith("Booking - "))
+  if (legacy.length === 0) return
+
+  const bookingIds = legacy.map((f) => f.booking_id as number)
+  const [bookingsRes, indexes] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("id, customer:customers(customer_name)")
+      .eq("user_id", userId)
+      .in("id", bookingIds),
+    Promise.all(bookingIds.map((bookingId) => getBookingIndex(supabase, userId, bookingId))),
+  ])
+
+  const customerByBooking = new Map(
+    ((bookingsRes.data ?? []) as { id: number; customer: { customer_name?: string } | { customer_name?: string }[] | null }[])
+      .map((b) => {
+        const customer = Array.isArray(b.customer) ? b.customer[0] : b.customer
+        return [b.id, customer?.customer_name] as const
+      })
+  )
+  const indexByBooking = new Map(bookingIds.map((id, i) => [id, indexes[i]]))
+
+  await Promise.all(
+    legacy.map(async (folder) => {
+      const customerName = customerByBooking.get(folder.booking_id as number)
+      if (!customerName) return
+      const newName = `Booking - ${customerName} (#${indexByBooking.get(folder.booking_id as number)})`
+      const { error } = await supabase.from("portfolio_folders").update({ name: newName }).eq("id", folder.id)
+      if (!error) folder.name = newName
+    })
+  )
+}
+
 export async function listFolders(
   supabase: SupabaseClient,
   userId: number,
@@ -252,101 +339,61 @@ export async function listFolders(
   else if (sort === "latest") query = query.order("created_at", { ascending: false })
   else query = query.order("sort_order", { ascending: true }).order("name", { ascending: true })
 
-  const { data: folders, error } = await query
-  if (error) throw new Error(error.message)
+  // Folders and the artist's files don't depend on each other: load them together.
+  // Stats are then computed in memory instead of 4+ queries per folder.
+  const [foldersRes, files] = await Promise.all([query, fetchAllFileStats(supabase, userId)])
+  if (foldersRes.error) throw new Error(foldersRes.error.message)
 
-  const result: PortfolioFolderWithStats[] = []
-
-  for (const folder of (folders ?? []) as PortfolioFolderRow[]) {
-    // Count all portfolio files in folder
-    const { count } = await supabase
-      .from("portfolio_files")
-      .select("*", { count: "exact", head: true })
-      .eq("folder_id", folder.id)
-
-    const { data: sizeData } = await supabase
-      .from("portfolio_files")
-      .select("file_size")
-      .eq("folder_id", folder.id)
-
-    const totalSize = (sizeData ?? []).reduce(
-      (sum, f) => sum + Number((f as { file_size: number }).file_size),
-      0
-    )
-
-    const fileCount = count ?? 0
-    
-    // Skip empty booking folders that have 0 files
-    if (folder.booking_id !== null && fileCount === 0) {
-      continue
+  type FolderStats = { count: number; size: number; sections: Set<string>; previews: FolderFileStatsRow[] }
+  const statsByFolder = new Map<number, FolderStats>()
+  for (const file of files) {
+    if (file.folder_id === null) continue
+    let stats = statsByFolder.get(file.folder_id)
+    if (!stats) {
+      stats = { count: 0, size: 0, sections: new Set(), previews: [] }
+      statsByFolder.set(file.folder_id, stats)
     }
+    stats.count += 1
+    stats.size += Number(file.file_size) || 0
+    if (file.section) stats.sections.add(file.section)
+    // files are ordered by sort_order, so the first ones seen are the previews
+    if (stats.previews.length < PREVIEW_FILE_COUNT) stats.previews.push(file)
+  }
 
-    // Auto-update folder name to include "Booking - " prefix so user can recognize booking folders properly
-    if (folder.booking_id !== null && !folder.name.startsWith("Booking - ")) {
-      const { data: booking } = await supabase
-        .from("bookings")
-        .select("id, customer:customers(customer_name)")
-        .eq("id", folder.booking_id)
-        .maybeSingle()
+  // Skip empty booking folders that have 0 files
+  const visibleFolders = ((foldersRes.data ?? []) as PortfolioFolderRow[]).filter(
+    (folder) => folder.booking_id === null || (statsByFolder.get(folder.id)?.count ?? 0) > 0
+  )
 
-      const customerName = (booking?.customer as any)?.customer_name
-      if (customerName) {
-        const index = await getBookingIndex(supabase, userId, folder.booking_id)
-        const newName = `Booking - ${customerName} (#${index})`
-        await supabase
-          .from("portfolio_folders")
-          .update({ name: newName })
-          .eq("id", folder.id)
-        folder.name = newName
-      }
-    }
+  await renameLegacyBookingFolders(supabase, userId, visibleFolders)
 
-    // Determine folder_type (course | reference | portfolio)
-    const { data: sectionData } = await supabase
-      .from("portfolio_files")
-      .select("section")
-      .eq("folder_id", folder.id)
-      .limit(10)
+  return visibleFolders.map((folder) => {
+    const stats = statsByFolder.get(folder.id)
 
-    const sections = (sectionData ?? []).map((s: any) => s.section)
     let folderType: "course" | "reference" | "portfolio" = "portfolio"
     if (folder.course_id !== null && folder.course_id !== undefined) {
       folderType = "course"
     } else if (folder.booking_id !== null && folder.booking_id !== undefined) {
       folderType = "reference"
-    } else if (sections.includes("course")) {
+    } else if (stats?.sections.has("course")) {
       folderType = "course"
-    } else if (sections.includes("reference")) {
+    } else if (stats?.sections.has("reference")) {
       folderType = "reference"
     }
 
-    // Fetch up to 4 preview files for folder icon 2x2 grid preview
-    const { data: previewData } = await supabase
-      .from("portfolio_files")
-      .select("id, storage_path, mime_type")
-      .eq("folder_id", folder.id)
-      .order("sort_order", { ascending: true })
-      .limit(4)
-
-    const preview_files = (previewData ?? []).map((f) => ({
-      id: f.id as number,
-      public_url: getPublicUrl(f.storage_path as string),
-      mime_type: f.mime_type as string,
-    }))
-
-    result.push({
+    return {
       ...folder,
-      file_count: fileCount,
-      total_size: totalSize,
-      preview_files,
+      file_count: stats?.count ?? 0,
+      total_size: stats?.size ?? 0,
+      preview_files: (stats?.previews ?? []).map((f) => ({
+        id: f.id,
+        public_url: getPublicUrl(f.storage_path),
+        mime_type: f.mime_type,
+      })),
       folder_type: folderType,
-      share_url: folder.is_shared
-        ? buildShareUrl(folder.uuid)
-        : null,
-    })
-  }
-
-  return result
+      share_url: folder.is_shared ? buildShareUrl(folder.uuid) : null,
+    }
+  })
 }
 
 export function buildShareUrl(uuid: string): string {
