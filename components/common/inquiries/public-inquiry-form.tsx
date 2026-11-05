@@ -21,9 +21,9 @@ import {
 import { DatePicker } from "@/components/common/shared/date-picker"
 import {
   FloatingInput,
-  FloatingPhoneInput,
   FloatingTextarea,
 } from "@/components/common/shared/floating-input"
+import { InternationalPhoneInput } from "@/components/common/shared/international-phone-input"
 import { TimePicker } from "@/components/common/shared/time-picker"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -66,6 +66,7 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState("")
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [phoneValidity, setPhoneValidity] = useState({ phone: false, alt_phone: false })
   const [step, setStep] = useState<"details" | "services">("details")
 
   useEffect(() => {
@@ -124,7 +125,11 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
     if (!values.customer_name.trim())
       newErrors.customer_name = "Please enter your full name."
     if (!values.phone.trim())
-      newErrors.phone = "Please enter a valid phone number."
+      newErrors.phone = "Please enter your phone number."
+    else if (!phoneValidity.phone)
+      newErrors.phone = "Enter a valid phone number for the selected country."
+    if (values.alt_phone.trim() && !phoneValidity.alt_phone)
+      newErrors.alt_phone = "Enter a valid alternative phone number."
     if (
       values.email.trim() &&
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())
@@ -406,19 +411,27 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
                       }
                     />
 
-                    <FloatingPhoneInput
+                    <InternationalPhoneInput
+                      id="inquiry_phone"
                       label="Mobile Number (WhatsApp)"
                       value={values.phone}
                       error={formErrors.phone}
                       required
-                      onChange={(e) => updateValue("phone", e.target.value)}
+                      onChange={(number) => updateValue("phone", number)}
+                      onValidityChange={(phone) =>
+                        setPhoneValidity((current) => ({ ...current, phone }))
+                      }
                     />
 
-                    <FloatingPhoneInput
+                    <InternationalPhoneInput
+                      id="inquiry_alt_phone"
                       label="Alternative Phone (Optional)"
                       value={values.alt_phone}
                       error={formErrors.alt_phone}
-                      onChange={(e) => updateValue("alt_phone", e.target.value)}
+                      onChange={(number) => updateValue("alt_phone", number)}
+                      onValidityChange={(alt_phone) =>
+                        setPhoneValidity((current) => ({ ...current, alt_phone }))
+                      }
                     />
 
                     <FloatingInput

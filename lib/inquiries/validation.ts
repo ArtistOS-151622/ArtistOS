@@ -1,3 +1,5 @@
+import { normalizeE164Phone } from "../phone/e164.ts"
+
 export type PublicInquiryInput = {
   customer_name?: string
   phone?: string
@@ -30,7 +32,8 @@ export type ValidationResult =
 
 export function validateInquiry(input: PublicInquiryInput): ValidationResult {
   const customer_name = input.customer_name?.trim()
-  const phone = input.phone?.trim()
+  const phone = normalizeE164Phone(input.phone)
+  const alt_phone = normalizeE164Phone(input.alt_phone)
   const email = input.email?.trim() || null
   const address = input.address?.trim()
   const booking_date = input.booking_date?.trim()
@@ -38,7 +41,11 @@ export function validateInquiry(input: PublicInquiryInput): ValidationResult {
   const end_time = input.end_time?.trim()
 
   if (!customer_name) return { error: "Customer name is required." }
-  if (!phone) return { error: "Phone number is required." }
+  if (!input.phone?.trim()) return { error: "Phone number is required." }
+  if (!phone) return { error: "Enter a valid phone number including the country code." }
+  if (input.alt_phone?.trim() && !alt_phone) {
+    return { error: "Enter a valid alternative phone number including the country code." }
+  }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: "Please enter a valid email address." }
   }
@@ -58,7 +65,7 @@ export function validateInquiry(input: PublicInquiryInput): ValidationResult {
       phone,
       email,
       address,
-      alt_phone: input.alt_phone?.trim() || null,
+      alt_phone,
       booking_date,
       start_time,
       end_time,
