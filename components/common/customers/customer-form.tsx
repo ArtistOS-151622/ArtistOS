@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, MapPin, Phone, User, Users } from "lucide-react";
+import { Mail, MapPin, User, Users } from "lucide-react";
 
 import type { CustomerFormValues } from "@/components/common/customers/customer-types";
 import { FloatingInput } from "@/components/common/shared/floating-input";
+import { InternationalPhoneInput } from "@/components/common/shared/international-phone-input";
 
 type CustomerFormProps = {
   values: CustomerFormValues;
@@ -26,6 +27,7 @@ export function CustomerForm({
   formId = "customer-form",
 }: CustomerFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [phoneValidity, setPhoneValidity] = useState({ phone: false, alt_phone: false });
 
   const set = <K extends keyof CustomerFormValues>(
     key: K,
@@ -47,6 +49,10 @@ export function CustomerForm({
         const newErrors: Record<string, string> = {};
         if (!values.customer_name?.trim()) newErrors.customer_name = "Please fill out this field.";
         if (!values.phone?.trim()) newErrors.phone = "Please fill out this field.";
+        else if (!phoneValidity.phone) newErrors.phone = "Enter a valid phone number for the selected country.";
+        if (values.alt_phone?.trim() && !phoneValidity.alt_phone) {
+          newErrors.alt_phone = "Enter a valid alternative phone number.";
+        }
         if (!values.address?.trim()) newErrors.address = "Please fill out this field.";
 
         if (Object.keys(newErrors).length > 0) {
@@ -69,39 +75,23 @@ export function CustomerForm({
         required
       />
 
-      <FloatingInput
+      <InternationalPhoneInput
         id="phone"
         label="Phone number"
-        icon={<Phone className="size-4" />}
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        maxLength={10}
         value={values.phone}
-        onChange={(e) => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
-        onKeyDown={(e) => {
-          const allowed = ["Backspace","Delete","Tab","Escape","Enter","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"]
-          if (!allowed.includes(e.key) && !/^\d$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault()
-        }}
+        onChange={(number) => set("phone", number)}
+        onValidityChange={(phone) => setPhoneValidity((current) => ({ ...current, phone }))}
         disabled={loading}
         error={errors.phone}
         required
       />
 
-      <FloatingInput
+      <InternationalPhoneInput
         id="alt_phone"
         label="Alternative phone (optional)"
-        icon={<Phone className="size-4" />}
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        maxLength={10}
         value={values.alt_phone}
-        onChange={(e) => set("alt_phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
-        onKeyDown={(e) => {
-          const allowed = ["Backspace","Delete","Tab","Escape","Enter","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"]
-          if (!allowed.includes(e.key) && !/^\d$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault()
-        }}
+        onChange={(number) => set("alt_phone", number)}
+        onValidityChange={(alt_phone) => setPhoneValidity((current) => ({ ...current, alt_phone }))}
         disabled={loading}
         error={errors.alt_phone}
       />

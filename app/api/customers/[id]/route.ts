@@ -4,6 +4,7 @@ import { checkIsReadOnly } from "@/lib/auth/subscription"
 
 import { getArtistSession } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
+import { normalizeE164Phone } from "@/lib/phone/e164"
 
 type CustomerInput = {
   customer_name?: string
@@ -21,12 +22,15 @@ function validateId(value: string) {
 
 function validateCustomer(input: CustomerInput) {
   const customer_name = input.customer_name?.trim()
-  const phone = input.phone?.trim()
+  const phone = normalizeE164Phone(input.phone)
+  const alt_phone = normalizeE164Phone(input.alt_phone)
   const email = input.email?.trim() || null
   const address = input.address?.trim()
 
   if (!customer_name) return { error: "Customer name is required." }
-  if (!phone) return { error: "Phone number is required." }
+  if (!input.phone?.trim()) return { error: "Phone number is required." }
+  if (!phone) return { error: "Enter a valid phone number including the country code." }
+  if (input.alt_phone?.trim() && !alt_phone) return { error: "Enter a valid alternative phone number including the country code." }
   if (!address) return { error: "Customer address is required." }
 
   return {
@@ -35,7 +39,7 @@ function validateCustomer(input: CustomerInput) {
       phone,
       email,
       address,
-      alt_phone: input.alt_phone?.trim() || null,
+      alt_phone,
       reference_by: input.reference_by?.trim() || null,
     },
   }

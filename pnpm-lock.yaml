@@ -17,6 +17,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.6.0
         version: 1.6.0(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@intl-tel-input/react':
+        specifier: ^29.5.10
+        version: 29.5.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@next/third-parties':
         specifier: ^16.4.5
         version: 16.4.5(next@16.2.10(@babel/core@7.29.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
@@ -50,6 +53,9 @@ importers:
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      intl-tel-input:
+        specifier: ^29.5.10
+        version: 29.5.10
       lucide-react:
         specifier: ^1.23.0
         version: 1.27.0(react@19.2.4)
@@ -786,6 +792,12 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [x64]
     os: [win32]
+
+  '@intl-tel-input/react@29.5.10':
+    resolution: {integrity: sha512-zACubYHGlxz3gWZXOVaQGdk69A16olw4qE0idgGUfHCp6N184iFufbtAemPkAmABKvArarFxhdva33l0lbDPpA==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -2554,6 +2566,9 @@ packages:
   internmap@2.0.3:
     resolution: {integrity: sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg==}
     engines: {node: '>=12'}
+
+  intl-tel-input@29.5.10:
+    resolution: {integrity: sha512-ohZXPbJESkXPkqHucTQMA8rnklCFILFajq4UIOG75Ju1EF1gww0O+jKR2VRDDeIsRMxlGto36nUgwLtfPVJ4FQ==}
 
   invariant@2.2.4:
     resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
@@ -4695,6 +4710,12 @@ snapshots:
   '@img/sharp-win32-x64@0.35.3':
     optional: true
 
+  '@intl-tel-input/react@29.5.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      intl-tel-input: 29.5.10
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -6635,6 +6656,8 @@ snapshots:
       side-channel: 1.1.1
 
   internmap@2.0.3: {}
+
+  intl-tel-input@29.5.10: {}
 
   invariant@2.2.4:
     dependencies:

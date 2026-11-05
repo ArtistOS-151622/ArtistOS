@@ -3,6 +3,34 @@
 @import "shadcn/tailwind.css";
 @import "react-big-calendar/lib/css/react-big-calendar.css";
 
+.international-phone-field .iti {
+  width: 100%;
+}
+
+.international-phone-field .iti__country-container {
+  border-right: 1px solid rgb(226 232 240);
+}
+
+.international-phone-field .iti__selected-country {
+  border-radius: 0.75rem 0 0 0.75rem;
+  padding-inline: 0.75rem;
+}
+
+.international-phone-field .iti__dropdown-content {
+  max-width: min(22rem, calc(100vw - 2rem));
+  border-radius: 0.875rem;
+  border-color: rgb(226 232 240);
+  box-shadow: 0 20px 35px -15px rgb(15 23 42 / 0.25);
+}
+
+.international-phone-field .iti__search-input {
+  border-radius: 0.625rem;
+  border-color: rgb(226 232 240);
+  padding-block: 0.625rem;
+  padding-left: calc(var(--iti-spacer-horizontal) + var(--iti-globe-icon-size) + var(--iti-spacer-horizontal));
+  padding-right: calc(var(--iti-spacer-horizontal) + var(--iti-clear-icon-size) + var(--iti-spacer-horizontal));
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
