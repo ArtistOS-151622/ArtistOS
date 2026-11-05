@@ -2,17 +2,8 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
+import { bookingBelongsToUser } from "@/lib/bookings/guards"
 import { createClient } from "@/lib/supabase/server"
-
-async function verifyBookingOwnership(supabase: Awaited<ReturnType<typeof createClient>>, bookingId: number, userId: number) {
-  const { data } = await supabase
-    .from("bookings")
-    .select("id")
-    .eq("id", bookingId)
-    .eq("user_id", userId)
-    .maybeSingle()
-  return !!data
-}
 
 export async function GET(
   request: NextRequest,
@@ -26,20 +17,18 @@ export async function GET(
 
   const supabase = await createClient()
 
-  if (await checkIsReadOnly(supabase, session.id)) {
-    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to update expense categories." }, { status: 403 })
-  }
+  // Reading is allowed in read-only mode. Ownership check and data load run together.
+  const [owns, { data, error }] = await Promise.all([
+    bookingBelongsToUser(supabase, bookingId, session.id),
+    supabase
+      .from("booking_expense_categories")
+      .select("id, category_name, created_at")
+      .eq("booking_id", bookingId)
+      .eq("user_id", session.id)
+      .order("created_at", { ascending: true }),
+  ])
 
-  const owns = await verifyBookingOwnership(supabase, bookingId, session.id)
   if (!owns) return NextResponse.json({ error: "Booking not found." }, { status: 404 })
-
-  const { data, error } = await supabase
-    .from("booking_expense_categories")
-    .select("id, category_name, created_at")
-    .eq("booking_id", bookingId)
-    .eq("user_id", session.id)
-    .order("created_at", { ascending: true })
-
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
   return NextResponse.json({ categories: data ?? [] })
@@ -62,7 +51,13 @@ export async function POST(
 
   const supabase = await createClient()
 
-  const owns = await verifyBookingOwnership(supabase, bookingId, session.id)
+  const [isReadOnly, owns] = await Promise.all([
+    checkIsReadOnly(supabase, session.id),
+    bookingBelongsToUser(supabase, bookingId, session.id),
+  ])
+  if (isReadOnly) {
+    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to update expense categories." }, { status: 403 })
+  }
   if (!owns) return NextResponse.json({ error: "Booking not found." }, { status: 404 })
 
   const { data, error } = await supabase

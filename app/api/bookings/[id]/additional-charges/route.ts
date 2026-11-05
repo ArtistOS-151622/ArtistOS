@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
+import { bookingBelongsToUser } from "@/lib/bookings/guards"
 import { createClient } from "@/lib/supabase/server"
 
 type AdditionalChargeInput = {
@@ -9,16 +10,6 @@ type AdditionalChargeInput = {
   charge_name: string
   quantity: number
   rate: number
-}
-
-async function verifyBookingOwnership(supabase: Awaited<ReturnType<typeof createClient>>, bookingId: number, userId: number) {
-  const { data } = await supabase
-    .from("bookings")
-    .select("id")
-    .eq("id", bookingId)
-    .eq("user_id", userId)
-    .maybeSingle()
-  return !!data
 }
 
 export async function POST(
@@ -37,16 +28,18 @@ export async function POST(
     return NextResponse.json({ error: "Charge name is required." }, { status: 400 })
   if (!Number.isInteger(Number(body.quantity)) || Number(body.quantity) < 1)
     return NextResponse.json({ error: "Quantity must be a whole number of at least 1." }, { status: 400 })
-  if (Number(body.rate) < 0)
+  if (!Number.isFinite(Number(body.rate)) || Number(body.rate) < 0)
     return NextResponse.json({ error: "Rate cannot be negative." }, { status: 400 })
 
   const supabase = await createClient()
 
-  if (await checkIsReadOnly(supabase, session.id)) {
+  const [isReadOnly, owns] = await Promise.all([
+    checkIsReadOnly(supabase, session.id),
+    bookingBelongsToUser(supabase, bookingId, session.id),
+  ])
+  if (isReadOnly) {
     return NextResponse.json({ error: "Your subscription has expired. Please upgrade to update booking charges." }, { status: 403 })
   }
-
-  const owns = await verifyBookingOwnership(supabase, bookingId, session.id)
   if (!owns) return NextResponse.json({ error: "Booking not found." }, { status: 404 })
 
   const { data, error } = await supabase
@@ -84,7 +77,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Charge name is required." }, { status: 400 })
   if (!Number.isInteger(Number(body.quantity)) || Number(body.quantity) < 1)
     return NextResponse.json({ error: "Quantity must be a whole number of at least 1." }, { status: 400 })
-  if (Number(body.rate) < 0)
+  if (!Number.isFinite(Number(body.rate)) || Number(body.rate) < 0)
     return NextResponse.json({ error: "Rate cannot be negative." }, { status: 400 })
 
   const supabase = await createClient()

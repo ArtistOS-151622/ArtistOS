@@ -159,6 +159,7 @@ TIER 2 - REAL GAINS, LESS URGENT
     File: app/api/bookings/[id]/detail/route.ts  (lines ~39-53)
     Problem: booking fetch and booking-number count run one after the other.
     Fix: run them together with Promise.all.
+    STATUS: DONE (2026-11-05) - 2 sequential -> 1. Missing booking now 404.
 
 [7] Booking sub-routes: payments, expenses, additional-charges, services,
     expense-categories
@@ -166,6 +167,12 @@ TIER 2 - REAL GAINS, LESS URGENT
            services,expense-categories}/route.ts
     Problem: checkIsReadOnly and verifyBookingOwnership run one after the other.
     Fix: run them together with Promise.all.
+    STATUS: DONE (2026-11-05). GETs (payments, expenses, categories): no
+    subscription check, ownership + data in parallel, 3-4 sequential -> 1, so
+    the booking detail page now loads in 1 round trip. POSTs: subscription +
+    ownership in parallel. services PATCH: 4 -> 2, upsert + delete-removed
+    instead of delete-all-then-insert, rejects other artists' service IDs and
+    duplicates. Shared helper: lib/bookings/guards.ts (bookingBelongsToUser).
 
 [8] PUT /api/portfolio/folders/reorder  and  PUT /api/portfolio/files/reorder
     Files: lib/portfolio/folders.ts (updateFolderSortOrder, line ~442)
@@ -245,12 +252,14 @@ CORRECTNESS ISSUES FOUND DURING THE AUDIT (not speed, but worth fixing)
     using another artist's service IDs or customer.
 
 [B] GET payments / GET expenses run checkIsReadOnly.
+    STATUS: FIXED (2026-11-05), also for GET expense-categories.
     Files: app/api/bookings/[id]/payments/route.ts (GET)
            app/api/bookings/[id]/expenses/route.ts (GET)
     Artists with an expired subscription cannot even VIEW their payments and
     expenses. Read-only mode should still allow reads.
 
 [C] POST payments / POST expenses do NOT run checkIsReadOnly.
+    STATUS: FIXED (2026-11-05), also for POST expense-categories.
     Files: app/api/bookings/[id]/payments/route.ts (POST)
            app/api/bookings/[id]/expenses/route.ts (POST)
     Expired accounts can still add payments and expenses. This is the opposite

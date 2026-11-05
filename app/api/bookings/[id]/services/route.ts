@@ -2,22 +2,13 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
+import { bookingBelongsToUser } from "@/lib/bookings/guards"
 import { createClient } from "@/lib/supabase/server"
 
 type ServiceInput = {
   service_id: number
   quantity: number
   unit_price: number
-}
-
-async function verifyBookingOwnership(supabase: Awaited<ReturnType<typeof createClient>>, bookingId: number, userId: number) {
-  const { data } = await supabase
-    .from("bookings")
-    .select("id")
-    .eq("id", bookingId)
-    .eq("user_id", userId)
-    .maybeSingle()
-  return !!data
 }
 
 export async function PATCH(
@@ -40,38 +31,58 @@ export async function PATCH(
     return NextResponse.json({ error: "Service quantity must be a whole number of at least 1." }, { status: 400 })
   }
 
+  const rows = services.map((s) => ({
+    booking_id: bookingId,
+    service_id: Number(s.service_id),
+    quantity: Number(s.quantity) || 1,
+    unit_price: Number(s.unit_price) || 0,
+  }))
+  const serviceIds = rows.map((r) => r.service_id)
+  if (serviceIds.some((sid) => !Number.isInteger(sid))) {
+    return NextResponse.json({ error: "One or more selected services are invalid." }, { status: 400 })
+  }
+  // booking_services has PRIMARY KEY (booking_id, service_id)
+  if (new Set(serviceIds).size !== serviceIds.length) {
+    return NextResponse.json({ error: "Each service can only be added once. Use quantity instead." }, { status: 400 })
+  }
+
   const supabase = await createClient()
 
-  if (await checkIsReadOnly(supabase, session.id)) {
+  // ── 1. Independent checks in parallel ────────────────────────────────────
+  const [isReadOnly, owns, ownedServicesRes] = await Promise.all([
+    checkIsReadOnly(supabase, session.id),
+    bookingBelongsToUser(supabase, bookingId, session.id),
+    serviceIds.length > 0
+      ? supabase.from("services").select("id").eq("user_id", session.id).in("id", serviceIds)
+      : Promise.resolve({ data: [] as { id: number }[], error: null }),
+  ])
+
+  if (isReadOnly) {
     return NextResponse.json({ error: "Your subscription has expired. Please upgrade to update booking services." }, { status: 403 })
   }
-
-  const owns = await verifyBookingOwnership(supabase, bookingId, session.id)
   if (!owns) return NextResponse.json({ error: "Booking not found." }, { status: 404 })
-
-  // 1. Delete existing services for this booking
-  const { error: deleteError } = await supabase
-    .from("booking_services")
-    .delete()
-    .eq("booking_id", bookingId)
-
-  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 400 })
-
-  // 2. Insert new services if any
-  if (services.length > 0) {
-    const insertData = services.map(s => ({
-      booking_id: bookingId,
-      service_id: s.service_id,
-      quantity: Number(s.quantity) || 1,
-      unit_price: Number(s.unit_price) || 0,
-    }))
-
-    const { error: insertError } = await supabase
-      .from("booking_services")
-      .insert(insertData)
-
-    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 400 })
+  if (ownedServicesRes.error) return NextResponse.json({ error: ownedServicesRes.error.message }, { status: 400 })
+  if ((ownedServicesRes.data ?? []).length !== serviceIds.length) {
+    return NextResponse.json({ error: "One or more selected services are invalid." }, { status: 400 })
   }
+
+  // ── 2. Sync in parallel: upsert the kept/new rows, delete the removed ones ─
+  // These touch different rows, and a failure never leaves the booking with
+  // no services (unlike the old delete-all-then-insert).
+  let removeQuery = supabase.from("booking_services").delete().eq("booking_id", bookingId)
+  if (serviceIds.length > 0) {
+    removeQuery = removeQuery.not("service_id", "in", `(${serviceIds.join(",")})`)
+  }
+
+  const [upsertRes, removeRes] = await Promise.all([
+    rows.length > 0
+      ? supabase.from("booking_services").upsert(rows, { onConflict: "booking_id,service_id" })
+      : Promise.resolve({ error: null }),
+    removeQuery,
+  ])
+
+  const writeError = upsertRes.error ?? removeRes.error
+  if (writeError) return NextResponse.json({ error: writeError.message }, { status: 400 })
 
   return NextResponse.json({ success: true })
 }
