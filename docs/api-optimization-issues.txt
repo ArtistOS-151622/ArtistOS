@@ -179,6 +179,11 @@ TIER 2 - REAL GAINS, LESS URGENT
            lib/portfolio/files.ts   (updateFileSortOrder, line ~245)
     Problem: one UPDATE per item, one at a time.
     Fix: a single upsert of {id, sort_order} rows, or at least Promise.all.
+    STATUS: REMOVED (2026-11-05). Correction to the original audit: nothing in
+    the app called these endpoints (no client fetch, no drag-and-drop UI), so
+    they were dead code, not a live slowdown. Both reorder routes and
+    updateFolderSortOrder / updateFileSortOrder were deleted. sort_order is
+    still used for ordering and set on upload.
 
 [9] GET /api/reports/payments
     File: app/api/reports/payments/route.ts  (line ~104)

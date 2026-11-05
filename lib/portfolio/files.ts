@@ -238,22 +238,6 @@ export async function deleteFilesBulk(
   return rows.length
 }
 
-export async function updateFileSortOrder(
-  supabase: SupabaseClient,
-  userId: number,
-  folderId: number,
-  orderedIds: number[]
-): Promise<void> {
-  for (let i = 0; i < orderedIds.length; i++) {
-    await supabase
-      .from("portfolio_files")
-      .update({ sort_order: i })
-      .eq("id", orderedIds[i])
-      .eq("user_id", userId)
-      .eq("folder_id", folderId)
-  }
-}
-
 export async function renameFile(
   supabase: SupabaseClient,
   userId: number,

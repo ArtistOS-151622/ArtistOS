@@ -481,20 +481,6 @@ export async function expireShares(supabase: SupabaseClient): Promise<number> {
   return expired.length
 }
 
-export async function updateFolderSortOrder(
-  supabase: SupabaseClient,
-  userId: number,
-  orderedIds: number[]
-): Promise<void> {
-  for (let i = 0; i < orderedIds.length; i++) {
-    await supabase
-      .from("portfolio_folders")
-      .update({ sort_order: i })
-      .eq("id", orderedIds[i])
-      .eq("user_id", userId)
-  }
-}
-
 export function enrichFolderWithShareUrl(folder: PortfolioFolderRow): PortfolioFolderWithStats {
   return {
     ...folder,
