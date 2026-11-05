@@ -42,6 +42,7 @@ type BookingsResponse = {
   bookings?: Booking[];
   booking?: Booking;
   error?: string;
+  requestId?: string;
 };
 
 export function BookingManager() {
@@ -157,8 +158,6 @@ export function BookingManager() {
     setLoading(true);
     const hasImagesToUpload = Boolean(values.reference_images && values.reference_images.length > 0);
     const hasImagesToDelete = Boolean(values.removed_reference_image_ids && values.removed_reference_image_ids.length > 0);
-    const totalUploadCount = values.reference_images?.length ?? 0;
-
     if (hasImagesToUpload || hasImagesToDelete) {
       setUploadProgress({
         percentage: 10,
@@ -185,19 +184,42 @@ export function BookingManager() {
       additional_request: values.additional_request.trim() || null,
     };
 
+    const requestId = crypto.randomUUID();
     try {
       const res = await fetch(
         editing ? `/api/bookings/${editing.id}` : "/api/bookings",
         {
           method: editing ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-booking-request-id": requestId,
+          },
           body: JSON.stringify(payload),
         },
       );
-      const data = (await res.json()) as BookingsResponse;
+      const responseText = await res.text();
+      let data: BookingsResponse = {};
+      try {
+        data = responseText ? JSON.parse(responseText) as BookingsResponse : {};
+      } catch (error) {
+        console.error("[BookingSave] Invalid API response", {
+          requestId,
+          status: res.status,
+          contentType: res.headers.get("content-type"),
+          responsePreview: responseText.slice(0, 200),
+          error,
+        });
+      }
 
       if (!res.ok || !data.booking) {
-        toast.error(data.error ?? "Unable to save booking.");
+        const failureId = data.requestId ?? res.headers.get("x-booking-request-id") ?? requestId;
+        console.error("[BookingSave] API request failed", {
+          requestId: failureId,
+          status: res.status,
+          statusText: res.statusText,
+          error: data.error,
+        });
+        toast.error(`${data.error ?? "Unable to save booking."} Reference: ${failureId}`);
         setUploadProgress(null);
         return;
       }
@@ -279,8 +301,9 @@ export function BookingManager() {
           void fetchBookings("", statusFilter);
         }
       }
-    } catch {
-      toast.error("Unable to save booking.");
+    } catch (error) {
+      console.error("[BookingSave] Network or client failure", { requestId, error });
+      toast.error(`Unable to save booking. Please check the connection and try again. Reference: ${requestId}`);
       setUploadProgress(null);
     } finally {
       setLoading(false);

@@ -126,14 +126,68 @@ function badRequest(error: string) {
 }
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now()
+  const suppliedRequestId = request.headers.get("x-booking-request-id")?.trim()
+  const requestId = suppliedRequestId && /^[a-zA-Z0-9_-]{1,80}$/.test(suppliedRequestId)
+    ? suppliedRequestId
+    : crypto.randomUUID()
+  const responseHeaders = { "x-booking-request-id": requestId }
+  let stage = "authentication"
+  let bookingId: number | null = null
+  let userId: number | null = null
+
+  const errorDetails = (cause: unknown) => {
+    if (!(cause && typeof cause === "object")) {
+      return cause instanceof Error ? { message: cause.message, name: cause.name } : undefined
+    }
+
+    const value = cause as Record<string, unknown>
+    return {
+      name: typeof value.name === "string" ? value.name : undefined,
+      message: typeof value.message === "string" ? value.message : undefined,
+      code: typeof value.code === "string" ? value.code : undefined,
+      details: typeof value.details === "string" ? value.details : undefined,
+      hint: typeof value.hint === "string" ? value.hint : undefined,
+    }
+  }
+
+  const fail = (error: string, status = 400, cause?: unknown) => {
+    console.error("[BookingCreate]", {
+      requestId,
+      outcome: "failed",
+      stage,
+      status,
+      userId,
+      bookingId,
+      elapsedMs: Date.now() - startedAt,
+      error,
+      cause: errorDetails(cause),
+      userAgent: request.headers.get("user-agent")?.slice(0, 300),
+    })
+    return NextResponse.json({ error, requestId }, { status, headers: responseHeaders })
+  }
+
+  try {
   const session = getArtistSession(request)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!session) return fail("Unauthorized", 401)
+  userId = session.id
 
   // ── 1. Validate everything before touching the database ──────────────────
+  stage = "validation"
   const parsed = validateBookingInput((await request.json()) as BookingInput)
-  if ("error" in parsed) return badRequest(parsed.error)
+  if ("error" in parsed) return fail(parsed.error)
   const input = parsed.data
 
+  console.info("[BookingCreate]", {
+    requestId,
+    outcome: "started",
+    userId: session.id,
+    serviceCount: input.services.length,
+    hasAdvancePayment: input.advancePayment > 0,
+    additionalChargeCount: input.additionalCharges.length,
+  })
+
+  stage = "initial_reads"
   const supabase = await createClient()
 
   // ── 2. Independent reads in parallel: subscription, services, customer ───
@@ -154,25 +208,40 @@ export async function POST(request: NextRequest) {
   ])
 
   if (isReadOnly) {
-    return NextResponse.json({ error: "Your subscription has expired. Please upgrade to create bookings." }, { status: 403 })
+    return fail("Your subscription has expired. Please upgrade to create bookings.", 403)
   }
-  if (servicesRes.error) return badRequest(servicesRes.error.message)
-  if (customerRes.error) return badRequest(customerRes.error.message)
-  if (!customerRes.data) return badRequest("Customer not found.")
-  if ((servicesRes.data ?? []).length !== input.serviceIds.length) return badRequest("One or more selected services are invalid.")
+  if (servicesRes.error) {
+    stage = "services_lookup"
+    return fail(servicesRes.error.message, 400, servicesRes.error)
+  }
+  if (customerRes.error) {
+    stage = "customer_lookup"
+    return fail(customerRes.error.message, 400, customerRes.error)
+  }
+  if (!customerRes.data) {
+    stage = "customer_lookup"
+    return fail("Customer not found.")
+  }
+  if ((servicesRes.data ?? []).length !== input.serviceIds.length) {
+    stage = "services_lookup"
+    return fail("One or more selected services are invalid.")
+  }
 
   const serviceMap = new Map((servicesRes.data as ServiceRow[]).map((s) => [s.id, s]))
 
   // ── 3. Insert the booking ────────────────────────────────────────────────
+  stage = "booking_insert"
   const { data: booking, error: insertError } = await supabase
     .from("bookings")
     .insert({ user_id: session.id, ...input.bookingFields })
     .select(BOOKING_ROW_FIELDS)
     .single()
 
-  if (insertError) return badRequest(insertError.message)
+  if (insertError) return fail(insertError.message, 400, insertError)
+  bookingId = booking.id
 
   // ── 4. Child rows in parallel; each insert returns what the response needs ─
+  stage = "child_inserts"
   const serviceRows = input.services.map(({ service_id, quantity }) => ({
     booking_id: booking.id,
     service_id,
@@ -206,9 +275,27 @@ export async function POST(request: NextRequest) {
 
   const childError = servicesInsert.error ?? chargesInsert.error ?? paymentInsert.error
   if (childError) {
+    stage = servicesInsert.error
+      ? "booking_services_insert"
+      : chargesInsert.error
+        ? "additional_charges_insert"
+        : "advance_payment_insert"
     // Child tables cascade on delete, so removing the booking cleans up any partial inserts.
-    await supabase.from("bookings").delete().eq("id", booking.id)
-    return badRequest(childError.message)
+    const failedBookingId = booking.id
+    const cleanup = await supabase.from("bookings").delete().eq("id", failedBookingId)
+    if (cleanup.error) {
+      console.error("[BookingCreateCleanup]", {
+        requestId,
+        stage,
+        userId,
+        bookingId: failedBookingId,
+        cleanup: "failed",
+        cause: errorDetails(cleanup.error),
+      })
+    } else {
+      bookingId = null
+    }
+    return fail(childError.message, 400, childError)
   }
 
   // ── 5. Build the response from what we already have (no re-fetch) ────────
@@ -233,5 +320,16 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  return NextResponse.json({ booking: formatted })
+  console.info("[BookingCreate]", {
+    requestId,
+    outcome: "succeeded",
+    userId: session.id,
+    bookingId,
+    elapsedMs: Date.now() - startedAt,
+    userAgent: request.headers.get("user-agent")?.slice(0, 300),
+  })
+  return NextResponse.json({ booking: formatted, requestId }, { headers: responseHeaders })
+  } catch (error) {
+    return fail("Unable to save booking.", 500, error)
+  }
 }

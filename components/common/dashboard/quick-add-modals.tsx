@@ -121,16 +121,39 @@ export function QuickAddModals({
       additional_request: bookingValues.additional_request.trim() || null,
     };
 
+    const requestId = crypto.randomUUID();
     try {
       const res = await fetch("/api/bookings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-booking-request-id": requestId,
+        },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: { booking?: { id: number }; error?: string; requestId?: string } = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (error) {
+        console.error("[BookingSave] Invalid API response", {
+          requestId,
+          status: res.status,
+          contentType: res.headers.get("content-type"),
+          responsePreview: responseText.slice(0, 200),
+          error,
+        });
+      }
 
       if (!res.ok || !data.booking) {
-        toast.error(data.error ?? "Unable to save booking.");
+        const failureId = data.requestId ?? res.headers.get("x-booking-request-id") ?? requestId;
+        console.error("[BookingSave] API request failed", {
+          requestId: failureId,
+          status: res.status,
+          statusText: res.statusText,
+          error: data.error,
+        });
+        toast.error(`${data.error ?? "Unable to save booking."} Reference: ${failureId}`);
         setBookingUploadProgress(null);
         return;
       }
@@ -157,8 +180,9 @@ export function QuickAddModals({
       setBookingValues(emptyBookingForm);
       setBookingUploadProgress(null);
       router.refresh();
-    } catch {
-      toast.error("Unable to save booking.");
+    } catch (error) {
+      console.error("[BookingSave] Network or client failure", { requestId, error });
+      toast.error(`Unable to save booking. Please check the connection and try again. Reference: ${requestId}`);
       setBookingUploadProgress(null);
     } finally {
       setBookingLoading(false);
