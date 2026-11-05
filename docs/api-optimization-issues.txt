@@ -193,6 +193,13 @@ TIER 2 - REAL GAINS, LESS URGENT
     query to finish first.
     Fix: run it only when view === "pending", and in parallel with the payments
     query.
+    STATUS: DONE (2026-11-05). Correction: "only when view === pending" would
+    have broken the Pending stat card and tab badge, which show the pending
+    total/count in both views. Instead: both queries run in parallel (2 -> 1
+    round trip); the full pending list is only sent in the pending view
+    (smaller payload). Bugs fixed: with a search in the "all" view the Pending
+    card showed 0; search now also filters the pending list; pending query
+    errors are no longer ignored. Route fully typed (no `any`).
 
 [10] GET /api/reports/customers
     File: app/api/reports/customers/route.ts
@@ -207,6 +214,13 @@ TIER 2 - REAL GAINS, LESS URGENT
     just to count them.
     Fix: use 2 count-only queries (head: true) for satisfaction; do revenue
     totals in SQL.
+    STATUS: PARTLY DONE (2026-11-05). Correction: the route already ran its
+    queries in parallel (1 round trip), so it was never structurally slow.
+    Done: satisfaction uses 2 count-only queries (no rows loaded), still in the
+    same parallel step. Fixed timezone bugs: "this month" and the 6-day mini
+    trends used the server clock (UTC), so 00:00-05:30 IST they showed the
+    wrong month/day; all dates now use IST. Not done: revenue totals in SQL
+    (needs a DB function; small data at current scale).
 
 [12] POST /api/customers
     File: app/api/customers/route.ts  (POST, line ~92)

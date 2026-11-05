@@ -37,6 +37,20 @@ const monthsShort = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ]
 
+/** The app's users are in India; all "today"/"this month" logic uses IST, not the server's timezone (UTC on Vercel). */
+const APP_TIME_ZONE = "Asia/Kolkata"
+
+/** YYYY-MM-DD for the given instant, in IST. */
+function toIstDateStr(date: Date) {
+  return date.toLocaleDateString("en-CA", { timeZone: APP_TIME_ZONE })
+}
+
+/** Year and 0-indexed month of a YYYY-MM-DD string, read directly (no timezone conversion). */
+function bookingYM(dateStr: string) {
+  const [year, month] = dateStr.split("-").map(Number)
+  return { year, month: month - 1 }
+}
+
 export async function GET(request: NextRequest) {
   const session = getArtistSession(request)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -44,19 +58,16 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    const now = new Date()
-    const currentYear = now.getFullYear()
-    const currentMonth = now.getMonth() // 0-indexed: 0 = Jan, 11 = Dec
-
-    // Date strings
-    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+    // Date strings (IST)
+    const todayStr = toIstDateStr(new Date())
+    const { year: currentYear, month: currentMonth } = bookingYM(todayStr) // month 0-indexed: 0 = Jan
     const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear
     const prevMonth = currentMonth === 0 ? 12 : currentMonth // 1-indexed
     const prevMonthStr = `${prevMonthYear}-${String(prevMonth).padStart(2, "0")}-01`
     const endOfYearStr = `${currentYear}-12-31`
 
     // Execute queries in parallel
-    const [bookingsRes, upcomingRes, totalCustomersRes, satisfactionRes] = await Promise.all([
+    const [bookingsRes, upcomingRes, totalCustomersRes, completedCountRes, cancelledCountRes] = await Promise.all([
       // 1. Bookings for current year + previous month for MoM calculations
       supabase
         .from("bookings")
@@ -105,12 +116,17 @@ export async function GET(request: NextRequest) {
         .select("id", { count: "exact", head: true })
         .eq("user_id", session.id),
 
-      // 4. All-time completed/cancelled bookings for lifetime satisfaction rate
+      // 4 + 5. Lifetime completed / cancelled counts for the satisfaction rate (counts only, no rows)
       supabase
         .from("bookings")
-        .select("status")
+        .select("id", { count: "exact", head: true })
         .eq("user_id", session.id)
-        .in("status", ["completed", "cancelled"]),
+        .eq("status", "completed"),
+      supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", session.id)
+        .eq("status", "cancelled"),
     ])
 
     if (bookingsRes.error) {
@@ -140,10 +156,10 @@ export async function GET(request: NextRequest) {
     // 1. Revenue calculations
     const currentMonthRevenue = bookings
       .filter((b: any) => {
-        const d = new Date(b.booking_date)
+        const d = bookingYM(b.booking_date)
         return (
-          d.getFullYear() === currentYear &&
-          d.getMonth() === currentMonth &&
+          d.year === currentYear &&
+          d.month === currentMonth &&
           (b.status === "completed" || b.status === "confirmed")
         )
       })
@@ -154,10 +170,10 @@ export async function GET(request: NextRequest) {
 
     const lastMonthRevenue = bookings
       .filter((b: any) => {
-        const d = new Date(b.booking_date)
+        const d = bookingYM(b.booking_date)
         return (
-          d.getFullYear() === ly &&
-          d.getMonth() === lm &&
+          d.year === ly &&
+          d.month === lm &&
           (b.status === "completed" || b.status === "confirmed")
         )
       })
@@ -177,15 +193,15 @@ export async function GET(request: NextRequest) {
 
     const currentMonthClients = getActiveClients(
       bookings.filter((b: any) => {
-        const d = new Date(b.booking_date)
-        return d.getFullYear() === currentYear && d.getMonth() === currentMonth
+        const d = bookingYM(b.booking_date)
+        return d.year === currentYear && d.month === currentMonth
       }),
     )
 
     const lastMonthClients = getActiveClients(
       bookings.filter((b: any) => {
-        const d = new Date(b.booking_date)
-        return d.getFullYear() === ly && d.getMonth() === lm
+        const d = bookingYM(b.booking_date)
+        return d.year === ly && d.month === lm
       }),
     )
 
@@ -202,13 +218,13 @@ export async function GET(request: NextRequest) {
 
     // 3. New bookings count and growth
     const currentMonthBookings = bookings.filter((b: any) => {
-      const d = new Date(b.booking_date)
-      return d.getFullYear() === currentYear && d.getMonth() === currentMonth
+      const d = bookingYM(b.booking_date)
+      return d.year === currentYear && d.month === currentMonth
     })
 
     const lastMonthBookings = bookings.filter((b: any) => {
-      const d = new Date(b.booking_date)
-      return d.getFullYear() === ly && d.getMonth() === lm
+      const d = bookingYM(b.booking_date)
+      return d.year === ly && d.month === lm
     })
 
     let bookingsGrowthStr = "0% MoM"
@@ -223,17 +239,16 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. Satisfaction rate
-    const statusData = satisfactionRes.data ?? []
-    const completedCount = statusData.filter((b) => b.status === "completed").length
-    const cancelledCount = statusData.filter((b) => b.status === "cancelled").length
+    const completedCount = completedCountRes.count ?? 0
+    const cancelledCount = cancelledCountRes.count ?? 0
     const totalEnded = completedCount + cancelledCount
     const satisfactionRate = totalEnded > 0 ? Math.round((completedCount / totalEnded) * 100) : 100
 
     // 5. Monthly appointments data (Jan - Dec of current year)
     const appointmentChartData = monthsShort.map((month, index) => {
       const monthBookings = bookings.filter((b: any) => {
-        const d = new Date(b.booking_date)
-        return d.getFullYear() === currentYear && d.getMonth() === index
+        const d = bookingYM(b.booking_date)
+        return d.year === currentYear && d.month === index
       })
       const total = monthBookings.length
       const completed = monthBookings.filter((b: any) => b.status === "completed").length
@@ -248,8 +263,8 @@ export async function GET(request: NextRequest) {
     let totalRevenueSum = 0
 
     bookings.forEach((b: any) => {
-      const d = new Date(b.booking_date)
-      if (d.getFullYear() === currentYear && (b.status === "completed" || b.status === "confirmed")) {
+      const d = bookingYM(b.booking_date)
+      if (d.year === currentYear && (b.status === "completed" || b.status === "confirmed")) {
         b.booking_services?.forEach((bs: any) => {
           const price = Number(bs.unit_price ?? bs.service?.price ?? 0) * Number(bs.quantity || 1)
           const name = bs.service?.service_name || "Unknown Service"
@@ -309,10 +324,11 @@ export async function GET(request: NextRequest) {
     }
 
     for (let i = 5; i >= 0; i--) {
-      const d = new Date()
-      d.setDate(d.getDate() - i)
-      const label = days[d.getDay()]
-      const dStr = d.toISOString().split("T")[0]
+      // Step back from today's IST date using UTC arithmetic on the date string itself
+      const day = new Date(`${todayStr}T00:00:00Z`)
+      day.setUTCDate(day.getUTCDate() - i)
+      const label = days[day.getUTCDay()]
+      const dStr = day.toISOString().split("T")[0]
 
       const dayBookings = bookings.filter((b: any) => b.booking_date === dStr)
 
