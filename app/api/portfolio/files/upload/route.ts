@@ -8,12 +8,14 @@ import {
   findOrCreateDefaultPortfolioFolder,
 } from "@/lib/portfolio/folders"
 import {
-  confirmFileUpload,
+  deleteFromR2,
+  getNextSortOrder,
+  insertFileRecord,
   overwriteFileInR2,
   prepareUploadKey,
   validateUpload,
 } from "@/lib/portfolio/files"
-import { getOrCreateQuota as fetchQuota, QuotaService } from "@/lib/portfolio/quota"
+import { getOrCreateQuota as fetchQuota, incrementUsage, QuotaService } from "@/lib/portfolio/quota"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
 import { sanitizeFilename, validateMagicBytes } from "@/lib/portfolio/security"
 import { createClient } from "@/lib/supabase/server"
@@ -62,107 +64,120 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createClient()
 
-  // 6. Check subscription status
-  if (await checkIsReadOnly(supabase, session.id)) {
+  let folderId = folderIdValue ? Number(folderIdValue) : null
+  const bookingId = bookingIdValue ? Number(bookingIdValue) : null
+  const courseId = courseIdValue ? Number(courseIdValue) : null
+
+  // 6. Independent checks in ONE parallel round (they used to run one after another):
+  //    subscription, storage quota, booking / course / folder ownership.
+  //    Results are still evaluated in the original order below.
+  const [isReadOnly, quotaResult, bookingRes, courseRes, providedFolderRes] = await Promise.all([
+    checkIsReadOnly(supabase, session.id),
+    // Captured instead of thrown so a quota error can't hide the subscription check
+    fetchQuota(supabase, session.id).then(
+      (row) => ({ row, error: null as unknown }),
+      (error: unknown) => ({ row: null, error }),
+    ),
+    bookingId
+      ? supabase.from("bookings").select("id").eq("id", bookingId).eq("user_id", session.id).maybeSingle()
+      : null,
+    courseId
+      ? supabase.from("courses").select("id, name").eq("id", courseId).eq("user_id", session.id).maybeSingle()
+      : null,
+    folderId
+      ? supabase.from("portfolio_folders").select("id").eq("id", folderId).eq("user_id", session.id).maybeSingle()
+      : null,
+  ])
+
+  if (isReadOnly) {
     return portfolioError("Your subscription has expired. Please upgrade to upload files.", 403)
   }
 
   try {
     // 7. Enforce storage quota on server
-    const quotaRow = await fetchQuota(supabase, session.id)
-    const quota = QuotaService.fromRow(quotaRow)
+    if (quotaResult.error || !quotaResult.row) throw quotaResult.error ?? new Error("Upload failed")
+    const quota = QuotaService.fromRow(quotaResult.row)
     const check = quota.canUpload(file.size)
     if (!check.allowed) {
       return portfolioError(check.reason ?? "Storage quota exceeded", 402)
     }
 
-    let folderId = folderIdValue ? Number(folderIdValue) : null
-    const bookingId = bookingIdValue ? Number(bookingIdValue) : null
-    const courseId = courseIdValue ? Number(courseIdValue) : null
-
     // 8. Strict booking ownership verification
-    if (bookingId) {
-      const { data: bookingCheck, error: bookingErr } = await supabase
-        .from("bookings")
-        .select("id")
-        .eq("id", bookingId)
-        .eq("user_id", session.id)
-        .maybeSingle()
-
-      if (bookingErr || !bookingCheck) {
-        return portfolioError("Booking not found or access denied", 403)
-      }
-
-      if (!folderId) {
-        const folder = await findOrCreateBookingFolder(supabase, session.id, bookingId)
-        folderId = folder.id
-      }
+    if (bookingId && (!bookingRes || bookingRes.error || !bookingRes.data)) {
+      return portfolioError("Booking not found or access denied", 403)
     }
 
     // 9. Strict course ownership verification
-    if (courseId) {
-      const { data: courseCheck, error: courseErr } = await supabase
-        .from("courses")
-        .select("id, name")
-        .eq("id", courseId)
-        .eq("user_id", session.id)
-        .maybeSingle()
-
-      if (courseErr || !courseCheck) {
-        return portfolioError("Course not found or access denied", 403)
-      }
-
-      if (!folderId) {
-        const folder = await findOrCreateCourseFolder(supabase, session.id, courseId, courseCheck.name)
-        folderId = folder.id
-      }
+    if (courseId && (!courseRes || courseRes.error || !courseRes.data)) {
+      return portfolioError("Course not found or access denied", 403)
     }
 
+    // 10. Verify a client-supplied folder belongs to the user
+    if (folderId && !providedFolderRes?.data) {
+      return portfolioError("Folder not found or access denied", 404)
+    }
+
+    // 11. Resolve the target folder when none was given (booking > course > default).
+    //     These helpers only find or create folders owned by this user, so no
+    //     separate ownership check is needed for the folder they return.
     if (!folderId) {
-      const folder = await findOrCreateDefaultPortfolioFolder(supabase, session.id)
-      folderId = folder.id
-    }
-
-    // 9. Verify folder belongs to user
-    const { data: folderCheck } = await supabase
-      .from("portfolio_folders")
-      .select("id")
-      .eq("id", folderId)
-      .eq("user_id", session.id)
-      .maybeSingle()
-
-    if (!folderCheck) return portfolioError("Folder not found or access denied", 404)
-
-    // 10. For reference photos and course photos, enforce max 3 items
-    if (section === "reference" || section === "course") {
-      const { count } = await supabase
-        .from("portfolio_files")
-        .select("*", { count: "exact", head: true })
-        .eq("folder_id", folderId)
-        .eq("section", section)
-
-      if ((count ?? 0) >= 3) {
-        return portfolioError(`Maximum of 3 ${section} images allowed`, 400)
+      if (bookingId) {
+        folderId = (await findOrCreateBookingFolder(supabase, session.id, bookingId)).id
+      } else if (courseId && courseRes?.data) {
+        folderId = (await findOrCreateCourseFolder(supabase, session.id, courseId, courseRes.data.name)).id
+      } else {
+        folderId = (await findOrCreateDefaultPortfolioFolder(supabase, session.id)).id
       }
     }
+    const targetFolderId = folderId
 
-    // 11. Secure randomized UUID storage key
-    const { key, extension } = prepareUploadKey(session.id, folderId, safeFileName)
+    // 12. In parallel: the "max 3 reference/course images" count and the next sort position
+    const limitSection = section === "reference" || section === "course"
+    const [sectionCountRes, sortOrder] = await Promise.all([
+      limitSection
+        ? supabase
+            .from("portfolio_files")
+            .select("*", { count: "exact", head: true })
+            .eq("folder_id", targetFolderId)
+            .eq("section", section)
+        : null,
+      getNextSortOrder(supabase, targetFolderId),
+    ])
 
-    // 12. Upload to Cloudflare R2
-    await overwriteFileInR2(key, buffer, mimeType)
+    if (limitSection && (sectionCountRes?.count ?? 0) >= 3) {
+      return portfolioError(`Maximum of 3 ${section} images allowed`, 400)
+    }
 
-    // 13. Confirm upload in database
-    const uploaded = await confirmFileUpload(supabase, {
+    // 13. Secure randomized UUID storage key
+    const { key, extension } = prepareUploadKey(session.id, targetFolderId, safeFileName)
+
+    // 14. Upload to Cloudflare R2 and, at the same time, re-check the quota with fresh
+    //     numbers (other uploads may have finished meanwhile). This is the same re-check
+    //     confirmFileUpload does after the upload, just overlapped with it.
+    const [, freshQuotaRow] = await Promise.all([
+      overwriteFileInR2(key, buffer, mimeType),
+      fetchQuota(supabase, session.id),
+    ])
+    const freshCheck = QuotaService.fromRow(freshQuotaRow).canUpload(file.size)
+    if (!freshCheck.allowed) {
+      // Don't leave the uploaded object behind when the upload is rejected
+      await deleteFromR2([key]).catch(() => {})
+      throw new Error(freshCheck.reason ?? "Upload not allowed")
+    }
+
+    // 15. Record the file, then add its size to used storage
+    const uploaded = await insertFileRecord(supabase, {
       userId: session.id,
-      folderId,
+      folderId: targetFolderId,
       storagePath: key,
       originalName: safeFileName,
       mimeType,
       extension,
       fileSize: file.size,
       section,
+      sortOrder,
     })
+    await incrementUsage(supabase, session.id, file.size)
 
     if (setAsAvatar) {
       await supabase

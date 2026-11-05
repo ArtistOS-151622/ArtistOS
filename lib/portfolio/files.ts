@@ -135,18 +135,24 @@ export async function deleteFromR2(keys: string[]): Promise<void> {
   )
 }
 
+export type FileUploadParams = {
+  userId: number
+  folderId: number
+  storagePath: string
+  originalName: string
+  mimeType: string
+  extension: string
+  fileSize: number
+  section?: string | null
+}
+
+/**
+ * Re-checks quota, inserts the file row and adds its size to used storage.
+ * Used by flows that upload first and confirm afterwards (presign/confirm, signup).
+ */
 export async function confirmFileUpload(
   supabase: SupabaseClient,
-  params: {
-    userId: number
-    folderId: number
-    storagePath: string
-    originalName: string
-    mimeType: string
-    extension: string
-    fileSize: number
-    section?: string | null
-  }
+  params: FileUploadParams
 ): Promise<PortfolioFileWithUrl> {
   const quotaRow = await getOrCreateQuota(supabase, params.userId)
   const quota = QuotaService.fromRow(quotaRow)
@@ -155,6 +161,20 @@ export async function confirmFileUpload(
 
   const sortOrder = await getNextSortOrder(supabase, params.folderId)
 
+  const file = await insertFileRecord(supabase, { ...params, sortOrder })
+
+  await incrementUsage(supabase, params.userId, params.fileSize)
+  return file
+}
+
+/**
+ * Inserts the portfolio_files row only (no quota check, no usage update).
+ * Callers are responsible for both; see confirmFileUpload and the upload route.
+ */
+export async function insertFileRecord(
+  supabase: SupabaseClient,
+  params: FileUploadParams & { sortOrder: number }
+): Promise<PortfolioFileWithUrl> {
   const { data, error } = await supabase
     .from("portfolio_files")
     .insert({
@@ -166,15 +186,13 @@ export async function confirmFileUpload(
       mime_type: params.mimeType,
       extension: params.extension,
       file_size: params.fileSize,
-      sort_order: sortOrder,
+      sort_order: params.sortOrder,
       uploaded_by: params.userId,
     })
     .select("*")
     .single()
 
   if (error) throw new Error(error.message)
-
-  await incrementUsage(supabase, params.userId, params.fileSize)
   return enrichFile(data as PortfolioFileRow)
 }
 

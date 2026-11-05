@@ -54,22 +54,26 @@ export async function findOrCreateBookingFolder(
   userId: number,
   bookingId: number
 ): Promise<PortfolioFolderRow> {
-  const { data: booking } = await supabase
-    .from("bookings")
-    .select("id, customer:customers(customer_name)")
-    .eq("id", bookingId)
-    .eq("user_id", userId)
-    .maybeSingle()
+  // These three reads are independent: run them together instead of one after another
+  const [{ data: booking }, index, existing] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("id, customer:customers(customer_name)")
+      .eq("id", bookingId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+    getBookingIndex(supabase, userId, bookingId),
+    findFolderByBooking(supabase, userId, bookingId),
+  ])
 
   if (!booking) {
     throw new Error("Booking not found or access denied")
   }
 
-  const customerName = (booking?.customer as any)?.customer_name
-  const index = await getBookingIndex(supabase, userId, bookingId)
+  const customer = Array.isArray(booking.customer) ? booking.customer[0] : booking.customer
+  const customerName = (customer as { customer_name?: string } | null)?.customer_name
   const name = customerName ? `Booking - ${customerName} (#${index})` : `Booking #${index}`
 
-  const existing = await findFolderByBooking(supabase, userId, bookingId)
   if (existing) {
     if ((!existing.name.startsWith("Booking - ") || existing.name.startsWith("Booking #")) && customerName) {
       const { data: updated } = await supabase

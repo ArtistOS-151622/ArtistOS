@@ -93,6 +93,7 @@
 
 | Date | Lesson |
 |---|---|
+| 2026-11-05 | Testing lib code that uses the `@/` alias or `next/*`: register `tests/helpers/alias-hooks.mjs` via `node:module` `register()` and load modules with dynamic `import()` (see `tests/portfolio-upload-helpers.test.ts`). Node strip-types can't parse TS parameter properties (`constructor(private x)`); use plain fields. |
 | 2026-11-04 | There IS a test runner despite older docs: `pnpm test` = `node --test tests/*.test.ts` (node:test + node:assert, Supabase mocked by hand). Run it after changing lib code; update the matching test when a signature changes. |
 | 2026-11-04 | Booking create/edit share validation + response shaping in `lib/bookings/booking-input.ts`. `booking_services` PK is `(booking_id, service_id)` and all booking child tables `ON DELETE CASCADE`. Edit syncs services via upsert + delete-removed, never delete-all-then-insert. |
 | 2026-08-17 | `proxy.ts` not `middleware.ts` — tripped up every new agent session before this file existed. |

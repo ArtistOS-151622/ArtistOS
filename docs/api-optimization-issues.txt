@@ -151,6 +151,21 @@ TIER 1 - FIX FIRST
     booking is removed. tests/inquiry-convert.test.ts updated (3 tests).
 
 
+[5c] POST /api/portfolio/files/upload  (found 2026-11-05; used by 5 screens)
+    Files: app/api/portfolio/files/upload/route.ts, lib/portfolio/{quota,
+           folders,files}.ts
+    STATUS: DONE (2026-11-05). Was ~18-25 sequential DB calls per file
+    (quota read 3x, ownership checked twice, every helper sequential). Now:
+    subscription + quota + booking/course/folder checks in one parallel
+    round; getOrCreateQuota reads user/quota/subscription in parallel;
+    findOrCreateBookingFolder reads booking/number/folder in parallel; section
+    count + sort order in parallel; quota re-check overlaps the R2 upload.
+    ~7-8 rounds. Same responses and status codes. Rejected uploads now delete
+    their R2 object. confirmFileUpload unchanged for its other callers.
+    Tests: tests/portfolio-upload-helpers.test.ts (9, written against the old
+    code first, then kept passing).
+
+
 -------------------------------------------------------------------------------
 TIER 2 - REAL GAINS, LESS URGENT
 -------------------------------------------------------------------------------
@@ -206,6 +221,18 @@ TIER 2 - REAL GAINS, LESS URGENT
     Problem: loads every customer with all their bookings, services, charges and
     payments. No pagination.
     Fix: do the per-customer totals in a SQL view or function, or paginate.
+    STATUS: DEFERRED (2026-11-05). Report is already 1 round trip and the
+    detail drawer uses the full booking data, so no quick win. Open question:
+    it counts cancelled bookings in billed/balance due (payments report does not).
+    Related, also DEFERRED: the customer_stats view (GET /api/customers) groups
+    ALL customers x bookings before filtering by user_id. Works correctly; only
+    a scaling concern. Ready-to-apply fix (bookings_customer_id_idx exists):
+      create or replace view public.customer_stats as
+      select c.id, c.user_id, c.customer_name, c.phone, c.alt_phone, c.email,
+             c.address, c.reference_by, c.created_at,
+             (select count(*)::int from public.bookings b
+               where b.customer_id = c.id) as booking_count
+      from public.customers c;
 
 [11] GET /api/dashboard
     File: app/api/dashboard/route.ts

@@ -12,7 +12,13 @@ import type {
 import { formatBytes } from "@/lib/portfolio/response"
 
 export class QuotaService {
-  constructor(private row: PortfolioStorageQuotaRow) {}
+  // Plain field instead of a constructor parameter property so node's type
+  // stripping (used by `pnpm test`) can load this module.
+  private row: PortfolioStorageQuotaRow
+
+  constructor(row: PortfolioStorageQuotaRow) {
+    this.row = row
+  }
 
   static fromRow(row: PortfolioStorageQuotaRow): QuotaService {
     return new QuotaService(row)
@@ -117,28 +123,36 @@ export async function getOrCreateQuota(
 ): Promise<PortfolioStorageQuotaRow> {
   const numUserId = Number(userId)
 
-  // Check user custom storage override, free user status, or plan defaults
-  let isFree = false
-  let customStorageBytes: number | null = null
-
-  try {
-    const { data: user } = await supabase
+  // The user flags, the quota row and the latest paid subscription are independent
+  // reads: load them together instead of one after another. The subscription is
+  // only used below for paid users with an existing row and no custom override.
+  const [userRes, existingRes, activeSubRes] = await Promise.all([
+    supabase
       .from("users")
       .select("is_free_user, custom_storage_bytes")
       .eq("id", numUserId)
-      .maybeSingle()
+      .maybeSingle(),
+    supabase
+      .from("portfolio_storage_quotas")
+      .select("*")
+      .eq("user_id", numUserId)
+      .maybeSingle(),
+    supabase
+      .from("user_subscriptions")
+      .select("status, platform_subscriptions(storage_quota_mb, has_whatsapp_automation)")
+      .eq("user_id", numUserId)
+      .in("status", ["active", "pending"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
 
-    isFree = Boolean(user?.is_free_user)
-    if (user?.custom_storage_bytes !== null && user?.custom_storage_bytes !== undefined) {
-      customStorageBytes = Number(user.custom_storage_bytes)
-    }
-  } catch {
-    const { data: user } = await supabase
-      .from("users")
-      .select("is_free_user")
-      .eq("id", numUserId)
-      .maybeSingle()
-    isFree = Boolean(user?.is_free_user)
+  // Check user custom storage override, free user status, or plan defaults
+  const user = userRes.data
+  const isFree = Boolean(user?.is_free_user)
+  let customStorageBytes: number | null = null
+  if (user?.custom_storage_bytes !== null && user?.custom_storage_bytes !== undefined) {
+    customStorageBytes = Number(user.custom_storage_bytes)
   }
 
   // Target storage calculation: Custom override > Free user (500MB) > Trial (10MB)
@@ -146,11 +160,7 @@ export async function getOrCreateQuota(
     ? customStorageBytes
     : (isFree ? 500 * 1024 * 1024 : STORAGE_FREE_TIER_BYTES)
 
-  const { data: existing } = await supabase
-    .from("portfolio_storage_quotas")
-    .select("*")
-    .eq("user_id", numUserId)
-    .maybeSingle()
+  const existing = existingRes.data
 
   if (existing) {
     if (customStorageBytes !== null) {
@@ -168,16 +178,8 @@ export async function getOrCreateQuota(
         .eq("id", existing.id)
       existing.free_storage_bytes = targetFreeBytes
     } else if (!isFree) {
-      // Check active paid subscription quota
-      const { data: activeSub } = await supabase
-        .from("user_subscriptions")
-        .select("status, platform_subscriptions(storage_quota_mb, has_whatsapp_automation)")
-        .eq("user_id", numUserId)
-        .in("status", ["active", "pending"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
+      // Active paid subscription quota (loaded above, in parallel)
+      const activeSub = activeSubRes.data
       const rawPlan = activeSub?.platform_subscriptions as any
       let allowedFreeBytes = STORAGE_FREE_TIER_BYTES
       if (activeSub && rawPlan) {
