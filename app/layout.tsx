@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { PwaInstallPrompt } from "@/components/common/pwa/pwa-install-prompt";
 import { Toaster } from "@/components/ui/sonner";
 import { JsonLd } from "@/components/common/seo/json-ld";
@@ -23,6 +24,8 @@ const playfairDisplay = Playfair_Display({
 
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.artistos.in";
 const OG_IMAGE = `${APP_URL}/og-image.png`;
+const GOOGLE_ANALYTICS_ID =
+  process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || "G-646BT5MWM0";
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
@@ -193,6 +196,7 @@ export default function RootLayout({
         <PwaInstallPrompt />
         <Toaster position="top-right" duration={3000} richColors />
       </body>
+      <GoogleAnalytics gaId={GOOGLE_ANALYTICS_ID} />
     </html>
   );
 }
