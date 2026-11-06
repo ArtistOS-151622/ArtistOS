@@ -37,6 +37,9 @@ TIER 1 - FIX FIRST (biggest waste, small changes)
 
 [F1] Portfolio folder search fires a heavy request on every keystroke
     File: app/(dashboard)/portfolio/page.tsx  (lines ~34-36, input ~146)
+    STATUS: DONE (2026-11-06) - search filters the loaded list in the browser
+    (same rule: case-insensitive name/description). 1 heavy request per
+    keystroke -> 0. The API's ?search= param is kept but no longer used here.
     Problem:
     - `search` goes straight into the SWR key with no debounce. Typing
       "wedding" = 7 requests to GET /api/portfolio/folders.
@@ -195,6 +198,14 @@ TIER 2 - REAL GAINS, MORE WORK OR LOWER TRAFFIC
            dashboard-sidebar.tsx, notifications-dropdown.tsx, portfolio pages,
            billing, notifications, ...); components/common/dashboard/
            dashboard-shell.tsx for the provider.
+    STATUS: DONE (2026-11-06) - lib/swr/config.ts (jsonFetcher, FetchError,
+    swrConfig) + <SWRConfig> in DashboardShell. All dashboard SWR callers use
+    it (9 local fetchers removed). Focus revalidation off by default; kept as
+    an explicit opt-in for subscription-status, /api/dashboard and booking
+    counts, throttled to once a minute. No retries on 4xx, max 3 on 5xx.
+    Folder page no longer spins forever if the folder list fails.
+    Shared hooks (useServices etc.) NOT added yet - they come with [F3].
+    Landing page and admin keep their own fetchers (outside the shell).
     Problem:
     - `fetch(url).then(r => r.json())` never throws on 401/500, so SWR caches
       the error body as if it were data (hence the Array.isArray guards) and
