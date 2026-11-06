@@ -5,23 +5,13 @@ import { DashboardTopbar } from "@/components/common/dashboard/dashboard-topbar"
 import { HeaderProvider } from "@/components/common/dashboard/dashboard-header-context";
 import { SubscriptionGuardProvider } from "@/components/common/subscription/subscription-guard-provider";
 import { usePathname } from "next/navigation";
+import { getDashboardSection } from "@/lib/dashboard/sections";
 import type { ReactNode } from "react";
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "";
 
-  const active = pathname.includes('/bookings') ? 'bookings' :
-    pathname.includes('/inquiries') ? 'inquiries' :
-    pathname.includes('/portfolio') ? 'portfolio' :
-    pathname.includes('/customers') ? 'customers' :
-    pathname.includes('/services') ? 'services' :
-    pathname.includes('/courses') ? 'courses' :
-    pathname.includes('/reports') ? 'reports' :
-    pathname.includes('/calendar') ? 'calendar' :
-    pathname.includes('/profile') ? 'profile' :
-    pathname.includes('/support') ? 'support' :
-    pathname.includes('/billing') ? 'billing' :
-    pathname.includes('/notifications') ? 'notifications' : 'dashboard'
+  const active = getDashboardSection(pathname)
 
   return (
     <HeaderProvider>

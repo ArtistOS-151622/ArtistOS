@@ -93,6 +93,7 @@
 
 | Date | Lesson |
 |---|---|
+| 2026-11-06 | `shadcn add` (base-nova) can emit `import { cn } from "cn"` and add the unrelated npm `cn` package. Fix the import to `@/lib/utils` and `pnpm remove cn`. Dashboard pages are all prerendered (static), so `loading.tsx` adds nothing in prod; slow-feeling nav is usually `pnpm dev` compile time. |
 | 2026-11-05 | Testing lib code that uses the `@/` alias or `next/*`: register `tests/helpers/alias-hooks.mjs` via `node:module` `register()` and load modules with dynamic `import()` (see `tests/portfolio-upload-helpers.test.ts`). Node strip-types can't parse TS parameter properties (`constructor(private x)`); use plain fields. |
 | 2026-11-04 | There IS a test runner despite older docs: `pnpm test` = `node --test tests/*.test.ts` (node:test + node:assert, Supabase mocked by hand). Run it after changing lib code; update the matching test when a signature changes. |
 | 2026-11-04 | Booking create/edit share validation + response shaping in `lib/bookings/booking-input.ts`. `booking_services` PK is `(booking_id, service_id)` and all booking child tables `ON DELETE CASCADE`. Edit syncs services via upsert + delete-removed, never delete-all-then-insert. |
