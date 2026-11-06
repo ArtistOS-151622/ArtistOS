@@ -24,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { invalidateServices } from "@/lib/hooks/use-lookups";
 import { cn } from "@/lib/utils";
 
 const emptyForm: ServiceFormValues = {
@@ -133,6 +134,8 @@ export function ServiceManager() {
             ...prev.filter((s) => s.id !== savedService.id),
           ]);
         }
+        // Forms that use the cached services list (booking form) are now out of date.
+        invalidateServices();
         cancelEdit();
       }
     } catch {
@@ -160,6 +163,7 @@ export function ServiceManager() {
         const targetId = deleting.id;
         setServices((prev) => prev.filter((s) => s.id !== targetId));
         setDeleting(null);
+        invalidateServices();
       }
     } catch {
       setError("Unable to delete service.");

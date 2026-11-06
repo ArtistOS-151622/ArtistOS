@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Filter, Loader2, Plus, Search, User, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { invalidateCustomerList } from "@/lib/hooks/use-lookups";
 
 import { SkeletonCard } from "@/components/common/shared/skeleton-card";
 import { AppModal } from "@/components/common/shared/app-modal";
@@ -281,6 +282,8 @@ export function CustomerManager() {
             ...prev.filter((c) => c.id !== savedCustomer.id),
           ]);
         }
+        // The booking form's cached customer dropdown is now out of date.
+        invalidateCustomerList();
         cancelEdit();
       }
     } catch {
@@ -307,6 +310,7 @@ export function CustomerManager() {
         // Optimistically remove customer from state immediately without multi-page waterfall!
         setCustomers((prev) => prev.filter((c) => c.id !== targetId));
         setDeleting(null);
+        invalidateCustomerList();
       }
     } catch {
       toast.error("Unable to delete customer.");

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   MapPin,
   Plus,
@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { StoragePlansModal } from "@/components/storage/storage-plans-modal";
-import type { StoragePlanRow, QuotaInfo } from "@/lib/portfolio/types";
+import { useCustomerList, useServices, useStorageInfo } from "@/lib/hooks/use-lookups";
 
 import type {
   Customer,
@@ -94,8 +94,25 @@ export function BookingForm({
   formId = "booking-form",
   onQuotaExceededChange,
 }: BookingFormProps) {
-  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
-  const [allServices, setAllServices] = useState<ArtistService[]>([]);
+  // Services, the recent-customers list and storage info come from shared SWR
+  // caches: reopening the form reuses them instead of refetching every time
+  // (it used to load services, then customers, one after the other, on every open).
+  const { services: allServices, addService } = useServices();
+  const { customers: cachedCustomers, addCustomer } = useCustomerList();
+  // Customers found by typing in the dropdown (beyond the cached first page).
+  const [searchedCustomers, setSearchedCustomers] = useState<Customer[]>([]);
+  const initialCustomer = values.initial_customer as Customer | undefined;
+  const allCustomers = useMemo(() => {
+    const seen = new Set<number>();
+    const merged: Customer[] = [];
+    for (const c of [...cachedCustomers, ...searchedCustomers]) {
+      if (seen.has(c.id)) continue;
+      seen.add(c.id);
+      merged.push(c);
+    }
+    // The booking's own customer (when editing) goes first if the list lacks it.
+    return initialCustomer && !seen.has(initialCustomer.id) ? [initialCustomer, ...merged] : merged;
+  }, [initialCustomer, cachedCustomers, searchedCustomers]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
@@ -131,27 +148,8 @@ export function BookingForm({
   const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null);
 
   // Storage Quota states
-  const [storageQuota, setStorageQuota] = useState<QuotaInfo | null>(null);
-  const [storagePlans, setStoragePlans] = useState<StoragePlanRow[]>([]);
+  const { quota: storageQuota, plans: storagePlans, refresh: refreshStorageInfo } = useStorageInfo();
   const [storageModalOpen, setStorageModalOpen] = useState(false);
-
-  const loadStorageInfo = useCallback(async () => {
-    try {
-      const res = await fetch("/api/portfolio/storage-info");
-      if (!res.ok) return;
-      const json = await res.json();
-      if (json.status && json.data) {
-        setStorageQuota(json.data.quota ?? null);
-        setStoragePlans(json.data.plans ?? []);
-      }
-    } catch (err) {
-      console.error("Failed to load storage quota:", err);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadStorageInfo();
-  }, [loadStorageInfo]);
 
   // Compute total size of newly selected images
   const newFilesTotalBytes = slots.reduce(
@@ -381,29 +379,8 @@ export function BookingForm({
     });
   };
 
-  // Fetch initial data
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const resServices = await fetch("/api/services");
-        if (resServices.ok) {
-          const dataS = await resServices.json();
-          setAllServices(dataS.services ?? []);
-        }
-
-        const resCustomers = await fetch("/api/customers");
-        if (resCustomers.ok) {
-          const dataC = await resCustomers.json();
-          setAllCustomers(dataC.customers ?? []);
-        }
-      } catch (err) {
-        console.error("Failed to load initial data for BookingForm", err);
-      }
-    }
-    void loadData();
-  }, []);
-
-  // Sync selected customer when customer_id changes
+  // Sync selected customer when customer_id changes. values.initial_customer
+  // (editing a booking) is part of allCustomers, so it is found here too.
   useEffect(() => {
     if (values.customer_id) {
       const match = allCustomers.find(
@@ -411,19 +388,11 @@ export function BookingForm({
       );
       if (match) {
         setSelectedCustomer(match);
-      } else if (values.initial_customer && String(values.initial_customer.id) === values.customer_id) {
-        setSelectedCustomer(values.initial_customer as Customer);
-        setAllCustomers(prev => {
-          if (!prev.find(c => c.id === values.initial_customer!.id)) {
-            return [values.initial_customer as Customer, ...prev];
-          }
-          return prev;
-        });
       }
     } else {
       setSelectedCustomer(null);
     }
-  }, [values.customer_id, allCustomers, values.initial_customer]);
+  }, [values.customer_id, allCustomers]);
 
   // Click outside to close customer dropdown list
   useEffect(() => {
@@ -452,7 +421,7 @@ export function BookingForm({
         if (res.ok) {
           const data = await res.json();
           const fetched = data.customers ?? [];
-          setAllCustomers((prev) => {
+          setSearchedCustomers((prev) => {
             const merged = [...prev];
             fetched.forEach((fc: Customer) => {
               if (!merged.some((c) => c.id === fc.id)) {
@@ -546,7 +515,7 @@ export function BookingForm({
         }
       } else {
         const newCust = data.customer as Customer;
-        setAllCustomers((prev) => [newCust, ...prev]);
+        addCustomer(newCust);
         setSelectedCustomer(newCust);
         onChange({
           ...values,
@@ -586,7 +555,7 @@ export function BookingForm({
         setServiceError(data.error ?? "Unable to save service.");
       } else {
         const newSer = data.service as ArtistService;
-        setAllServices((prev) => [newSer, ...prev]);
+        addService(newSer);
         // Automatically check/select this newly created service
         onChange({
           ...values,
@@ -1559,7 +1528,7 @@ export function BookingForm({
           onClose={() => setStorageModalOpen(false)}
           plans={storagePlans}
           onSuccess={() => {
-            void loadStorageInfo();
+            void refreshStorageInfo();
             toast.success("Storage quota upgraded successfully!");
           }}
         />

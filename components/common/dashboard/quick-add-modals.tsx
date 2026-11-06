@@ -4,6 +4,7 @@ import { useState } from "react";
 import { mutate } from "swr";
 import { User, Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { invalidateCustomerList, invalidateStorageInfo } from "@/lib/hooks/use-lookups";
 
 import { AppModal } from "@/components/common/shared/app-modal";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ export function QuickAddModals({
       } else {
         toast.success("Customer added successfully!");
         void mutate("/api/dashboard");
+        invalidateCustomerList();
         setCustomerModalOpen(false);
         setCustomerValues(emptyCustomerForm);
       }
@@ -169,6 +171,8 @@ export function QuickAddModals({
       // Show toast ONLY after uploads finish
       toast.success("Booking created successfully!");
       void mutate("/api/dashboard");
+      // Reference images used storage quota.
+      if (hasImagesToUpload) invalidateStorageInfo();
       void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
       setBookingModalOpen(false);
       setBookingValues(emptyBookingForm);

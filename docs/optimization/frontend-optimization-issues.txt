@@ -80,6 +80,15 @@ TIER 1 - FIX FIRST (biggest waste, small changes)
 
 
 [F3] Booking form: 3-4 requests on every open, two of them in a waterfall
+    STATUS: DONE (2026-11-06) - lib/hooks/use-lookups.ts: useServices,
+    useCustomerList (60 s dedupe), useStorageInfo (normal dedupe; quota must
+    stay fresh). First open: 1 parallel step; reopen within a minute: 0
+    requests for services/customers (storage-info may revalidate). Dropdown
+    merges cached list + search results + the edited booking's customer.
+    Quick-created customer/service go into the shared cache. Stale-marking:
+    Customers/Services pages (create/edit/delete), quick-add customer, and
+    booking saves that add/remove reference images (storage).
+    Reference-image load when editing is unchanged (booking-specific).
     File: components/common/bookings/booking-form.tsx
           (services + customers ~385-405, storage-info ~140-154,
            reference images ~206 when editing)

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { mutate } from "swr";
+import { invalidateStorageInfo } from "@/lib/hooks/use-lookups";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Calendar, Filter, Plus, Search, LayoutGrid, Loader2 } from "lucide-react";
@@ -271,6 +272,8 @@ export function BookingManager() {
           : Promise.resolve();
 
         await Promise.all([deletePromise, uploadPromise]);
+        // Reference images added/removed: the cached storage quota is out of date.
+        invalidateStorageInfo();
       }
 
       // Show success toast ONLY after all uploads and saves are complete
