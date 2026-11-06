@@ -16,11 +16,20 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient()
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, phone, artist_name, studio_name, email, address, google_maps_url, avatar_file_id, studio_logo_file_id")
-      .eq("id", session.id)
-      .maybeSingle()
+    // The user row and the storage quota are independent: load them together.
+    // A quota failure is captured and only surfaced after the user checks below,
+    // so a missing user still returns 404 / a user query error still returns 400.
+    const [{ data, error }, quotaResult] = await Promise.all([
+      supabase
+        .from("users")
+        .select("id, phone, artist_name, studio_name, email, address, google_maps_url, avatar_file_id, studio_logo_file_id")
+        .eq("id", session.id)
+        .maybeSingle(),
+      getOrCreateQuota(supabase, session.id).then(
+        (row) => ({ row, error: null as unknown }),
+        (quotaError: unknown) => ({ row: null, error: quotaError }),
+      ),
+    ])
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
@@ -30,30 +39,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    let avatar_url: string | null = null
-    if (data.avatar_file_id) {
-      const { data: avatarFile } = await supabase
+    if (quotaResult.error || !quotaResult.row) throw quotaResult.error ?? new Error("Internal Server Error")
+
+    // Avatar and studio logo lookups are independent: load them together
+    const fileUrl = async (fileId: number | null) => {
+      if (!fileId) return null
+      const { data: file } = await supabase
         .from("portfolio_files")
         .select("*")
-        .eq("id", data.avatar_file_id)
+        .eq("id", fileId)
         .maybeSingle()
-
-      if (avatarFile) avatar_url = enrichFile(avatarFile).public_url
+      return file ? enrichFile(file).public_url : null
     }
+    const [avatar_url, studio_logo_url] = await Promise.all([
+      fileUrl(data.avatar_file_id),
+      fileUrl(data.studio_logo_file_id),
+    ])
 
-    let studio_logo_url: string | null = null
-    if (data.studio_logo_file_id) {
-      const { data: logoFile } = await supabase
-        .from("portfolio_files")
-        .select("*")
-        .eq("id", data.studio_logo_file_id)
-        .maybeSingle()
-
-      if (logoFile) studio_logo_url = enrichFile(logoFile).public_url
-    }
-
-    const quotaRow = await getOrCreateQuota(supabase, session.id)
-    const quota = QuotaService.fromRow(quotaRow).getQuotaInfo()
+    const quota = QuotaService.fromRow(quotaResult.row).getQuotaInfo()
 
     return NextResponse.json({
       profile: { ...data, avatar_url, studio_logo_url },

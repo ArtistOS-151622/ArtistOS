@@ -4,6 +4,19 @@ Audit date: 2026-11-03
 Scope: every route under app/api/ plus the shared helpers they call.
 Excluded on purpose: caching and database indexes (not needed at current scale).
 
+===============================================================================
+AUDIT STATUS: COMPLETE (closed 2026-11-06)
+===============================================================================
+All Tier 1 and Tier 2 items and correctness issues [A]-[C] are done, removed
+as dead code, or deliberately deferred (see each STATUS line). Tier 3
+(admin / cron, low traffic) was reviewed and intentionally NOT done.
+
+Left open on purpose (decisions, not bugs):
+  - [10] customer_stats view fix: deferred, SQL ready in the [10] entry.
+  - [10] customers report counts cancelled bookings in billed / balance due.
+  - [9]  payments report pending list ignores the date-range filter.
+Biggest remaining factor is not code: Supabase latency (see note below).
+
 "Round trip" below = one call from the API server to the database. They are
 slow mainly because they run one after another, each waiting for the last.
 
@@ -166,6 +179,17 @@ TIER 1 - FIX FIRST
     code first, then kept passing).
 
 
+[5d] Page-load reads (found 2026-11-06)
+    STATUS: DONE (2026-11-06). Same responses and status codes.
+    - GET /api/portfolio/storage-info (booking form, course form, portfolio,
+      profile): quota + plans + purchases in parallel, 3 sequential -> 1.
+    - GET /api/profile: user + quota in parallel, then avatar + logo in
+      parallel, 4 -> 2. Quota errors still surface after the 400/404 checks.
+    - GET /api/public/portfolio/shared/[uuid] (public share link): folder, then
+      owner->avatar chain alongside the file list, 4 -> 3. Owner not embedded
+      into the folder query on purpose (ambiguous users FK risk).
+
+
 -------------------------------------------------------------------------------
 TIER 2 - REAL GAINS, LESS URGENT
 -------------------------------------------------------------------------------
@@ -264,6 +288,8 @@ TIER 2 - REAL GAINS, LESS URGENT
 
 -------------------------------------------------------------------------------
 TIER 3 - ADMIN AND BACKGROUND JOBS (LOW TRAFFIC)
+STATUS: WON'T DO (2026-11-06). Admin-only / scheduled; no artist or customer
+waits on these. Revisit only if admin pages or the cron job become a problem.
 -------------------------------------------------------------------------------
 
 [13] GET /api/admin/users

@@ -13,16 +13,18 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
   try {
-    const quotaRow = await getOrCreateQuota(supabase, session.id)
+    // Quota, plan list and purchase history are independent: load them together
+    const [quotaRow, plans, { data: subscriptions }] = await Promise.all([
+      getOrCreateQuota(supabase, session.id),
+      getActivePlans(supabase),
+      supabase
+        .from("portfolio_storage_purchases")
+        .select("*")
+        .eq("user_id", session.id)
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ])
     const quota = QuotaService.fromRow(quotaRow)
-    const plans = await getActivePlans(supabase)
-
-    const { data: subscriptions } = await supabase
-      .from("portfolio_storage_purchases")
-      .select("*")
-      .eq("user_id", session.id)
-      .order("created_at", { ascending: false })
-      .limit(10)
 
     return portfolioSuccess("Storage info loaded", {
       quota: quota.getQuotaInfo(),

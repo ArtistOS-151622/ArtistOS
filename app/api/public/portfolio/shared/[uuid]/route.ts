@@ -16,28 +16,36 @@ export async function GET(
     const folder = await findSharedFolderByUuid(supabase, uuid)
     if (!folder) return portfolioError("Share link not found or expired", 404)
 
-    const { data: owner } = await supabase
-      .from("users")
-      .select("id, artist_name, studio_name, avatar_file_id")
-      .eq("id", folder.user_id)
-      .single()
+    // The owner (+ their avatar) and the folder's files are independent:
+    // load them together instead of one after another.
+    const loadOwner = async () => {
+      const { data: owner } = await supabase
+        .from("users")
+        .select("id, artist_name, studio_name, avatar_file_id")
+        .eq("id", folder.user_id)
+        .single()
 
-    let avatarUrl: string | null = null
-    if (owner?.avatar_file_id) {
-      const { data: avatarFile } = await supabase
-        .from("portfolio_files")
-        .select("*")
-        .eq("id", owner.avatar_file_id)
-        .maybeSingle()
+      let avatarUrl: string | null = null
+      if (owner?.avatar_file_id) {
+        const { data: avatarFile } = await supabase
+          .from("portfolio_files")
+          .select("*")
+          .eq("id", owner.avatar_file_id)
+          .maybeSingle()
 
-      if (avatarFile) avatarUrl = enrichFile(avatarFile).public_url
+        if (avatarFile) avatarUrl = enrichFile(avatarFile).public_url
+      }
+      return { owner, avatarUrl }
     }
 
-    const { data: files } = await supabase
-      .from("portfolio_files")
-      .select("*")
-      .eq("folder_id", folder.id)
-      .order("sort_order", { ascending: true })
+    const [{ owner, avatarUrl }, { data: files }] = await Promise.all([
+      loadOwner(),
+      supabase
+        .from("portfolio_files")
+        .select("*")
+        .eq("folder_id", folder.id)
+        .order("sort_order", { ascending: true }),
+    ])
 
     return portfolioSuccess("Shared portfolio loaded", {
       folder,
