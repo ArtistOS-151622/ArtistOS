@@ -103,7 +103,7 @@ export async function sendInquiryNotificationWhatsApp(
 
     const formattedPhone = formatWhatsAppPhoneNumber(rawArtistPhone)
     if (!formattedPhone) {
-      console.warn(`[WhatsApp] Invalid artist phone "${rawArtistPhone}" for inquiry #${inquiryId}. Skipping.`)
+      console.warn(`[WhatsApp] Inquiry #${inquiryId} has an invalid artist phone. Skipping.`)
       return { success: false, error: "Invalid artist phone number" }
     }
 
@@ -149,10 +149,7 @@ export async function sendInquiryNotificationWhatsApp(
       formattedDate,
     ]
 
-    console.log(
-      `[WhatsApp] Preparing to send "new_inquiry_received" to artist ${formattedPhone} for inquiry #${inquiry.id}:`,
-      bodyParameters
-    )
+    console.info(`[WhatsApp] Preparing inquiry notification #${inquiry.id}.`)
 
     const result = await sendWhatsAppTemplate({
       to: formattedPhone,

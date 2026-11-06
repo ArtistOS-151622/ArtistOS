@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       const sendResult = await sendOtpToWhatsApp(cleanPhone, otp)
 
       if (!sendResult.success) {
-        console.error("[OTP Send] WhatsApp delivery failed:", sendResult.error)
+        console.error("[OTP Send] WhatsApp delivery failed.")
         return NextResponse.json(
           {
             error:
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         )
       }
     } else {
-      console.log(`[OTP Send] Test user detected (${cleanPhone}). Skipping WhatsApp dispatch; OTP is ${TEST_USER_OTP}.`)
+      console.info("[OTP Send] Test account dispatch skipped.")
     }
 
     const stateToken = createOtpStateToken(cleanPhone, otpHash, expiresAt.getTime())
@@ -74,10 +74,12 @@ export async function POST(request: Request) {
       sendCount: persistResult.sendCount,
       canResend: persistResult.canResend,
     })
-  } catch (err: any) {
-    console.error("[OTP Send] Unexpected error:", err)
+  } catch (err: unknown) {
+    console.error("[OTP Send] Unexpected failure", {
+      name: err instanceof Error ? err.name : undefined,
+    })
     return NextResponse.json(
-      { error: err?.message || "An unexpected error occurred while sending OTP." },
+      { error: "An unexpected error occurred while sending OTP." },
       { status: 500 }
     )
   }

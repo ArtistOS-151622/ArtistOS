@@ -48,6 +48,22 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const MAX_RANGE_DAYS = 100
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
+const BOOKING_CREATE_STAGE_MESSAGES: Record<string, string> = {
+  authentication: "Booking creation rejected during authentication",
+  validation: "Booking creation failed while validating the request body",
+  initial_reads: "Booking creation failed while loading subscription, service, or customer data",
+  subscription_check: "Booking creation blocked by the artist subscription",
+  services_lookup: "Booking creation failed while validating selected services",
+  customer_lookup: "Booking creation failed while validating the selected customer",
+  booking_insert: "Booking creation failed while saving the main booking record",
+  child_inserts: "Booking creation failed while saving booking details",
+  booking_services_insert: "Booking creation failed while saving selected services",
+  additional_charges_insert: "Booking creation failed while saving additional charges",
+  advance_payment_insert: "Booking creation failed while saving the advance payment",
+  response_formatting: "Booking was saved, but formatting the API response failed",
+  notification_scheduling: "Booking was saved, but scheduling its confirmation notification failed",
+}
+
 type BookingListRow = Record<string, unknown> & {
   booking_date: string
   booking_services: { quantity: number | null; unit_price: number | null; service: ServiceRow | null }[] | null
@@ -152,7 +168,7 @@ export async function POST(request: NextRequest) {
   }
 
   const fail = (error: string, status = 400, cause?: unknown) => {
-    console.error("[BookingCreate]", {
+    console.error(`[BookingCreate] ${BOOKING_CREATE_STAGE_MESSAGES[stage] ?? "Booking creation failed"}`, {
       requestId,
       outcome: "failed",
       stage,
@@ -178,7 +194,7 @@ export async function POST(request: NextRequest) {
   if ("error" in parsed) return fail(parsed.error)
   const input = parsed.data
 
-  console.info("[BookingCreate]", {
+  console.info("[BookingCreate] Validated request; starting booking creation", {
     requestId,
     outcome: "started",
     userId: session.id,
@@ -208,6 +224,7 @@ export async function POST(request: NextRequest) {
   ])
 
   if (isReadOnly) {
+    stage = "subscription_check"
     return fail("Your subscription has expired. Please upgrade to create bookings.", 403)
   }
   if (servicesRes.error) {
@@ -299,6 +316,7 @@ export async function POST(request: NextRequest) {
   }
 
   // ── 5. Build the response from what we already have (no re-fetch) ────────
+  stage = "response_formatting"
   const formatted = formatBookingResponse({
     booking,
     customer: customerRes.data,
@@ -310,17 +328,23 @@ export async function POST(request: NextRequest) {
 
   // Send automated WhatsApp notification asynchronously in background using after()
   // so the HTTP response is returned immediately to the client without blocking (~2-4s saved).
+  stage = "notification_scheduling"
   if (booking.status === "confirmed") {
     after(async () => {
       try {
         await sendBookingNotificationWhatsApp(booking.id, "confirmed", supabase)
       } catch (err) {
-        console.error("[WhatsApp] Failed to dispatch booking confirmation in background:", err)
+        console.error(`[BookingCreate] WhatsApp confirmation failed for booking #${booking.id}`, {
+          requestId,
+          userId,
+          bookingId: booking.id,
+          cause: errorDetails(err),
+        })
       }
     })
   }
 
-  console.info("[BookingCreate]", {
+  console.info(`[BookingCreate] Booking #${booking.id} created successfully`, {
     requestId,
     outcome: "succeeded",
     userId: session.id,

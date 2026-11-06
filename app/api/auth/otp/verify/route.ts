@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (userError && userError.code !== "42P01") {
-      console.error("[OTP Verify] Supabase user query error:", userError)
+      console.error("[OTP Verify] User lookup failed", { code: userError.code })
       return NextResponse.json(
         { error: "Failed to verify account records. Please try again." },
         { status: 500 }
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       if (otp === TEST_USER_OTP) {
         isValidOtp = true
       } else {
-        failureReason = "Invalid OTP for test account. Please enter 123456."
+        failureReason = "Invalid OTP for test account."
       }
     } else {
       // First attempt DB verification
@@ -133,10 +133,12 @@ export async function POST(request: Request) {
       registrationToken,
       phone: cleanPhone,
     })
-  } catch (err: any) {
-    console.error("[OTP Verify] Unexpected error:", err)
+  } catch (err: unknown) {
+    console.error("[OTP Verify] Unexpected failure", {
+      name: err instanceof Error ? err.name : undefined,
+    })
     return NextResponse.json(
-      { error: err?.message || "An unexpected error occurred during OTP verification." },
+      { error: "An unexpected error occurred during OTP verification." },
       { status: 500 }
     )
   }

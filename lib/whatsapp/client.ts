@@ -108,10 +108,10 @@ export async function sendWhatsAppTemplate({
 
   const formattedPhone = formatWhatsAppPhoneNumber(to);
   if (!formattedPhone) {
-    console.warn(`[WhatsApp] Invalid phone number provided: ${to}`);
+    console.warn("[WhatsApp] Invalid recipient phone number provided.");
     return {
       success: false,
-      error: `Invalid recipient phone number: ${to}`,
+      error: "Invalid recipient phone number",
     };
   }
 
@@ -160,7 +160,11 @@ export async function sendWhatsAppTemplate({
         data?.error?.message ||
         data?.error?.error_user_msg ||
         `HTTP ${res.status}: Failed to send WhatsApp message`;
-      console.error("[WhatsApp] Meta API error:", data?.error || data);
+      console.error("[WhatsApp] Meta API request failed", {
+        status: res.status,
+        code: data?.error?.code,
+        type: data?.error?.type,
+      });
       return {
         success: false,
         error: errorMsg,
@@ -169,20 +173,20 @@ export async function sendWhatsAppTemplate({
     }
 
     const messageId = data?.messages?.[0]?.id;
-    console.log(
-      `[WhatsApp] Message successfully sent to ${formattedPhone} (Template: ${templateName}, ID: ${messageId})`,
-    );
+    console.info("[WhatsApp] Template sent", { templateName });
 
     return {
       success: true,
       messageId,
       details: data,
     };
-  } catch (err: any) {
-    const isAbort = err?.name === "AbortError";
+  } catch (err: unknown) {
+    const isAbort = err instanceof Error && err.name === "AbortError";
     const errorMsg = isAbort
       ? "WhatsApp request timed out after 15 seconds"
-      : err?.message || "Network error while connecting to Meta WhatsApp API";
+      : err instanceof Error
+        ? err.message
+        : "Network error while connecting to Meta WhatsApp API";
 
     console.error("[WhatsApp] Send error:", errorMsg);
     return {

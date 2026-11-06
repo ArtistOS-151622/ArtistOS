@@ -315,9 +315,7 @@ export async function scanDailyArtistAgenda(
       bodyParameters = [artistName, formattedDate]
     }
 
-    console.log(
-      `[Daily Agenda] Sending "${activeTemplate}" to artist ${formattedPhone} for ${totalCount} bookings on ${targetDate}`
-    )
+    console.info(`[Daily Agenda] Sending "${activeTemplate}" for ${totalCount} bookings on ${targetDate}.`)
 
     // E. Dispatch WhatsApp template
     const sendResult = await sendWhatsAppTemplate({

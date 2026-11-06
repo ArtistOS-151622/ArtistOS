@@ -25,7 +25,9 @@ export async function isTestUser(phone: string, existingSupabase?: unknown): Pro
 
     return Boolean(user?.is_test_user)
   } catch (err) {
-    console.error("[OTP] Error checking isTestUser:", err)
+    console.error("[OTP] Test-account lookup failed", {
+      name: err instanceof Error ? err.name : undefined,
+    })
     return false
   }
 }
@@ -131,20 +133,12 @@ export async function sendOtpToWhatsApp(phone: string, otp: string): Promise<Wha
 
   const customerNameParam = `your OTP is: ${otp}`
 
-  console.log(`[WhatsApp OTP] Dispatching template "artistos_welcome" to ${formattedPhone} with param: "${customerNameParam}"`)
-
   const result = await sendWhatsAppTemplate({
     to: formattedPhone,
     templateName: "artistos_welcome",
     languageCode: process.env.WHATSAPP_TEMPLATE_LANG?.trim() || "en",
     bodyParameters: [customerNameParam],
   })
-
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`\n========================================`)
-    console.log(`[DEV ONLY] WhatsApp OTP for ${phone}: ${otp}`)
-    console.log(`========================================\n`)
-  }
 
   return result
 }
@@ -163,15 +157,6 @@ export async function sendAdminDeleteOtp(otp: string): Promise<WhatsAppSendResul
   }
 
   const adminParam = `this is admin otp for delete artist: ${otp}`
-
-  console.log(`[Admin OTP] Dispatching template "artistos_welcome" to ${formattedPhone} with param: "${adminParam}"`)
-
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`\n========================================`)
-    console.log(`[DEV / ADMIN] WhatsApp Delete OTP for ${ADMIN_SECURITY_PHONE}: ${otp}`)
-    console.log(`Param: "${adminParam}"`)
-    console.log(`========================================\n`)
-  }
 
   if (!process.env.WHATSAPP_ACCESS_TOKEN && process.env.NODE_ENV !== "production") {
     return { success: true }
@@ -287,7 +272,7 @@ export async function persistOtpInDatabase(
       .order("created_at", { ascending: false })
 
     if (queryErr) {
-      console.warn("[OTP DB] Error querying whatsapp_otps:", queryErr.message)
+      console.warn("[OTP DB] Lookup failed", { code: queryErr.code })
     }
 
     if (existingRecords && existingRecords.length > 0) {
@@ -343,7 +328,7 @@ export async function persistOtpInDatabase(
         .eq("id", primaryRecord.id)
 
       if (updateErr) {
-        console.warn("[OTP DB] Update with extended columns failed, falling back to base columns:", updateErr.message)
+        console.warn("[OTP DB] Extended update failed; using base columns", { code: updateErr.code })
         await supabase
           .from("whatsapp_otps")
           .update({
@@ -383,7 +368,7 @@ export async function persistOtpInDatabase(
       const { error: insertErr } = await supabase.from("whatsapp_otps").insert(fullInsert)
 
       if (insertErr) {
-        console.warn("[OTP DB] Insert with extended columns failed, falling back to base columns:", insertErr.message)
+        console.warn("[OTP DB] Extended insert failed; using base columns", { code: insertErr.code })
         await supabase.from("whatsapp_otps").insert({
           phone: clean,
           otp_hash: otpHash,
@@ -400,7 +385,9 @@ export async function persistOtpInDatabase(
       }
     }
   } catch (err: unknown) {
-    console.error("[OTP DB] Error accessing Supabase for whatsapp_otps:", err)
+    console.error("[OTP DB] Storage failure", {
+      name: err instanceof Error ? err.name : undefined,
+    })
     return {
       success: false,
       error: "Database error while storing OTP. Please try again.",
@@ -436,7 +423,7 @@ export async function verifyOtpInDatabase(
       .maybeSingle()
 
     if (error) {
-      console.warn("[OTP DB] Query failed:", error.message)
+      console.warn("[OTP DB] Verification lookup failed", { code: error.code })
       return { valid: false, reason: "Database error. Please try again." }
     }
 
@@ -565,7 +552,9 @@ export async function verifyOtpInDatabase(
 
     return { valid: true }
   } catch (err) {
-    console.warn("[OTP DB] Exception verifying in DB:", err)
+    console.warn("[OTP DB] Verification failure", {
+      name: err instanceof Error ? err.name : undefined,
+    })
     return { valid: false, reason: "Database error during verification. Please try again." }
   }
 }

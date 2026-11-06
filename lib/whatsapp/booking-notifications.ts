@@ -112,7 +112,7 @@ export async function sendBookingNotificationWhatsApp(
 
     const formattedPhone = formatWhatsAppPhoneNumber(rawPhone)
     if (!formattedPhone) {
-      console.warn(`[WhatsApp] Invalid customer phone "${rawPhone}" on booking #${bookingId}. Skipping.`)
+      console.warn(`[WhatsApp] Booking #${bookingId} has an invalid customer phone. Skipping.`)
       return { success: false, error: "Invalid customer phone" }
     }
 
@@ -223,10 +223,7 @@ export async function sendBookingNotificationWhatsApp(
       bodyParameters.push(artist!.google_maps_url.trim())
     }
 
-    console.log(
-      `[WhatsApp] Preparing to send "${templateName}" to ${formattedPhone} for booking #${booking.id}:`,
-      bodyParameters,
-    )
+    console.info(`[WhatsApp] Preparing "${templateName}" for booking #${booking.id}.`)
 
     const result = await sendWhatsAppTemplate({
       to: formattedPhone,
