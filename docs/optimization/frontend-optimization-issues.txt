@@ -1,0 +1,326 @@
+ArtistOS - Frontend Optimization Issues
+=======================================
+Audit date: 2026-11-06
+Scope: every client page under app/(dashboard)/ and the components they use
+(components/common/**, components/portfolio/**, components/storage/**).
+Goal: remove API calls the UI does not need, and make the needed ones cheaper.
+Not covered in depth: admin pages (app/admin/**), the public inquiry form and
+the public share page (low traffic, or already optimized in the backend audit).
+Companion file: docs/optimization/api-optimization-issues.txt (backend, closed 2026-11-06).
+
+Why requests matter so much here: each API request checks the session and hits
+Supabase, and a Supabase round trip was MEASURED at 0.35 - 4 s (see the backend
+file). A request the UI did not need is not free: it is load on that slow DB
+and, when it is sequential, seconds of waiting for the user.
+
+How the dashboard loads data today:
+  - Two styles are mixed. SWR (cached, shared between components):
+    dashboard, portfolio, folder page, billing, notifications, sidebar/topbar
+    badges, booking date counts. Plain useEffect + fetch (no cache, refetches
+    on every visit): bookings, customers, services, inquiries, courses,
+    booking detail, calendar, reports, profile, support, broadcasts.
+  - There is no global SWRConfig and no shared fetcher. 9 files each define
+    `fetcher = (url) => fetch(url).then(r => r.json())`.
+  - Requests made by the shell on EVERY dashboard page, before the page's own
+    data:
+      /api/notifications        (sidebar + topbar badge; polled every 60 s)
+      /api/subscription-status  (SubscriptionGuardProvider; every 5 min + focus)
+      /api/auth/me              (user menu name / logo)
+      /api/inquiries/counts     (mobile only; polled every 30 s)
+    SWR does not poll while the tab is hidden, so polling only runs while the
+    app is on screen.
+
+
+-------------------------------------------------------------------------------
+TIER 1 - FIX FIRST (biggest waste, small changes)
+-------------------------------------------------------------------------------
+
+[F1] Portfolio folder search fires a heavy request on every keystroke
+    File: app/(dashboard)/portfolio/page.tsx  (lines ~34-36, input ~146)
+    Problem:
+    - `search` goes straight into the SWR key with no debounce. Typing
+      "wedding" = 7 requests to GET /api/portfolio/folders.
+    - Each one runs listFolders(), which loads ALL folders plus ALL of the
+      artist's files (paged past 1000 rows) to build counts, sizes and previews.
+    Fix:
+    - BEST: no request at all. The unfiltered folder list is already loaded;
+      filter it in the browser on name / description (the server only does an
+      ilike on those two fields, lib/portfolio/folders.ts ~336) with useMemo.
+    - Minimum: debounce 300 ms like the other list pages, and set
+      keepPreviousData so the grid does not flash empty.
+    Saves: ~1 heavy request per keystroke.
+
+
+[F2] Folder detail page loads every folder to find one, then waits
+    File: app/(dashboard)/portfolio/[folderUuid]/page.tsx  (lines ~28-36)
+    Problem:
+    - Fetches GET /api/portfolio/folders (the heavy listFolders above) only to
+      find one folder by uuid, THEN fetches that folder's files. Two sequential
+      requests, the first one the heaviest read in the app.
+    - After deleting one file (or a bulk delete) it refetches BOTH the files
+      AND the whole folder list (lines ~52-70).
+    Fix:
+    - Let GET /api/portfolio/folders accept ?uuid=<uuid> and return the folder
+      plus its files in one response (one request, one light query pair).
+    - After a delete, remove the file(s) from the SWR cache locally
+      (mutateFiles(updated, false)) instead of refetching both lists.
+    Saves: 1 sequential heavy request on open; 2 requests per delete.
+    See also [FC] (storage meter not refreshed after delete).
+
+
+[F3] Booking form: 3-4 requests on every open, two of them in a waterfall
+    File: components/common/bookings/booking-form.tsx
+          (services + customers ~385-405, storage-info ~140-154,
+           reference images ~206 when editing)
+    Used by: bookings page, dashboard quick-add, topbar quick-add.
+    Problem:
+    - AppModal unmounts its children when closed, so the form refetches all of
+      this EVERY time it opens.
+    - /api/services is awaited before /api/customers starts (sequential).
+    - /api/portfolio/storage-info is fetched just to check the reference-image
+      quota (that endpoint runs 3 queries).
+    Fix:
+    - Minimum: Promise.all for services + customers (2 sequential -> 1).
+    - BEST: shared SWR hooks with a long dedupingInterval (see [F10]):
+        useServices()      -> "/api/services"
+        useCustomerList()  -> "/api/customers"
+        useStorageInfo()   -> "/api/portfolio/storage-info"
+      Reopening the form then costs 0 requests, and the same cache is reused by
+      booking detail, courses, portfolio and profile.
+    - After quick-creating a customer/service inside the form, update that SWR
+      cache instead of only local state.
+    Saves: 3 requests per open after the first (1 sequential step on the first).
+
+
+[F4] Courses page reloads 3 endpoints after every save / delete
+    File: components/common/courses/course-manager.tsx
+          (loadData ~90-112, called again at lines 187, 214, 252, 279, 302)
+    Problem:
+    - Every course or student create / edit / delete / payment re-runs
+      loadData(): /api/courses + /api/courses/students + /api/services.
+    - /api/services can never change from this page.
+    Fix:
+    - Load services once (shared useServices() hook from [F3]).
+    - Course change -> refetch /api/courses only (it returns the stats).
+      Student change -> refetch students + courses (stats depend on students).
+    - Better: have the POST/PATCH routes return the saved row, update local
+      state, and refetch only the stats.
+    Saves: 1-2 requests per mutation (5 call sites).
+
+
+[F5] Badges load full lists just to show a number
+    Files: components/common/dashboard/dashboard-sidebar.tsx  (~99-106)
+           components/common/dashboard/notifications-dropdown.tsx  (~21)
+           app/api/notifications/route.ts
+    Problem:
+    - The unread badge (sidebar + topbar) polls GET /api/notifications every
+      60 s. That returns the last 50 notifications (7 columns each) and the
+      client counts the unread ones. SWR shares the key, so it is one request
+      per minute, not three, but it is the wrong request.
+    - The mobile inquiry badge polls /api/inquiries/counts separately every 30 s.
+    Fix:
+    - Add one light endpoint, e.g. GET /api/badges ->
+      { unread_notifications, pending_inquiries }, using count-only queries
+      (head: true). Poll that one key every 60 s for both badges.
+    - Keep GET /api/notifications for the notifications page only.
+    Saves: on mobile, 2 polls -> 1, and 120 + 60 polls/hour -> 60 polls/hour;
+    every poll becomes 2 count queries instead of a 50-row read.
+
+
+-------------------------------------------------------------------------------
+TIER 2 - REAL GAINS, MORE WORK OR LOWER TRAFFIC
+-------------------------------------------------------------------------------
+
+[F6] Booking date counts refreshed up to 3 times per save / delete
+    Files: components/common/bookings/booking-manager.tsx  (~264-268, ~330-334)
+           components/common/bookings/booking-date-filter.tsx  (~76-89)
+           components/common/dashboard/quick-add-modals.tsx  (~175-177)
+    Problem: after each booking save/delete the code does all three of:
+      1. mutate(key => key.startsWith("/api/bookings/counts"))
+      2. setCountsRefreshKey(k => k + 1)   -> refreshTrigger effect -> mutateCounts()
+      3. dispatchEvent("booking-updated")  -> event listener -> mutateCounts()
+    A mutate() call starts a new request even if one is in flight, so this can
+    send up to 3 identical /api/bookings/counts requests.
+    Fix: keep only #1 (it already reaches the date filter from anywhere,
+    including quick-add). Remove the refreshTrigger prop, countsRefreshKey
+    state and the "booking-updated" event + listener.
+    Saves: up to 2 requests per booking save / delete.
+
+
+[F7] router.refresh() after client-side saves
+    Files: components/common/dashboard/quick-add-modals.tsx  (lines 80, 182)
+           app/(dashboard)/profile/page.tsx  (line 199)
+    Problem: these pages are client components that load data with fetch/SWR.
+    router.refresh() re-requests the current route's server payload from the
+    server and re-renders. It does not refetch any of the client data, so it is
+    an extra request that changes nothing. (The dashboard pages are prerendered,
+    see MEMORY.md 2026-11-06.)
+    Fix: remove these three calls; the SWR mutate() calls next to them already
+    refresh what is on screen. Keep the router.refresh() after logout
+    (profile line 215, user-menu) since it clears the router cache.
+    Saves: 1 request per quick-add and per profile save.
+
+
+[F8] Profile page fetches storage-info it mostly does not need
+    File: app/(dashboard)/profile/page.tsx  (loadProfile ~90-110)
+    Problem: GET /api/profile already returns the storage quota
+    (`storage`, app/api/profile/route.ts ~63). The parallel
+    /api/portfolio/storage-info call (3 queries) is only used for `plans`,
+    which are only shown when the storage plans modal opens.
+    Fix: drop storage-info from the page load. Load plans when the plans modal
+    opens (or through the shared useStorageInfo() hook from [F3]).
+    Saves: 1 request (3 DB queries) per profile visit.
+
+
+[F9] Reports: tab switch and sort change refetch the full report
+    Files: app/(dashboard)/reports/page.tsx  (~197-205)
+           components/common/reports/report-{customer,service,payment}-tab.tsx
+           app/api/reports/customers/route.ts  (sort ~110-115)
+           app/api/reports/services/route.ts   (sort ~89-93)
+    Problem:
+    - Only the active tab is mounted, so switching back to a tab refetches it.
+    - Changing the sort dropdown refetches the whole report, but the server
+      just sorts the same rows in JS. The customers report is the heaviest read
+      for an artist (every customer with all bookings, services, charges,
+      payments).
+    Fix:
+    - Sort in the browser with useMemo; drop `sort` from the request.
+    - Load each tab through SWR keyed by (search, filters, dateRange), so
+      returning to a tab or a previous filter is instant from cache.
+    Saves: 1 heavy request per sort change and per return to a tab.
+
+
+[F10] One shared fetcher + SWRConfig
+    Files: the 9 local `fetcher` copies (lib/hooks/use-subscription-guard.ts,
+           dashboard-sidebar.tsx, notifications-dropdown.tsx, portfolio pages,
+           billing, notifications, ...); components/common/dashboard/
+           dashboard-shell.tsx for the provider.
+    Problem:
+    - `fetch(url).then(r => r.json())` never throws on 401/500, so SWR caches
+      the error body as if it were data (hence the Array.isArray guards) and
+      never retries.
+    - SWR's default revalidateOnFocus = true. Every tab focus, and on mobile
+      every switch back to the app, refetches every key on screen:
+      notifications, subscription-status, dashboard, booking counts, portfolio
+      folders (heavy), storage-info, billing, plans.
+    Fix:
+    - lib/swr/fetcher.ts: one fetcher that throws on !res.ok.
+    - <SWRConfig> in DashboardShell: that fetcher, revalidateOnFocus: false
+      (or focusThrottleInterval: 60_000), dedupingInterval: 10_000.
+      Turn focus revalidation back on only where it is needed (billing after a
+      payment already calls mutate() explicitly).
+    - Put the shared hooks here too: useServices, useCustomerList,
+      useStorageInfo, useBadges.
+    This is the base for [F3], [F4], [F5], [F9] and [F11].
+
+
+[F11] Pages without a cache refetch on every visit
+    Files: customer-manager.tsx, service-manager.tsx, booking-manager.tsx,
+           inquiry-manager.tsx, course-manager.tsx, bookings/[id]/page.tsx,
+           artist-calendar.tsx, support/page.tsx
+    Problem: useEffect + fetch, so navigating Customers -> Bookings -> Customers
+    shows a loader and repeats the same request. This is most of why navigation
+    feels slow with a ~1 s database.
+    Fix: move each page's first-page load to SWR (stale-while-revalidate):
+    the old list shows instantly while the fresh one loads. Do it page by page,
+    after [F10]. Keep the existing "update local state after save" logic by
+    calling mutate(updated, false).
+    Note: this does not cut requests by itself (SWR still revalidates on mount);
+    it cuts waiting. Combine with a dedupingInterval to also cut requests on
+    quick back-and-forth.
+
+
+[F12] Booking detail: 5 requests per open
+    File: app/(dashboard)/bookings/[id]/page.tsx  (~419-458)
+    Problem: detail, payments, expenses, expense-categories and /api/services
+    load together on open. They are parallel, so the wait is the slowest one,
+    but it is 5 session checks + 5 DB round trips per open.
+    - /api/services is only used by the "edit services" modal.
+    Fix:
+    - Load services when that modal opens (or from the shared useServices()
+      cache, usually already warm from the booking form).
+    - Optional: fold payments, expenses and categories into the /detail
+      response (5 requests -> 1-2).
+    Saves: 1 request per open (3-4 with the optional merge).
+
+
+-------------------------------------------------------------------------------
+TIER 3 - SMALL / BUNDLE SIZE (not measured)
+-------------------------------------------------------------------------------
+
+[F13] Notifications page refetches right after its optimistic update
+    File: app/(dashboard)/notifications/page.tsx  (~32-48)
+    markAsRead updates the cache optimistically, sends the PATCH, then calls
+    mutate() to refetch the list. Refetch only if the PATCH fails.
+
+[F14] Calendar has no cache
+    File: components/common/calendar/artist-calendar.tsx  (~57-97)
+    Refetches on every list/calendar toggle (it unmounts) and on every month
+    change, even back to a month already loaded. SWR keyed by the month window
+    makes toggles and back/forward months instant.
+
+[F15] react-big-calendar loaded even when calendar view is never opened
+    File: components/common/bookings/booking-manager.tsx  (line 15)
+    ArtistCalendar is a static import; the calendar is opt-in (viewMode).
+    Load it with next/dynamic. Same idea for recharts in the report tabs.
+    Bundle size not measured; check with a build analyzer before and after.
+
+[F16] Landing page loads pricing in the browser
+    File: app/page.tsx  (PricingSection ~1025, whole file is "use client")
+    /api/platform-subscriptions is fetched client-side on the public homepage.
+    Fetching it on the server (static with revalidate) removes the request,
+    shows prices without a loader and puts them in the HTML for SEO. Needs
+    PricingSection split out of the client file. Medium effort.
+
+[F17] Broadcast create loads up to 1000 customers with an exact count
+    File: app/(dashboard)/customers/broadcasts/create/page.tsx  (line 51)
+    Fine at current scale. The `count: "exact"` in GET /api/customers is
+    unused by this page and the booking-form dropdown; a `?no_count=1` option
+    (or a separate light endpoint) would skip it.
+
+
+-------------------------------------------------------------------------------
+CORRECTNESS ISSUES FOUND DURING THE AUDIT (not speed, but worth fixing)
+-------------------------------------------------------------------------------
+
+[FA] Topbar name / logo stay stale after a profile change
+    Files: components/common/dashboard/user-menu.tsx  (~44-51)
+           app/(dashboard)/profile/page.tsx  (save ~184-205, uploads ~77)
+    The user menu caches /api/auth/me with revalidateOnFocus: false. Saving the
+    profile or uploading a new avatar/logo never calls mutate("/api/auth/me"),
+    so the old name and logo stay in the topbar until a full reload.
+    Fix: mutate("/api/auth/me") after profile save and avatar/logo upload.
+
+[FB] Search results can arrive out of order
+    Files: customer-manager.tsx, service-manager.tsx, booking-manager.tsx,
+           inquiry-manager.tsx, report-*-tab.tsx
+    Debounced search does not cancel the previous request. With 0.35-4 s
+    responses, the reply for "pri" can arrive after the reply for "priya" and
+    overwrite it, so the list does not match the search box.
+    Fix: AbortController in each debounce effect (abort on cleanup), or move
+    the lists to SWR ([F11]), which ignores stale responses.
+
+[FC] Storage meter not refreshed after deleting files in a folder
+    File: app/(dashboard)/portfolio/[folderUuid]/page.tsx  (~51-70)
+    handleDeleteFile / handleBulkDelete refresh files and folders but not
+    /api/portfolio/storage-info, so the quota shown is out of date. (The main
+    portfolio page does refresh it after a folder delete.)
+    Fix: mutate("/api/portfolio/storage-info") after deletes.
+
+[FD] Pending-inquiry badge not updated after convert / cancel
+    File: components/common/inquiries/inquiry-manager.tsx  (~215, ~249)
+    The mobile badge keeps the old count until its next 30 s poll.
+    Fix: mutate the badge key after convert / cancel.
+
+
+-------------------------------------------------------------------------------
+SUGGESTED ORDER
+-------------------------------------------------------------------------------
+1. [F10] shared fetcher + SWRConfig (base for the rest)
+2. [F1] [F2] portfolio search + folder page (heaviest reads)
+3. [F3] [F4] [F12] shared useServices / useCustomerList / useStorageInfo
+4. [F6] [F7] [F8] [F13] delete redundant calls (small, safe)
+5. [F5] /api/badges endpoint
+6. [F9] [F11] [F14] SWR for reports, lists, calendar
+7. [FA]-[FD] correctness fixes alongside the files above
+8. [F15] [F16] bundle / landing page, after measuring
