@@ -418,20 +418,25 @@ export default function BookingDetailsPage() {
 
   useEffect(() => {
     if (!bookingId) return;
+    // Aborted on unmount so a slow response can't redirect (router.replace
+    // below) after the user has already navigated somewhere else.
+    const controller = new AbortController();
+    const { signal } = controller;
     setLoading(true);
     setError(null);
 
     Promise.all([
-      fetch(`/api/bookings/${bookingId}/detail`).then((r) => r.json()),
-      fetch(`/api/bookings/${bookingId}/payments`).then((r) => r.json()),
-      fetch(`/api/bookings/${bookingId}/expenses`).then((r) => r.json()),
-      fetch(`/api/bookings/${bookingId}/expense-categories`).then((r) =>
+      fetch(`/api/bookings/${bookingId}/detail`, { signal }).then((r) => r.json()),
+      fetch(`/api/bookings/${bookingId}/payments`, { signal }).then((r) => r.json()),
+      fetch(`/api/bookings/${bookingId}/expenses`, { signal }).then((r) => r.json()),
+      fetch(`/api/bookings/${bookingId}/expense-categories`, { signal }).then((r) =>
         r.json(),
       ),
-      fetch(`/api/services`).then((r) => r.json()), // Global services for add-new
+      fetch(`/api/services`, { signal }).then((r) => r.json()), // Global services for add-new
     ])
       .then(
         ([detailRes, paymentsRes, expensesRes, categoriesRes, servicesRes]) => {
+          if (signal.aborted) return;
           if (detailRes.error) {
             setError(detailRes.error);
             return;
@@ -456,8 +461,14 @@ export default function BookingDetailsPage() {
           }
         },
       )
-      .catch(() => setError("Failed to load booking. Please try again."))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!signal.aborted) setError("Failed to load booking. Please try again.");
+      })
+      .finally(() => {
+        if (!signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
   }, [bookingId, router]);
 
   const handleAddAdditionalCharge = async () => {

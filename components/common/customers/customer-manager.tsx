@@ -104,6 +104,20 @@ export function CustomerManager() {
     });
   }
 
+  // Abort the in-flight list request when a newer one starts or the page
+  // unmounts. Otherwise a slow response can land after the user has navigated
+  // elsewhere, and replaceListUrl() would pull them back to /customers.
+  const listRequestRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => listRequestRef.current?.abort(), []);
+
+  function startListRequest() {
+    listRequestRef.current?.abort();
+    const controller = new AbortController();
+    listRequestRef.current = controller;
+    return controller;
+  }
+
   // Fetch customers with pagination and search query
   async function fetchCustomers(
     pageNum: number,
@@ -112,6 +126,7 @@ export function CustomerManager() {
     append = false,
     syncUrl = true,
   ) {
+    const controller = startListRequest();
     if (pageNum === 1) {
       setLoading(true);
     } else {
@@ -120,8 +135,10 @@ export function CustomerManager() {
     try {
       const res = await fetch(
         `/api/customers?page=${pageNum}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
+        { signal: controller.signal },
       );
       const data = (await res.json()) as CustomersResponse;
+      if (controller.signal.aborted) return;
       if (!res.ok) {
         toast.error(data.error ?? "Unable to load customers.");
       } else {
@@ -132,11 +149,15 @@ export function CustomerManager() {
         if (syncUrl) replaceListUrl(pageNum, searchVal, sortVal);
       }
     } catch {
+      if (controller.signal.aborted) return;
       toast.error("Unable to load customers.");
     } finally {
-      setInitialLoading(false);
-      setLoading(false);
-      setLoadingMore(false);
+      // A newer request owns the loading state now.
+      if (!controller.signal.aborted) {
+        setInitialLoading(false);
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   }
 
@@ -145,6 +166,7 @@ export function CustomerManager() {
     searchVal: string,
     sortVal: string,
   ) {
+    const controller = startListRequest();
     setLoading(true);
 
     try {
@@ -152,12 +174,14 @@ export function CustomerManager() {
         Array.from({ length: pageNum }, (_, index) =>
           fetch(
             `/api/customers?page=${index + 1}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
+            { signal: controller.signal },
           ),
         ),
       );
       const payloads = (await Promise.all(
         responses.map((res) => res.json()),
       )) as CustomersResponse[];
+      if (controller.signal.aborted) return;
       const failedIndex = responses.findIndex((res) => !res.ok);
 
       if (failedIndex !== -1) {
@@ -170,11 +194,14 @@ export function CustomerManager() {
       setPage(pageNum);
       replaceListUrl(pageNum, searchVal, sortVal);
     } catch {
+      if (controller.signal.aborted) return;
       toast.error("Unable to load customers.");
     } finally {
-      setInitialLoading(false);
-      setLoading(false);
-      setLoadingMore(false);
+      if (!controller.signal.aborted) {
+        setInitialLoading(false);
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   }
 

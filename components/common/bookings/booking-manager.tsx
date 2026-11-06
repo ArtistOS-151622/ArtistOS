@@ -114,15 +114,27 @@ export function BookingManager() {
     router.replace(`/bookings${query ? `?${query}` : ""}`, { scroll: false });
   }
 
+  // Abort the in-flight list request when a newer one starts or the page
+  // unmounts. Otherwise a slow response can land after the user has navigated
+  // elsewhere, and replaceListUrl() would pull them back to /bookings.
+  const listRequestRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => listRequestRef.current?.abort(), []);
+
   // Fetch the selected day's bookings from the api
   async function fetchBookings(searchVal: string, statusVal: string) {
+    listRequestRef.current?.abort();
+    const controller = new AbortController();
+    listRequestRef.current = controller;
     setLoading(true);
 
     try {
       const res = await fetch(
         `/api/bookings?search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}&start_date=${date}&end_date=${date}`,
+        { signal: controller.signal },
       );
       const data = (await res.json()) as BookingsResponse;
+      if (controller.signal.aborted) return;
 
       if (!res.ok) {
         toast.error(data.error ?? "Unable to load bookings.");
@@ -131,10 +143,14 @@ export function BookingManager() {
         replaceListUrl(searchVal, statusVal);
       }
     } catch {
+      if (controller.signal.aborted) return;
       toast.error("Unable to load bookings.");
     } finally {
-      setInitialLoading(false);
-      setLoading(false);
+      // A newer request owns the loading state now.
+      if (!controller.signal.aborted) {
+        setInitialLoading(false);
+        setLoading(false);
+      }
     }
   }
 
