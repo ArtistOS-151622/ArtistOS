@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import { CheckCircle2, FolderPlus, HardDrive, LayoutGrid, List, Loader2, Search, ShieldCheck, Sparkles, Trash2, Zap } from "lucide-react";
 
@@ -28,13 +28,31 @@ import type {
 } from "@/lib/portfolio/types";
 import { cn } from "@/lib/utils";
 
+const FOLDERS_URL = "/api/portfolio/folders";
+
+/** Same rule the API used: case-insensitive match on folder name or description. */
+function matchesFolderSearch(folder: PortfolioFolderWithStats, term: string) {
+  return (
+    folder.name.toLowerCase().includes(term) ||
+    (folder.description ?? "").toLowerCase().includes(term)
+  );
+}
+
 export default function PortfolioPage() {
   const [search, setSearch] = useState("");
-  const foldersUrl = `/api/portfolio/folders${search ? `?search=${encodeURIComponent(search)}` : ""}`;
-  const { data: foldersJson, mutate: mutateFolders, isLoading: isLoadingFolders } = useSWR(foldersUrl);
+  // Search filters the loaded list in the browser. It used to refetch the full
+  // folder list (every folder + every file) on each keystroke.
+  const { data: foldersJson, mutate: mutateFolders, isLoading: isLoadingFolders } = useSWR(FOLDERS_URL);
   const { data: storageJson, mutate: mutateStorage, isLoading: isLoadingStorage } = useSWR('/api/portfolio/storage-info');
 
-  const folders: PortfolioFolderWithStats[] = foldersJson?.status ? foldersJson.data.folders : [];
+  const allFolders: PortfolioFolderWithStats[] = useMemo(
+    () => (foldersJson?.status ? foldersJson.data.folders : []),
+    [foldersJson],
+  );
+  const folders = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return term ? allFolders.filter((f) => matchesFolderSearch(f, term)) : allFolders;
+  }, [allFolders, search]);
   const quota: QuotaInfo | null = storageJson?.status ? storageJson.data.quota : null;
   const plans: StoragePlanRow[] = storageJson?.status ? (storageJson.data.plans ?? []) : [];
   const loading = isLoadingFolders || isLoadingStorage;
@@ -45,7 +63,7 @@ export default function PortfolioPage() {
   const [shareFolderId, setShareFolderId] =
     useState<number | null>(null);
   const shareFolder = shareFolderId != null
-    ? folders.find((f: PortfolioFolderWithStats) => f.id === shareFolderId) ?? null
+    ? allFolders.find((f) => f.id === shareFolderId) ?? null
     : null;
   const [newFolderName, setNewFolderName] = useState("");
   const [creating, setCreating] = useState(false);
