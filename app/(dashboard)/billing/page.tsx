@@ -13,7 +13,6 @@ import { format } from "date-fns"
 import useSWR, { mutate } from "swr"
 import { toast } from "sonner"
 
-const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 type CheckoutData = {
   key?: string
@@ -111,8 +110,8 @@ const statusColor: Record<string, string> = {
 export default function BillingPage() {
   const { setTitle } = useHeaderContext()
 
-  const { data: billing, isLoading: billingLoading, mutate: mutateBilling } = useSWR<BillingData>("/api/billing", fetcher)
-  const { data: plans, isLoading: plansLoading } = useSWR<Plan[]>("/api/platform-subscriptions", fetcher)
+  const { data: billing, isLoading: billingLoading, mutate: mutateBilling } = useSWR<BillingData>("/api/billing")
+  const { data: plans, isLoading: plansLoading } = useSWR<Plan[]>("/api/platform-subscriptions")
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null)

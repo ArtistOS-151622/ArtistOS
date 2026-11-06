@@ -19,26 +19,25 @@ import { Input } from "@/components/ui/input"
 import type { PortfolioFileWithUrl, PortfolioFolderWithStats, QuotaInfo } from "@/lib/portfolio/types"
 import { cn } from "@/lib/utils"
 
-const fetcher = (url: string) => fetch(url).then(res => res.json())
-
 export default function PortfolioFolderPage() {
   const params = useParams()
   const folderUuid = params.folderUuid as string
 
-  const { data: foldersJson, mutate: mutateFolders } = useSWR("/api/portfolio/folders", fetcher)
-  const { data: storageJson } = useSWR("/api/portfolio/storage-info", fetcher)
+  const { data: foldersJson, error: foldersError, mutate: mutateFolders } = useSWR("/api/portfolio/folders")
+  const { data: storageJson } = useSWR("/api/portfolio/storage-info")
 
   const folder: PortfolioFolderWithStats | null = (foldersJson?.data?.folders ?? []).find(
     (f: PortfolioFolderWithStats) => f.uuid === folderUuid
   ) ?? null
 
   const filesUrl = folder ? `/api/portfolio/folders?folder_id=${folder.id}` : null
-  const { data: filesJson, mutate: mutateFiles, isLoading: isLoadingFiles } = useSWR(filesUrl, fetcher)
+  const { data: filesJson, mutate: mutateFiles, isLoading: isLoadingFiles } = useSWR(filesUrl)
 
   const files: PortfolioFileWithUrl[] = filesJson?.status ? filesJson.data.files : []
   const quota: QuotaInfo | null = storageJson?.status ? storageJson.data.quota : null
 
-  const loading = Boolean(!foldersJson || (folder && isLoadingFiles))
+  // A failed folder load falls through to "Folder not found" instead of spinning forever.
+  const loading = Boolean((!foldersJson && !foldersError) || (folder && isLoadingFiles))
 
   const [previewFile, setPreviewFile] = useState<PortfolioFileWithUrl | null>(null)
   const [shareOpen, setShareOpen] = useState(false)

@@ -12,13 +12,11 @@ type NotificationRow = {
   read_at: string | null
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
-
 export function NotificationsDropdown() {
   const pathname = usePathname()
   const isActive = pathname === "/notifications"
 
-  const { data: notifications } = useSWR<NotificationRow[]>("/api/notifications", fetcher, {
+  const { data: notifications } = useSWR<NotificationRow[]>("/api/notifications", {
     refreshInterval: 60000,
   })
 

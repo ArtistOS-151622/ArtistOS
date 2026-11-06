@@ -29,11 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
-const countsFetcher = async (url: string) => {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error("Failed to fetch booking counts")
-  return (await res.json()) as { counts?: Array<{ date: string; count: number }> }
-}
+type BookingCountsResponse = { counts?: Array<{ date: string; count: number }> }
 
 type BookingDateFilterProps = {
   selectedDate: string
@@ -68,7 +64,7 @@ export function BookingDateFilter({ selectedDate, status = "all", refreshTrigger
     ? `/api/bookings/counts?start_date=${format(dates[0], "yyyy-MM-dd")}&end_date=${format(dates[dates.length - 1], "yyyy-MM-dd")}&status=${encodeURIComponent(status)}`
     : null
 
-  const { data: countsData, mutate: mutateCounts } = useSWR(countsUrl, countsFetcher, {
+  const { data: countsData, mutate: mutateCounts } = useSWR<BookingCountsResponse>(countsUrl, {
     revalidateOnFocus: true,
   })
 

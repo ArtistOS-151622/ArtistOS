@@ -28,13 +28,11 @@ import type {
 } from "@/lib/portfolio/types";
 import { cn } from "@/lib/utils";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
 export default function PortfolioPage() {
   const [search, setSearch] = useState("");
   const foldersUrl = `/api/portfolio/folders${search ? `?search=${encodeURIComponent(search)}` : ""}`;
-  const { data: foldersJson, mutate: mutateFolders, isLoading: isLoadingFolders } = useSWR(foldersUrl, fetcher);
-  const { data: storageJson, mutate: mutateStorage, isLoading: isLoadingStorage } = useSWR('/api/portfolio/storage-info', fetcher);
+  const { data: foldersJson, mutate: mutateFolders, isLoading: isLoadingFolders } = useSWR(foldersUrl);
+  const { data: storageJson, mutate: mutateStorage, isLoading: isLoadingStorage } = useSWR('/api/portfolio/storage-info');
 
   const folders: PortfolioFolderWithStats[] = foldersJson?.status ? foldersJson.data.folders : [];
   const quota: QuotaInfo | null = storageJson?.status ? storageJson.data.quota : null;

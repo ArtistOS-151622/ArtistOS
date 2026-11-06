@@ -9,16 +9,14 @@ type SubscriptionStatus = {
   daysSinceSignup: number
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
-
 export function useSubscriptionGuard() {
   const { data, isLoading, mutate } = useSWR<SubscriptionStatus>(
     "/api/subscription-status",
-    fetcher,
     {
       // Revalidate every 5 minutes to catch subscription updates
       refreshInterval: 5 * 60 * 1000,
-      // Also revalidate when the window regains focus (e.g. after payment)
+      // Opt back in to focus revalidation (off globally) to catch payments made
+      // in another tab; throttled to once a minute by the global config.
       revalidateOnFocus: true,
     }
   )

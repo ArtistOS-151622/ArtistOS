@@ -104,19 +104,9 @@ const revenueChartConfig = {
   },
 } satisfies ChartConfig;
 
-const fetcher = async (url: string): Promise<DashboardData> => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.error || "Failed to load dashboard data.");
-  }
-  return res.json();
-};
-
 export default function DashboardPage() {
   const { data, error, isLoading, mutate } = useSWR<DashboardData>(
     "/api/dashboard",
-    fetcher,
     {
       revalidateOnFocus: true,
       revalidateOnMount: true,

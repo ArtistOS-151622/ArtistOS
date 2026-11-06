@@ -43,11 +43,7 @@ export function UserMenu({
 
   const { data: authData } = useSWR(
     propName ? null : "/api/auth/me",
-    (url: string) => fetch(url).then((r) => r.json()),
-    {
-      dedupingInterval: 60000,
-      revalidateOnFocus: false,
-    }
+    { dedupingInterval: 60000 }
   )
 
   useEffect(() => {

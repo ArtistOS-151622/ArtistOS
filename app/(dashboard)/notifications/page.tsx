@@ -17,11 +17,9 @@ type NotificationRow = {
   status: string
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
-
 export default function NotificationsPage() {
   const router = useRouter()
-  const { data: notifications, mutate, isLoading } = useSWR<NotificationRow[]>("/api/notifications", fetcher, {
+  const { data: notifications, mutate, isLoading } = useSWR<NotificationRow[]>("/api/notifications", {
     refreshInterval: 60000,
   })
 

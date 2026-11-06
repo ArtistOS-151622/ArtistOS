@@ -74,8 +74,6 @@ type PendingNav = {
   from: DashboardSection
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
-
 function subscribeDesktop(onChange: () => void) {
   const query = window.matchMedia(DESKTOP_QUERY)
   query.addEventListener("change", onChange)
@@ -96,11 +94,11 @@ function isPlainLeftClick(event: MouseEvent) {
 
 export function DashboardSidebar({ active }: DashboardSidebarProps) {
   const isDesktop = useIsDesktop()
-  const { data: notifications } = useSWR<NotificationPreview[]>("/api/notifications", fetcher, {
+  const { data: notifications } = useSWR<NotificationPreview[]>("/api/notifications", {
     refreshInterval: 60000,
   })
   // The pending-inquiry badge only exists on the mobile floating button.
-  const { data: inquiryCounts } = useSWR<InquiryCounts>(isDesktop ? null : "/api/inquiries/counts", fetcher, {
+  const { data: inquiryCounts } = useSWR<InquiryCounts>(isDesktop ? null : "/api/inquiries/counts", {
     refreshInterval: 30000,
   })
 
