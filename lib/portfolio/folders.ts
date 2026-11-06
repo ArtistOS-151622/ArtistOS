@@ -2,7 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { randomUUID } from "crypto"
 
 import { STORAGE_DEFAULT_SHARE_EXPIRY_DAYS } from "@/lib/portfolio/config"
-import type { PortfolioFolderRow, PortfolioFolderWithStats } from "@/lib/portfolio/types"
+import { enrichFile } from "@/lib/portfolio/files"
+import type {
+  PortfolioFileRow,
+  PortfolioFileWithUrl,
+  PortfolioFolderRow,
+  PortfolioFolderWithStats,
+} from "@/lib/portfolio/types"
 import { getPublicUrl } from "@/lib/r2/url"
 
 export async function findFolderByName(
@@ -348,7 +354,22 @@ export async function listFolders(
   const [foldersRes, files] = await Promise.all([query, fetchAllFileStats(supabase, userId)])
   if (foldersRes.error) throw new Error(foldersRes.error.message)
 
-  type FolderStats = { count: number; size: number; sections: Set<string>; previews: FolderFileStatsRow[] }
+  const statsByFolder = collectFolderStats(files)
+
+  // Skip empty booking folders that have 0 files
+  const visibleFolders = ((foldersRes.data ?? []) as PortfolioFolderRow[]).filter(
+    (folder) => folder.booking_id === null || (statsByFolder.get(folder.id)?.count ?? 0) > 0
+  )
+
+  await renameLegacyBookingFolders(supabase, userId, visibleFolders)
+
+  return visibleFolders.map((folder) => withFolderStats(folder, statsByFolder.get(folder.id)))
+}
+
+type FolderStats = { count: number; size: number; sections: Set<string>; previews: FolderFileStatsRow[] }
+
+/** Groups files by folder: count, total size, sections and the first preview files. */
+function collectFolderStats(files: FolderFileStatsRow[]): Map<number, FolderStats> {
   const statsByFolder = new Map<number, FolderStats>()
   for (const file of files) {
     if (file.folder_id === null) continue
@@ -363,41 +384,81 @@ export async function listFolders(
     // files are ordered by sort_order, so the first ones seen are the previews
     if (stats.previews.length < PREVIEW_FILE_COUNT) stats.previews.push(file)
   }
+  return statsByFolder
+}
 
-  // Skip empty booking folders that have 0 files
-  const visibleFolders = ((foldersRes.data ?? []) as PortfolioFolderRow[]).filter(
-    (folder) => folder.booking_id === null || (statsByFolder.get(folder.id)?.count ?? 0) > 0
-  )
+function withFolderStats(folder: PortfolioFolderRow, stats: FolderStats | undefined): PortfolioFolderWithStats {
+  let folderType: "course" | "reference" | "portfolio" = "portfolio"
+  if (folder.course_id !== null && folder.course_id !== undefined) {
+    folderType = "course"
+  } else if (folder.booking_id !== null && folder.booking_id !== undefined) {
+    folderType = "reference"
+  } else if (stats?.sections.has("course")) {
+    folderType = "course"
+  } else if (stats?.sections.has("reference")) {
+    folderType = "reference"
+  }
 
-  await renameLegacyBookingFolders(supabase, userId, visibleFolders)
+  return {
+    ...folder,
+    file_count: stats?.count ?? 0,
+    total_size: stats?.size ?? 0,
+    preview_files: (stats?.previews ?? []).map((f) => ({
+      id: f.id,
+      public_url: getPublicUrl(f.storage_path),
+      mime_type: f.mime_type,
+    })),
+    folder_type: folderType,
+    share_url: folder.is_shared ? buildShareUrl(folder.uuid) : null,
+  }
+}
 
-  return visibleFolders.map((folder) => {
-    const stats = statsByFolder.get(folder.id)
+/**
+ * One folder (same shape as listFolders) plus its files, in a single query:
+ * files are embedded through the portfolio_files.folder_id foreign key.
+ * Returns null when the folder doesn't exist or belongs to another artist.
+ * Unlike listFolders, an empty booking folder is still returned, so deleting
+ * its last file leaves the page on an empty folder instead of "not found".
+ */
+export async function getFolderWithFiles(
+  supabase: SupabaseClient,
+  userId: number,
+  uuid: string
+): Promise<{ folder: PortfolioFolderWithStats; files: PortfolioFileWithUrl[] } | null> {
+  const { data, error } = await supabase
+    .from("portfolio_folders")
+    .select("*, portfolio_files(*)")
+    .eq("user_id", userId)
+    .eq("uuid", uuid)
+    // Same ownership rule as listFilesInFolder: only this artist's files.
+    .eq("portfolio_files.user_id", userId)
+    .order("sort_order", { referencedTable: "portfolio_files", ascending: true })
+    .order("created_at", { referencedTable: "portfolio_files", ascending: true })
+    .maybeSingle()
 
-    let folderType: "course" | "reference" | "portfolio" = "portfolio"
-    if (folder.course_id !== null && folder.course_id !== undefined) {
-      folderType = "course"
-    } else if (folder.booking_id !== null && folder.booking_id !== undefined) {
-      folderType = "reference"
-    } else if (stats?.sections.has("course")) {
-      folderType = "course"
-    } else if (stats?.sections.has("reference")) {
-      folderType = "reference"
-    }
+  if (error) throw new Error(error.message)
+  if (!data) return null
 
-    return {
-      ...folder,
-      file_count: stats?.count ?? 0,
-      total_size: stats?.size ?? 0,
-      preview_files: (stats?.previews ?? []).map((f) => ({
-        id: f.id,
-        public_url: getPublicUrl(f.storage_path),
-        mime_type: f.mime_type,
-      })),
-      folder_type: folderType,
-      share_url: folder.is_shared ? buildShareUrl(folder.uuid) : null,
-    }
-  })
+  const { portfolio_files: fileRows, ...folderRow } = data as PortfolioFolderRow & {
+    portfolio_files: PortfolioFileRow[] | null
+  }
+  const rows = fileRows ?? []
+  const folder = folderRow as PortfolioFolderRow
+
+  await renameLegacyBookingFolders(supabase, userId, [folder])
+
+  const stats = collectFolderStats(
+    rows.map((f) => ({
+      id: f.id,
+      folder_id: f.folder_id,
+      file_size: f.file_size,
+      section: f.section,
+      storage_path: f.storage_path,
+      mime_type: f.mime_type,
+    }))
+  ).get(folder.id)
+
+  return { folder: withFolderStats(folder, stats), files: rows.map(enrichFile) }
 }
 
 export function buildShareUrl(uuid: string): string {

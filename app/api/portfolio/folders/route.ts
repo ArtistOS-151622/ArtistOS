@@ -2,10 +2,12 @@ import { type NextRequest } from "next/server"
 
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 import { getArtistSession } from "@/lib/auth/session"
-import { listFolders } from "@/lib/portfolio/folders"
+import { getFolderWithFiles, listFolders } from "@/lib/portfolio/folders"
 import { listFilesInFolder } from "@/lib/portfolio/files"
 import { portfolioError, portfolioSuccess } from "@/lib/portfolio/response"
 import { createClient } from "@/lib/supabase/server"
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function GET(request: NextRequest) {
   const session = getArtistSession(request)
@@ -13,6 +15,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const folderId = searchParams.get("folder_id")
+  const uuid = searchParams.get("uuid")
   const search = searchParams.get("search") ?? undefined
   const sort = searchParams.get("sort") ?? undefined
   const section = searchParams.get("section")
@@ -20,6 +23,15 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
   try {
+    // Folder detail page: one folder with its stats + files, in one request.
+    if (uuid) {
+      // The column is a Postgres uuid: a malformed value would be a 500, not a 404.
+      if (!UUID_PATTERN.test(uuid)) return portfolioError("Folder not found", 404)
+      const result = await getFolderWithFiles(supabase, session.id, uuid)
+      if (!result) return portfolioError("Folder not found", 404)
+      return portfolioSuccess("Folder loaded", result)
+    }
+
     if (folderId) {
       const files = await listFilesInFolder(
         supabase,

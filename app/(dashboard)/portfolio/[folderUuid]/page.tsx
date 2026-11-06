@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import useSWR from "swr"
+import useSWR, { mutate } from "swr"
 import Link from "next/link"
 import { ArrowLeft, Download, FolderOpen, HardDrive, LayoutGrid, List, Loader2, Search, Share2, Trash2, X } from "lucide-react"
 import { useParams } from "next/navigation"
@@ -19,25 +19,40 @@ import { Input } from "@/components/ui/input"
 import type { PortfolioFileWithUrl, PortfolioFolderWithStats, QuotaInfo } from "@/lib/portfolio/types"
 import { cn } from "@/lib/utils"
 
+const FOLDERS_URL = "/api/portfolio/folders"
+const STORAGE_INFO_URL = "/api/portfolio/storage-info"
+
+type FolderDetailResponse = {
+  status: boolean
+  data: { folder: PortfolioFolderWithStats; files: PortfolioFileWithUrl[] }
+}
+
+/**
+ * The portfolio list shows each folder's count, size and share state. Mark it
+ * stale after a change here: no request now (nothing on screen uses it), but
+ * the next visit to /portfolio refetches instead of reusing the cached list.
+ */
+function invalidateFolderList() {
+  void mutate(FOLDERS_URL)
+}
+
 export default function PortfolioFolderPage() {
   const params = useParams()
   const folderUuid = params.folderUuid as string
 
-  const { data: foldersJson, error: foldersError, mutate: mutateFolders } = useSWR("/api/portfolio/folders")
-  const { data: storageJson } = useSWR("/api/portfolio/storage-info")
+  // One request: the folder (with stats) and its files. This used to load the
+  // full folder list (every folder + every file) to find this one, then wait
+  // for a second request for the files.
+  const folderUrl = folderUuid ? `${FOLDERS_URL}?uuid=${encodeURIComponent(folderUuid)}` : null
+  const { data: folderJson, error: folderError, mutate: mutateFolder } = useSWR<FolderDetailResponse>(folderUrl)
+  const { data: storageJson, mutate: mutateStorage } = useSWR(STORAGE_INFO_URL)
 
-  const folder: PortfolioFolderWithStats | null = (foldersJson?.data?.folders ?? []).find(
-    (f: PortfolioFolderWithStats) => f.uuid === folderUuid
-  ) ?? null
-
-  const filesUrl = folder ? `/api/portfolio/folders?folder_id=${folder.id}` : null
-  const { data: filesJson, mutate: mutateFiles, isLoading: isLoadingFiles } = useSWR(filesUrl)
-
-  const files: PortfolioFileWithUrl[] = filesJson?.status ? filesJson.data.files : []
+  const folder: PortfolioFolderWithStats | null = folderJson?.data.folder ?? null
+  const files: PortfolioFileWithUrl[] = folderJson?.data.files ?? []
   const quota: QuotaInfo | null = storageJson?.status ? storageJson.data.quota : null
 
-  // A failed folder load falls through to "Folder not found" instead of spinning forever.
-  const loading = Boolean((!foldersJson && !foldersError) || (folder && isLoadingFiles))
+  // A failed or 404 load falls through to "Folder not found" instead of spinning forever.
+  const loading = !folderJson && !folderError
 
   const [previewFile, setPreviewFile] = useState<PortfolioFileWithUrl | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
@@ -47,24 +62,50 @@ export default function PortfolioFolderPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [search, setSearch] = useState("")
 
+  /** Drop deleted files from the cached response instead of refetching it. */
+  function removeFilesLocally(ids: number[]) {
+    const removed = new Set(ids)
+    void mutateFolder(
+      (current) =>
+        current && {
+          ...current,
+          data: { ...current.data, files: current.data.files.filter((f) => !removed.has(f.id)) },
+        },
+      { revalidate: false }
+    )
+    setSelectedIds((prev) => prev.filter((id) => !removed.has(id)))
+  }
+
+  /** After deletes/uploads: storage used changed, and so did the folder list stats. */
+  function refreshUsage() {
+    void mutateStorage()
+    invalidateFolderList()
+  }
+
   async function handleDeleteFile(id: number) {
-    await fetch(`/api/portfolio/files/${id}`, { method: "DELETE" })
-    void mutateFiles()
-    void mutateFolders()
+    const res = await fetch(`/api/portfolio/files/${id}`, { method: "DELETE" })
+    // On failure, reload so the list shows what is really stored.
+    if (res.ok) removeFilesLocally([id])
+    else void mutateFolder()
+    refreshUsage()
   }
 
   async function handleBulkDelete() {
     setDeleting(true)
     try {
-      await fetch("/api/portfolio/files/bulk-delete", {
+      const ids = selectedIds
+      const res = await fetch("/api/portfolio/files/bulk-delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids }),
       })
+      const json = (await res.json().catch(() => null)) as { data?: { count?: number } } | null
       setSelectedIds([])
       setDeleteOpen(false)
-      void mutateFiles()
-      void mutateFolders()
+      // Only trust a local update when every selected file was deleted.
+      if (res.ok && json?.data?.count === ids.length) removeFilesLocally(ids)
+      else void mutateFolder()
+      refreshUsage()
     } finally {
       setDeleting(false)
     }
@@ -311,7 +352,7 @@ export default function PortfolioFolderPage() {
 
 
             {/* Desktop Only Inline Upload Button + Universal Floating FAB */}
-            <PortfolioUploader folderId={folder?.id} onUploaded={() => { void mutateFiles(); void mutateFolders(); }} label="Upload File" className="hidden md:inline-flex" />
+            <PortfolioUploader folderId={folder?.id} onUploaded={() => { void mutateFolder(); refreshUsage(); }} label="Upload File" className="hidden md:inline-flex" />
           </div>
         </div>
       </div>
@@ -347,7 +388,7 @@ export default function PortfolioFolderPage() {
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         folder={folder}
-        onUpdated={() => void mutateFolders()}
+        onUpdated={() => { void mutateFolder(); invalidateFolderList(); }}
       />
 
       <ConfirmDialog

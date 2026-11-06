@@ -56,6 +56,14 @@ TIER 1 - FIX FIRST (biggest waste, small changes)
 
 [F2] Folder detail page loads every folder to find one, then waits
     File: app/(dashboard)/portfolio/[folderUuid]/page.tsx  (lines ~28-36)
+    STATUS: DONE (2026-11-06) - GET /api/portfolio/folders?uuid=<uuid> returns
+    { folder, files } from ONE query (files embedded via the folder_id FK;
+    lib/portfolio/folders.ts getFolderWithFiles, same stats shape as
+    listFolders via shared collectFolderStats/withFolderStats). Open: 2
+    sequential requests (one heavy) -> 1 light. Delete: removes files from the
+    cache locally (refetch only on failure / partial bulk delete), 2 -> 0
+    list requests. Malformed uuid -> 404. Behaviour change: an empty booking
+    folder now opens (empty) instead of "Folder not found".
     Problem:
     - Fetches GET /api/portfolio/folders (the heavy listFolders above) only to
       find one folder by uuid, THEN fetches that folder's files. Two sequential
@@ -312,6 +320,7 @@ CORRECTNESS ISSUES FOUND DURING THE AUDIT (not speed, but worth fixing)
     the lists to SWR ([F11]), which ignores stale responses.
 
 [FC] Storage meter not refreshed after deleting files in a folder
+    STATUS: FIXED (2026-11-06) with [F2] - also refreshed after uploads.
     File: app/(dashboard)/portfolio/[folderUuid]/page.tsx  (~51-70)
     handleDeleteFile / handleBulkDelete refresh files and folders but not
     /api/portfolio/storage-info, so the quota shown is out of date. (The main
