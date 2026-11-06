@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { mutate } from "swr";
 import { User, Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -36,7 +35,6 @@ export function QuickAddModals({
   bookingModalOpen,
   setBookingModalOpen,
 }: QuickAddModalsProps) {
-  const router = useRouter();
 
   // Customer State
   const [customerValues, setCustomerValues] = useState<CustomerFormValues>(emptyCustomerForm);
@@ -77,7 +75,6 @@ export function QuickAddModals({
         void mutate("/api/dashboard");
         setCustomerModalOpen(false);
         setCustomerValues(emptyCustomerForm);
-        router.refresh();
       }
     } catch {
       toast.error("Unable to save customer.");
@@ -173,13 +170,9 @@ export function QuickAddModals({
       toast.success("Booking created successfully!");
       void mutate("/api/dashboard");
       void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("booking-updated"));
-      }
       setBookingModalOpen(false);
       setBookingValues(emptyBookingForm);
       setBookingUploadProgress(null);
-      router.refresh();
     } catch (error) {
       console.error("[BookingSave] Network or client failure", { requestId, error });
       toast.error(`Unable to save booking. Please check the connection and try again. Reference: ${requestId}`);

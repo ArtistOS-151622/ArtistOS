@@ -53,7 +53,6 @@ export function BookingManager() {
   const initialStatus = searchParams.get("status") ?? "all";
   const initialDate = searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd");
   const [date, setDate] = useState(initialDate);
-  const [countsRefreshKey, setCountsRefreshKey] = useState(0);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [values, setValues] = useState<BookingFormValues>(emptyBookingForm);
   const [formOpen, setFormOpen] = useState(false);
@@ -279,10 +278,6 @@ export function BookingManager() {
 
       void mutate("/api/dashboard");
       void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
-      setCountsRefreshKey((k) => k + 1);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("booking-updated"));
-      }
 
       if (editing) pendingScrollId.current = editing.id;
       setEditing(null);
@@ -345,10 +340,6 @@ export function BookingManager() {
         setDeleting(null);
         void mutate("/api/dashboard");
         void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
-        setCountsRefreshKey((k) => k + 1);
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("booking-updated"));
-        }
       }
     } catch {
       toast.error("Unable to delete booking.");
@@ -524,7 +515,6 @@ export function BookingManager() {
         <BookingDateFilter
           selectedDate={date}
           status={statusFilter}
-          refreshTrigger={countsRefreshKey}
           onChange={(newDate) => {
             setDate(newDate);
             const nextParams = new URLSearchParams(searchParams.toString());

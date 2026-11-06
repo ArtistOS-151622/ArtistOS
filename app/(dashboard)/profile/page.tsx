@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Loader2, Phone, Save, User, Building2, MapPin, Mail, LogOut, ImageIcon, Smartphone, Download, Camera } from "lucide-react"
 import { useRouter } from "next/navigation"
+import useSWR, { mutate } from "swr"
 
 import { PageHeader } from "@/components/common/dashboard/dashboard-header-context"
 import { PwaInstallGuideModal } from "@/components/common/pwa/pwa-install-guide-modal"
@@ -33,6 +34,12 @@ type ProfileData = {
   studio_logo_url?: string | null
 }
 
+const STORAGE_INFO_URL = "/api/portfolio/storage-info"
+/** The topbar user menu (name / logo) reads this; refresh it after profile changes. */
+const AUTH_ME_URL = "/api/auth/me"
+
+type StorageInfoResponse = { status: boolean; data?: { plans?: StoragePlanRow[] } }
+
 function isIos() {
   if (typeof window === "undefined") return false
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent)
@@ -51,7 +58,6 @@ export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [quota, setQuota] = useState<QuotaInfo | null>(null)
-  const [plans, setPlans] = useState<StoragePlanRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -59,6 +65,13 @@ export default function ProfilePage() {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [plansOpen, setPlansOpen] = useState(false)
+  // Storage plans are only shown in the plans modal: load them when it opens
+  // (cached if the portfolio page already loaded them). /api/profile already
+  // returns the quota, so the page itself no longer needs storage-info.
+  const { data: storageJson, isLoading: plansLoading } = useSWR<StorageInfoResponse>(
+    plansOpen ? STORAGE_INFO_URL : null
+  )
+  const plans: StoragePlanRow[] = storageJson?.data?.plans ?? []
   const [guideOpen, setGuideOpen] = useState(false)
   const [canInstall, setCanInstall] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
@@ -80,6 +93,7 @@ export default function ProfilePage() {
         if (res.status === 402) setPlansOpen(true)
       } else {
         await loadProfile()
+        void mutate(AUTH_ME_URL)
       }
     } finally {
       setLogoUploading(false)
@@ -89,12 +103,8 @@ export default function ProfilePage() {
 
   const loadProfile = useCallback(async () => {
     try {
-      const [profileRes, storageRes] = await Promise.all([
-        fetch("/api/profile"),
-        fetch("/api/portfolio/storage-info"),
-      ])
+      const profileRes = await fetch("/api/profile")
       const profileData = await profileRes.json()
-      const storageData = await storageRes.json()
 
       if (!profileRes.ok) throw new Error(profileData.error || "Failed to load profile")
 
@@ -104,8 +114,7 @@ export default function ProfilePage() {
         avatar_url: profileData.profile.avatar_url,
         studio_logo_url: profileData.profile.studio_logo_url,
       })
-      setQuota(profileData.storage ?? storageData.data?.quota ?? null)
-      if (storageData.status) setPlans(storageData.data.plans ?? [])
+      setQuota(profileData.storage ?? null)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load")
     } finally {
@@ -196,7 +205,9 @@ export default function ProfilePage() {
       if (!res.ok) throw new Error(data.error || "Failed to update profile")
 
       setSuccess("Profile updated successfully!")
-      router.refresh()
+      // The save re-issues the session cookie with the new name; reload the
+      // topbar user menu from it. (router.refresh() refetched nothing here.)
+      void mutate(AUTH_ME_URL)
       setTimeout(() => setSuccess(""), 3000)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Save failed")
@@ -605,6 +616,7 @@ export default function ProfilePage() {
         open={plansOpen}
         onClose={() => setPlansOpen(false)}
         plans={plans}
+        loadingPlans={plansLoading}
         onSuccess={loadProfile}
       />
 

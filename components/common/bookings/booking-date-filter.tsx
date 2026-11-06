@@ -34,11 +34,10 @@ type BookingCountsResponse = { counts?: Array<{ date: string; count: number }> }
 type BookingDateFilterProps = {
   selectedDate: string
   status?: string
-  refreshTrigger?: number
   onChange: (date: string) => void
 }
 
-export function BookingDateFilter({ selectedDate, status = "all", refreshTrigger, onChange }: BookingDateFilterProps) {
+export function BookingDateFilter({ selectedDate, status = "all", onChange }: BookingDateFilterProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
@@ -64,25 +63,11 @@ export function BookingDateFilter({ selectedDate, status = "all", refreshTrigger
     ? `/api/bookings/counts?start_date=${format(dates[0], "yyyy-MM-dd")}&end_date=${format(dates[dates.length - 1], "yyyy-MM-dd")}&status=${encodeURIComponent(status)}`
     : null
 
-  const { data: countsData, mutate: mutateCounts } = useSWR<BookingCountsResponse>(countsUrl, {
+  // Refreshed after booking create/update/delete (bookings page and quick-add)
+  // by a global mutate() on every "/api/bookings/counts" key.
+  const { data: countsData } = useSWR<BookingCountsResponse>(countsUrl, {
     revalidateOnFocus: true,
   })
-
-  // Revalidate counts whenever the parent triggers a refresh (e.g. after booking create/update/delete)
-  useEffect(() => {
-    if (refreshTrigger !== undefined && refreshTrigger > 0) {
-      void mutateCounts()
-    }
-  }, [refreshTrigger, mutateCounts])
-
-  // Listen to global booking update events across the window (e.g. Quick Add modal)
-  useEffect(() => {
-    const handleBookingUpdate = () => {
-      void mutateCounts()
-    }
-    window.addEventListener("booking-updated", handleBookingUpdate)
-    return () => window.removeEventListener("booking-updated", handleBookingUpdate)
-  }, [mutateCounts])
 
   const counts = useMemo(() => {
     const countsMap: Record<string, number> = {}

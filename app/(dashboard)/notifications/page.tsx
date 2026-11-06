@@ -28,6 +28,7 @@ export default function NotificationsPage() {
   const readCount = validNotifications.filter((n) => !!n.read_at).length
 
   async function markAsRead(id?: number) {
+    const updatedLocally = Array.isArray(notifications)
     if (Array.isArray(notifications)) {
       const updated = id
         ? notifications.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
@@ -35,15 +36,19 @@ export default function NotificationsPage() {
       mutate(updated, false)
     }
 
+    // The list is already updated above, so only reload it if the PATCH fails
+    // (to undo the optimistic change). The sidebar/topbar badges share this
+    // cache key, so they update from the optimistic change too.
     try {
-      await fetch("/api/notifications", {
+      const res = await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(id ? { id } : {}),
       })
-      mutate()
+      if (!res.ok || !updatedLocally) void mutate()
     } catch (err) {
       console.error("Failed to mark notification as read", err)
+      void mutate()
     }
   }
 

@@ -143,6 +143,9 @@ TIER 2 - REAL GAINS, MORE WORK OR LOWER TRAFFIC
 -------------------------------------------------------------------------------
 
 [F6] Booking date counts refreshed up to 3 times per save / delete
+    STATUS: DONE (2026-11-06) - only the global mutate() on
+    "/api/bookings/counts" keys is left; refreshTrigger prop, countsRefreshKey
+    and the "booking-updated" event + listener removed.
     Files: components/common/bookings/booking-manager.tsx  (~264-268, ~330-334)
            components/common/bookings/booking-date-filter.tsx  (~76-89)
            components/common/dashboard/quick-add-modals.tsx  (~175-177)
@@ -159,6 +162,8 @@ TIER 2 - REAL GAINS, MORE WORK OR LOWER TRAFFIC
 
 
 [F7] router.refresh() after client-side saves
+    STATUS: DONE (2026-11-06) - removed from quick-add (customer + booking)
+    and profile save. Logout refreshes kept.
     Files: components/common/dashboard/quick-add-modals.tsx  (lines 80, 182)
            app/(dashboard)/profile/page.tsx  (line 199)
     Problem: these pages are client components that load data with fetch/SWR.
@@ -173,6 +178,9 @@ TIER 2 - REAL GAINS, MORE WORK OR LOWER TRAFFIC
 
 
 [F8] Profile page fetches storage-info it mostly does not need
+    STATUS: DONE (2026-11-06) - page load is /api/profile only; plans load via
+    SWR when the plans modal opens (shared storage-info cache key).
+    StoragePlansModal got an optional loadingPlans prop (spinner).
     File: app/(dashboard)/profile/page.tsx  (loadProfile ~90-110)
     Problem: GET /api/profile already returns the storage quota
     (`storage`, app/api/profile/route.ts ~63). The parallel
@@ -268,6 +276,8 @@ TIER 3 - SMALL / BUNDLE SIZE (not measured)
 -------------------------------------------------------------------------------
 
 [F13] Notifications page refetches right after its optimistic update
+    STATUS: DONE (2026-11-06) - refetches only if the PATCH fails (or the list
+    was not loaded yet).
     File: app/(dashboard)/notifications/page.tsx  (~32-48)
     markAsRead updates the cache optimistically, sends the PATCH, then calls
     mutate() to refetch the list. Refetch only if the PATCH fails.
@@ -303,6 +313,8 @@ CORRECTNESS ISSUES FOUND DURING THE AUDIT (not speed, but worth fixing)
 -------------------------------------------------------------------------------
 
 [FA] Topbar name / logo stay stale after a profile change
+    STATUS: FIXED (2026-11-06) - mutate("/api/auth/me") after profile save
+    and studio logo upload.
     Files: components/common/dashboard/user-menu.tsx  (~44-51)
            app/(dashboard)/profile/page.tsx  (save ~184-205, uploads ~77)
     The user menu caches /api/auth/me with revalidateOnFocus: false. Saving the

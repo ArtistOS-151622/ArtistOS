@@ -27,6 +27,8 @@ type StoragePlansModalProps = {
   open: boolean
   onClose: () => void
   plans: StoragePlanRow[]
+  /** True while the caller is still fetching `plans` (loaded on open). */
+  loadingPlans?: boolean
   onSuccess?: () => void
 }
 
@@ -34,6 +36,7 @@ export function StoragePlansModal({
   open,
   onClose,
   plans,
+  loadingPlans = false,
   onSuccess,
 }: StoragePlansModalProps) {
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
@@ -195,6 +198,12 @@ export function StoragePlansModal({
           </div>
         )}
 
+        {loadingPlans && plans.length === 0 ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
+            <Loader2 className="size-4 animate-spin" />
+            <span>Loading plans...</span>
+          </div>
+        ) : (
         <div className="grid gap-2">
           {plans.map((plan) => (
             <button
@@ -212,6 +221,7 @@ export function StoragePlansModal({
             </button>
           ))}
         </div>
+        )}
 
         <div className="rounded-2xl border border-slate-100 p-4 text-sm space-y-1">
           <div className="flex justify-between font-medium"><span>Total</span><span>₹{amount.toFixed(2)}</span></div>
