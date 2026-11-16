@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useSyncExternalStore, type ComponentProps, type MouseEvent } from "react";
-import useSWR from "swr";
+import { useState, type ComponentProps, type MouseEvent } from "react";
 import {
   Bell,
   CalendarCheck,
@@ -19,6 +18,7 @@ import {
 import { BrandMark } from "@/components/common/brand/brand-logo";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DashboardSection } from "@/lib/dashboard/sections";
+import { useBadges } from "@/lib/hooks/use-badges";
 import { cn } from "@/lib/utils";
 
 type SidebarItem = {
@@ -55,37 +55,14 @@ const INDICATOR_OFFSETS = [
 ]
 
 const TOOLTIP_DELAY_MS = 150
-const DESKTOP_QUERY = "(min-width: 1024px)"
 
 type DashboardSidebarProps = {
   active: DashboardSection;
 };
 
-type NotificationPreview = {
-  read_at?: string | null
-}
-
-type InquiryCounts = {
-  pending?: number
-}
-
 type PendingNav = {
   id: DashboardSection
   from: DashboardSection
-}
-
-function subscribeDesktop(onChange: () => void) {
-  const query = window.matchMedia(DESKTOP_QUERY)
-  query.addEventListener("change", onChange)
-  return () => query.removeEventListener("change", onChange)
-}
-
-function useIsDesktop() {
-  return useSyncExternalStore(
-    subscribeDesktop,
-    () => window.matchMedia(DESKTOP_QUERY).matches,
-    () => false,
-  )
 }
 
 function isPlainLeftClick(event: MouseEvent) {
@@ -93,14 +70,10 @@ function isPlainLeftClick(event: MouseEvent) {
 }
 
 export function DashboardSidebar({ active }: DashboardSidebarProps) {
-  const isDesktop = useIsDesktop()
-  const { data: notifications } = useSWR<NotificationPreview[]>("/api/notifications", {
-    refreshInterval: 60000,
-  })
-  // The pending-inquiry badge only exists on the mobile floating button.
-  const { data: inquiryCounts } = useSWR<InquiryCounts>(isDesktop ? null : "/api/inquiries/counts", {
-    refreshInterval: 30000,
-  })
+  // One light poll for both badges (count-only queries), shared with the
+  // topbar bell. Previously: the full notifications list every 60 s to count
+  // unread items, plus /api/inquiries/counts every 30 s on mobile.
+  const { unreadNotifications: unreadCount, pendingInquiries: pendingInquiryCount } = useBadges()
 
   // Highlight the clicked item immediately instead of waiting for the route to
   // commit. The pending entry is ignored once the real route moves off `from`.
@@ -111,9 +84,6 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
     if (isPlainLeftClick(event)) setPending({ id, from: active })
   }
 
-  const validNotifications = Array.isArray(notifications) ? notifications : []
-  const unreadCount = validNotifications.filter((n) => !n.read_at).length
-  const pendingInquiryCount = inquiryCounts?.pending ?? 0
   const activeIndex = sidebarItems.findIndex((item) => item.id === current)
 
   return (

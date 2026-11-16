@@ -50,6 +50,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { refreshBadges } from "@/lib/hooks/use-badges"
 import { useIsMobile } from "@/lib/hooks/use-is-mobile"
 import { cn } from "@/lib/utils"
 
@@ -228,6 +229,8 @@ export function InquiryManager() {
       if (selectedInquiry?.id === inquiry.id) {
         setSelectedInquiry(data.inquiry)
       }
+      // The inquiry is no longer "new": update the pending-inquiry badge now.
+      refreshBadges()
       toast.success("Booking created successfully from inquiry!")
     } catch {
       toast.error("Unable to convert inquiry.")
@@ -262,6 +265,7 @@ export function InquiryManager() {
       if (selectedInquiry?.id === inquiry.id) {
         setSelectedInquiry(data.inquiry)
       }
+      refreshBadges()
       toast.success("Inquiry marked as cancelled")
     } catch {
       toast.error("Unable to cancel inquiry.")

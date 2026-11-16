@@ -3,25 +3,16 @@
 import { Bell } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import useSWR from "swr"
 
+import { useBadges } from "@/lib/hooks/use-badges"
 import { cn } from "@/lib/utils"
-
-type NotificationRow = {
-  id: number
-  read_at: string | null
-}
 
 export function NotificationsDropdown() {
   const pathname = usePathname()
   const isActive = pathname === "/notifications"
 
-  const { data: notifications } = useSWR<NotificationRow[]>("/api/notifications", {
-    refreshInterval: 60000,
-  })
-
-  const validNotifications = Array.isArray(notifications) ? notifications : []
-  const unreadCount = validNotifications.filter((n) => !n.read_at).length
+  // Same cache key as the sidebar badge: one poll for both.
+  const { unreadNotifications: unreadCount } = useBadges()
 
   return (
     <Link

@@ -136,6 +136,13 @@ TIER 1 - FIX FIRST (biggest waste, small changes)
 
 
 [F5] Badges load full lists just to show a number
+    STATUS: DONE (2026-11-16) - GET /api/badges -> { unread_notifications,
+    pending_inquiries } via 2 count-only queries; lib/hooks/use-badges.ts
+    (useBadges, one shared key polled every 60 s). Sidebar + topbar bell use it;
+    the notifications page keeps the full list and updates the badge count
+    optimistically on mark-as-read. Behaviour change: unread now counts ALL
+    unread notifications, not just unread among the latest 50.
+    /api/inquiries/counts is no longer called by the app (left in place).
     Files: components/common/dashboard/dashboard-sidebar.tsx  (~99-106)
            components/common/dashboard/notifications-dropdown.tsx  (~21)
            app/api/notifications/route.ts
@@ -356,6 +363,7 @@ CORRECTNESS ISSUES FOUND DURING THE AUDIT (not speed, but worth fixing)
     Fix: mutate("/api/portfolio/storage-info") after deletes.
 
 [FD] Pending-inquiry badge not updated after convert / cancel
+    STATUS: FIXED (2026-11-16) with [F5] - refreshBadges() after convert/cancel.
     File: components/common/inquiries/inquiry-manager.tsx  (~215, ~249)
     The mobile badge keeps the old count until its next 30 s poll.
     Fix: mutate the badge key after convert / cancel.

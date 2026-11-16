@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import { formatDistanceToNow } from "date-fns"
 
+import { refreshBadges, updateUnreadNotifications } from "@/lib/hooks/use-badges"
 import { cn } from "@/lib/utils"
 
 type NotificationRow = {
@@ -34,21 +35,29 @@ export default function NotificationsPage() {
         ? notifications.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
         : notifications.map((n) => ({ ...n, read_at: new Date().toISOString() }))
       mutate(updated, false)
+
+      // The sidebar/topbar badges use their own count endpoint: update them
+      // instantly too. "Mark all" clears every unread one, not just the 50 listed.
+      const wasUnread = id ? notifications.some((n) => n.id === id && !n.read_at) : true
+      if (wasUnread) updateUnreadNotifications((count) => (id ? count - 1 : 0))
     }
 
-    // The list is already updated above, so only reload it if the PATCH fails
-    // (to undo the optimistic change). The sidebar/topbar badges share this
-    // cache key, so they update from the optimistic change too.
+    // The list and badges are already updated above, so only reload them if the
+    // PATCH fails (to undo the optimistic change) or the list wasn't loaded yet.
+    const reload = () => {
+      void mutate()
+      refreshBadges()
+    }
     try {
       const res = await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(id ? { id } : {}),
       })
-      if (!res.ok || !updatedLocally) void mutate()
+      if (!res.ok || !updatedLocally) reload()
     } catch (err) {
       console.error("Failed to mark notification as read", err)
-      void mutate()
+      reload()
     }
   }
 
