@@ -2,18 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { mutate } from "swr";
 import { invalidateStorageInfo } from "@/lib/hooks/use-lookups";
+import { invalidateCalendarBookings } from "@/lib/bookings/calendar-cache";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Calendar, Filter, Plus, Search, LayoutGrid, Loader2 } from "lucide-react";
 
 import { SkeletonCard } from "@/components/common/shared/skeleton-card";
+import { AppLoader } from "@/components/common/shared/app-loader";
 import { BookingDateFilter } from "@/components/common/bookings/booking-date-filter";
 import { AppModal } from "@/components/common/shared/app-modal";
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog";
 import { BookingCard } from "@/components/common/bookings/booking-card";
-import { ArtistCalendar } from "@/components/common/calendar/artist-calendar";
 import { BookingForm } from "@/components/common/bookings/booking-form";
 import {
   emptyBookingForm,
@@ -38,6 +40,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+
+// Calendar view is opt-in here, so react-big-calendar is only downloaded when
+// the user switches to it (the /calendar page still imports it directly).
+const ArtistCalendar = dynamic(
+  () => import("@/components/common/calendar/artist-calendar").then((mod) => mod.ArtistCalendar),
+  {
+    ssr: false,
+    loading: () => <AppLoader label="Loading calendar" className="min-h-[52vh] rounded-[2rem] bg-white/45" />,
+  },
+);
 
 type BookingsResponse = {
   bookings?: Booking[];
@@ -281,6 +293,7 @@ export function BookingManager() {
 
       void mutate("/api/dashboard");
       void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
+      invalidateCalendarBookings();
 
       if (editing) pendingScrollId.current = editing.id;
       setEditing(null);
@@ -343,6 +356,7 @@ export function BookingManager() {
         setDeleting(null);
         void mutate("/api/dashboard");
         void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
+        invalidateCalendarBookings();
       }
     } catch {
       toast.error("Unable to delete booking.");

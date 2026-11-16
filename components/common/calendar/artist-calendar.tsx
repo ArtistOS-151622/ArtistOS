@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useState, useEffect, useCallback } from "react"
+import { useMemo, useState } from "react"
+import useSWR from "swr"
 import { Calendar as BigCalendar, dateFnsLocalizer, Navigate } from "react-big-calendar"
 import type {
   EventProps,
@@ -19,6 +20,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { calendarBookingsKey } from "@/lib/bookings/calendar-cache"
 import { cn } from "@/lib/utils"
 
 const localizer = dateFnsLocalizer({
@@ -51,21 +53,20 @@ export function ArtistCalendar() {
   const [date, setDate] = useState(new Date())
   const [view, setView] = useState<View>("month")
 
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [loading, setLoading] = useState(true)
+  // Each month window is cached (SWR): going back to a month already seen, or
+  // toggling list <-> calendar on the bookings page, shows it instantly.
+  // Fetch a generous window around the current month (2 weeks either side).
+  const rangeStart = format(subDays(startOfMonth(date), 14), "yyyy-MM-dd")
+  const rangeEnd = format(addDays(endOfMonth(date), 14), "yyyy-MM-dd")
+  const { data, isLoading: loading } = useSWR<{ bookings?: Booking[] }>(
+    calendarBookingsKey(rangeStart, rangeEnd),
+    // Keep showing the previous month (under the loading overlay) while a new one loads.
+    { keepPreviousData: true }
+  )
 
-  const fetchEvents = useCallback(async (currentDate: Date) => {
-    try {
-      setLoading(true)
-      // Fetch a generous window around the current date (e.g. previous month to next month)
-      const start = format(subDays(startOfMonth(currentDate), 14), "yyyy-MM-dd")
-      const end = format(addDays(endOfMonth(currentDate), 14), "yyyy-MM-dd")
-
-      const res = await fetch(`/api/bookings?start_date=${start}&end_date=${end}`)
-      if (!res.ok) throw new Error("Failed to fetch bookings")
-      const data = await res.json()
-
-      const mapped: CalendarEvent[] = data.bookings.map((b: Booking) => {
+  const events = useMemo<CalendarEvent[]>(
+    () =>
+      (data?.bookings ?? []).map((b) => {
         // Parse date and time to create start and end Date objects
         const startDateStr = `${b.booking_date}T${b.start_time}`
         const endDateStr = `${b.booking_date}T${b.end_time}`
@@ -80,23 +81,9 @@ export function ArtistCalendar() {
           end: new Date(endDateStr),
           original: b
         }
-      })
-
-      setEvents(mapped)
-    } catch (error) {
-      console.error("Error fetching calendar events:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchEvents(date)
-    // We intentionally don't re-fetch on every single date change if it's within the same month,
-    // but for simplicity, we trigger fetch when date significantly changes, 
-    // or just fetch every time (it's fast since we fetch a wide range). 
-    // In a real app, we'd check if the new date is outside the currently fetched range.
-  }, [fetchEvents, date.getMonth(), date.getFullYear()])
+      }),
+    [data]
+  )
 
   const visibleEvents = useMemo(
     () =>

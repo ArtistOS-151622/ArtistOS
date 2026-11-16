@@ -317,12 +317,21 @@ TIER 3 - SMALL / BUNDLE SIZE (not measured)
     mutate() to refetch the list. Refetch only if the PATCH fails.
 
 [F14] Calendar has no cache
+    STATUS: DONE (2026-11-16) - SWR keyed by the month window
+    (lib/bookings/calendar-cache.ts), keepPreviousData under the loading
+    overlay. Months already seen and list<->calendar toggles are served from
+    cache. Booking save/delete (bookings page + quick-add) and inquiry convert
+    mark cached months stale.
     File: components/common/calendar/artist-calendar.tsx  (~57-97)
     Refetches on every list/calendar toggle (it unmounts) and on every month
     change, even back to a month already loaded. SWR keyed by the month window
     makes toggles and back/forward months instant.
 
 [F15] react-big-calendar loaded even when calendar view is never opened
+    STATUS: DONE (2026-11-16) - booking-manager loads ArtistCalendar with
+    next/dynamic (ssr: false, AppLoader fallback). /calendar page unchanged
+    (the calendar is its main content). Its CSS stays in globals.css.
+    Bundle size still not measured.
     File: components/common/bookings/booking-manager.tsx  (line 15)
     ArtistCalendar is a static import; the calendar is opt-in (viewMode).
     Load it with next/dynamic. Same idea for recharts in the report tabs.

@@ -5,6 +5,7 @@ import { mutate } from "swr";
 import { User, Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { invalidateCustomerList, invalidateStorageInfo } from "@/lib/hooks/use-lookups";
+import { invalidateCalendarBookings } from "@/lib/bookings/calendar-cache";
 
 import { AppModal } from "@/components/common/shared/app-modal";
 import { Button } from "@/components/ui/button";
@@ -174,6 +175,7 @@ export function QuickAddModals({
       // Reference images used storage quota.
       if (hasImagesToUpload) invalidateStorageInfo();
       void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
+      invalidateCalendarBookings();
       setBookingModalOpen(false);
       setBookingValues(emptyBookingForm);
       setBookingUploadProgress(null);
