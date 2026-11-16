@@ -23,6 +23,7 @@ import type {
 } from "@/components/common/courses/course-types"
 import type { UploadProgressState } from "@/components/common/courses/course-upload-helper"
 import { Button } from "@/components/ui/button"
+import { useStorageInfo } from "@/lib/hooks/use-lookups"
 import { DatePicker } from "@/components/common/shared/date-picker"
 import {
   FloatingInput,
@@ -73,8 +74,10 @@ export function CourseForm({
   const [removedImageIds, setRemovedImageIds] = useState<number[]>([])
   const [loadingImages, setLoadingImages] = useState(false)
   const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null)
-  const [storageRemainingBytes, setStorageRemainingBytes] = useState<number | null>(null)
-  const [storageRemainingHuman, setStorageRemainingHuman] = useState<string>("")
+  // Shared, cached storage info (same cache as the booking form and portfolio).
+  const { quota: storageQuota } = useStorageInfo()
+  const storageRemainingBytes = storageQuota ? Number(storageQuota.remaining_bytes) || 0 : null
+  const storageRemainingHuman = storageQuota?.remaining_bytes_human || ""
 
   useEffect(() => {
     let isMounted = true
@@ -107,23 +110,7 @@ export function CourseForm({
       }
     }
 
-    async function loadStorageInfo() {
-      try {
-        const res = await fetch("/api/portfolio/storage-info")
-        if (res.ok) {
-          const data = await res.json()
-          if (isMounted && data.data?.quota) {
-            setStorageRemainingBytes(Number(data.data.quota.remaining_bytes) || 0)
-            setStorageRemainingHuman(data.data.quota.remaining_bytes_human || "")
-          }
-        }
-      } catch {
-        // Ignore quota load errors
-      }
-    }
-
     void loadCourseImages()
-    void loadStorageInfo()
 
     return () => {
       isMounted = false

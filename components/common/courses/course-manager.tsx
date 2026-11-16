@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   BookOpen,
   CreditCard,
@@ -46,13 +46,29 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { invalidateStorageInfo, useServices } from "@/lib/hooks/use-lookups"
+
+type CoursesResponse = { courses?: Course[]; stats?: CourseStats }
+type StudentsResponse = { students?: CourseStudent[] }
 
 export function CourseManager() {
   const { isReadOnly } = useGuardContext()
 
   const [courses, setCourses] = useState<Course[]>([])
   const [students, setStudents] = useState<CourseStudent[]>([])
-  const [services, setServices] = useState<CourseLearnedService[]>([])
+  // Services come from the shared cache (also used by the booking form) and
+  // never change on this page, so they are no longer refetched after every save.
+  const { services: artistServices } = useServices()
+  const services: CourseLearnedService[] = useMemo(
+    () =>
+      artistServices.map((s) => ({
+        id: s.id,
+        service_name: s.service_name,
+        duration_minutes: s.duration_minutes,
+        price: Number(s.price),
+      })),
+    [artistServices]
+  )
   const [stats, setStats] = useState<CourseStats>({
     total_courses: 0,
     total_students: 0,
@@ -87,32 +103,35 @@ export function CourseManager() {
   const [selectedCourseDetail, setSelectedCourseDetail] = useState<Course | null>(null)
 
   // Load Data
-  const loadData = async () => {
+  const loadCourses = async () => {
+    const data = (await (await fetch("/api/courses")).json()) as CoursesResponse
+    if (data.courses) setCourses(data.courses)
+    if (data.stats) setStats(data.stats)
+  }
+
+  const loadStudents = async () => {
+    const data = (await (await fetch("/api/courses/students")).json()) as StudentsResponse
+    if (data.students) setStudents(data.students)
+  }
+
+  /**
+   * Reload only what a change can affect. /api/courses carries the stats,
+   * which are computed from students; each student embeds its course's
+   * name / duration / timing. Reloads after a save run in the background
+   * (no skeleton); only the first load shows the loading state.
+   */
+  const refresh = async (parts: { courses?: boolean; students?: boolean }) => {
     try {
-      setLoading(true)
-      const [coursesRes, studentsRes, servicesRes] = await Promise.all([
-        fetch("/api/courses"),
-        fetch("/api/courses/students"),
-        fetch("/api/services"),
-      ])
-
-      const coursesData = await coursesRes.json()
-      const studentsData = await studentsRes.json()
-      const servicesData = await servicesRes.json()
-
-      if (coursesData.courses) setCourses(coursesData.courses)
-      if (coursesData.stats) setStats(coursesData.stats)
-      if (studentsData.students) setStudents(studentsData.students)
-      if (servicesData.services) setServices(servicesData.services)
-    } catch (err: any) {
-      setError(err?.message || "Failed to load courses data.")
-    } finally {
-      setLoading(false)
+      await Promise.all([parts.courses ? loadCourses() : null, parts.students ? loadStudents() : null])
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load courses data.")
     }
   }
 
   useEffect(() => {
-    loadData()
+    void refresh({ courses: true, students: true }).finally(() => setLoading(false))
+    // Runs once on mount; refresh only uses state setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 1. Course Handlers
@@ -181,10 +200,14 @@ export function CourseManager() {
       }
 
       toast.success(editingCourse ? "Course updated successfully." : "Course created successfully.")
+      const wasEditing = Boolean(editingCourse)
       setCourseModalOpen(false)
       setEditingCourse(null)
       setUploadProgress(null)
-      await loadData()
+      // Course images use storage quota.
+      if (hasImagesToUpload || hasImagesToDelete) invalidateStorageInfo()
+      // A new course has no students yet; an edit can change what student cards show.
+      await refresh({ courses: true, students: wasEditing })
     } catch (err: any) {
       toast.error(err?.message || "Failed to save course.")
       setUploadProgress(null)
@@ -211,7 +234,8 @@ export function CourseManager() {
       if (selectedCourseDetail?.id === deletingCourse.id) {
         setSelectedCourseDetail(null)
       }
-      await loadData()
+      // Its students are deleted with it (ON DELETE CASCADE).
+      await refresh({ courses: true, students: true })
     } catch (err: any) {
       toast.error(err?.message || "Failed to delete course.")
     } finally {
@@ -249,7 +273,7 @@ export function CourseManager() {
       setStudentModalOpen(false)
       setEditingStudent(null)
       setPreselectedCourse(null)
-      await loadData()
+      await refresh({ courses: true, students: true })
     } catch (err: any) {
       toast.error(err?.message || "Failed to save student.")
     } finally {
@@ -276,7 +300,7 @@ export function CourseManager() {
 
       toast.success("Payment recorded successfully.")
       setPaymentStudent(null)
-      await loadData()
+      await refresh({ courses: true, students: true })
     } catch (err: any) {
       toast.error(err?.message || "Failed to record payment.")
     } finally {
@@ -299,7 +323,7 @@ export function CourseManager() {
 
       toast.success("Student removed successfully.")
       setDeletingStudent(null)
-      await loadData()
+      await refresh({ courses: true, students: true })
     } catch (err: any) {
       toast.error(err?.message || "Failed to delete student.")
     } finally {

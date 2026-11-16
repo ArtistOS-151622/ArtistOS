@@ -113,6 +113,13 @@ TIER 1 - FIX FIRST (biggest waste, small changes)
 
 
 [F4] Courses page reloads 3 endpoints after every save / delete
+    STATUS: DONE (2026-11-16) - services from the shared useServices() cache
+    (never refetched here). Reloads split by what changed: course create ->
+    courses only (3 -> 1); course edit / delete and any student change ->
+    courses + students (3 -> 2; students embed course name/timing, stats come
+    from students, delete cascades). Reloads after a save no longer flash the
+    skeleton. Course form uses the shared useStorageInfo() (was a fetch per
+    open); course saves with image changes mark storage info stale.
     File: components/common/courses/course-manager.tsx
           (loadData ~90-112, called again at lines 187, 214, 252, 279, 302)
     Problem:
