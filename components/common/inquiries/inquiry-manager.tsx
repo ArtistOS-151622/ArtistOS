@@ -145,7 +145,16 @@ export function InquiryManager() {
     void loadFormLink()
   }, [])
 
+  // Abort the in-flight list request when a newer one starts or the page
+  // unmounts, so a slow response for an older search can't overwrite a newer one.
+  const listRequestRef = useRef<AbortController | null>(null)
+
+  useEffect(() => () => listRequestRef.current?.abort(), [])
+
   async function fetchInquiries(pageNum: number, append = false) {
+    listRequestRef.current?.abort()
+    const controller = new AbortController()
+    listRequestRef.current = controller
     if (pageNum === 1) {
       setLoading(true)
     } else {
@@ -154,9 +163,11 @@ export function InquiryManager() {
 
     try {
       const res = await fetch(
-        `/api/inquiries?page=${pageNum}&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`
+        `/api/inquiries?page=${pageNum}&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`,
+        { signal: controller.signal }
       )
       const data = (await res.json()) as InquiriesResponse
+      if (controller.signal.aborted) return
 
       if (!res.ok) {
         toast.error(data.error ?? "Unable to load inquiries.")
@@ -169,10 +180,14 @@ export function InquiryManager() {
       setHasMore(data.hasMore ?? false)
       setPage(pageNum)
     } catch {
+      if (controller.signal.aborted) return
       toast.error("Unable to load inquiries.")
     } finally {
-      setLoading(false)
-      setLoadingMore(false)
+      // A newer request owns the loading state now.
+      if (!controller.signal.aborted) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
     }
   }
 

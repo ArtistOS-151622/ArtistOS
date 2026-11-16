@@ -30,8 +30,9 @@ type StorageInfoResponse = {
   data?: { quota?: QuotaInfo | null; plans?: StoragePlanRow[] }
 }
 
-export function useServices() {
-  const { data, mutate: mutateServices } = useSWR<ServicesResponse>(SERVICES_URL, {
+/** `enabled: false` skips loading (e.g. until the modal that needs it opens). */
+export function useServices({ enabled = true }: { enabled?: boolean } = {}) {
+  const { data, isLoading, mutate: mutateServices } = useSWR<ServicesResponse>(enabled ? SERVICES_URL : null, {
     dedupingInterval: LOOKUP_DEDUPE_MS,
   })
   const services = useMemo(() => data?.services ?? [], [data])
@@ -47,7 +48,7 @@ export function useServices() {
     )
   }
 
-  return { services, addService }
+  return { services, isLoading, addService }
 }
 
 export function useCustomerList() {

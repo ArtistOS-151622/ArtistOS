@@ -287,6 +287,11 @@ TIER 2 - REAL GAINS, MORE WORK OR LOWER TRAFFIC
 
 
 [F12] Booking detail: 5 requests per open
+    STATUS: DONE (2026-11-16) - /api/services dropped from the page load; the
+    edit-services modal loads it via useServices({ enabled: open }) (shared
+    cache, often already warm), with a "Loading services..." state. 5 -> 4
+    requests per open. Merging payments/expenses/categories into /detail
+    (optional) not done.
     File: app/(dashboard)/bookings/[id]/page.tsx  (~419-458)
     Problem: detail, payments, expenses, expense-categories and /api/services
     load together on open. They are parallel, so the wait is the slowest one,
@@ -353,8 +358,8 @@ CORRECTNESS ISSUES FOUND DURING THE AUDIT (not speed, but worth fixing)
 
 [FB] Search results can arrive out of order
     STATUS: FIXED for bookings + customers (2026-11-06, AbortController) and
-    the 3 report tabs (2026-11-16, SWR ignores stale responses). Still open:
-    services, inquiries.
+    the 3 report tabs (2026-11-16, SWR ignores stale responses), and services
+    + inquiries (2026-11-16, AbortController). All search lists covered.
     Files: customer-manager.tsx, service-manager.tsx, booking-manager.tsx,
            inquiry-manager.tsx, report-*-tab.tsx
     Debounced search does not cancel the previous request. With 0.35-4 s

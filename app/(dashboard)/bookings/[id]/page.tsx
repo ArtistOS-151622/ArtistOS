@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -72,6 +72,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DatePicker } from "@/components/common/shared/date-picker";
 import { BookingPortfolioTab } from "@/components/portfolio/booking-portfolio-tab";
+import { useServices } from "@/lib/hooks/use-lookups";
 
 // Real DB Types
 type BookingService = {
@@ -284,9 +285,15 @@ export default function BookingDetailsPage() {
   // Edit Services Modal State
   const [editServicesOpen, setEditServicesOpen] = useState(false);
   const [editingServices, setEditingServices] = useState<BookingService[]>([]);
-  const [availableServices, setAvailableServices] = useState<
-    { id: number; service_name: string; price: number }[]
-  >([]);
+  // Only the "edit services" modal needs the artist's services: load them (from
+  // the shared cache when warm) when it opens, not on every booking open.
+  const { services: artistServices, isLoading: servicesLoading } = useServices({
+    enabled: editServicesOpen,
+  });
+  const availableServices = useMemo(
+    () => artistServices.map((s) => ({ ...s, price: Number(s.price) })),
+    [artistServices],
+  );
 
   // Additional Charges Inline State
   const [newChargeName, setNewChargeName] = useState("");
@@ -432,10 +439,9 @@ export default function BookingDetailsPage() {
       fetch(`/api/bookings/${bookingId}/expense-categories`, { signal }).then((r) =>
         r.json(),
       ),
-      fetch(`/api/services`, { signal }).then((r) => r.json()), // Global services for add-new
     ])
       .then(
-        ([detailRes, paymentsRes, expensesRes, categoriesRes, servicesRes]) => {
+        ([detailRes, paymentsRes, expensesRes, categoriesRes]) => {
           if (signal.aborted) return;
           if (detailRes.error) {
             setError(detailRes.error);
@@ -453,7 +459,6 @@ export default function BookingDetailsPage() {
           setPayments(paymentsRes.payments ?? []);
           setExpenses(expensesRes.expenses ?? []);
           setExpenseCategories(categoriesRes.categories ?? []);
-          setAvailableServices(servicesRes.services ?? []);
 
           // Auto-show additional charges if they exist
           if (b.additional_charges?.length > 0) {
@@ -2797,12 +2802,19 @@ export default function BookingDetailsPage() {
                         </div>
                       </DropdownMenuItem>
                     ))}
-                  {availableServices.filter(
-                    (s) => !editingServices.some((es) => es.id === s.id),
-                  ).length === 0 && (
-                    <div className="p-3 text-sm text-slate-500 text-center">
-                      No more services available
+                  {servicesLoading ? (
+                    <div className="flex items-center justify-center gap-2 p-3 text-sm text-slate-500">
+                      <Loader2 className="size-4 animate-spin" />
+                      Loading services...
                     </div>
+                  ) : (
+                    availableServices.filter(
+                      (s) => !editingServices.some((es) => es.id === s.id),
+                    ).length === 0 && (
+                      <div className="p-3 text-sm text-slate-500 text-center">
+                        No more services available
+                      </div>
+                    )
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>

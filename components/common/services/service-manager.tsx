@@ -77,15 +77,26 @@ export function ServiceManager() {
     return () => clearTimeout(delayDebounceFn);
   }, [search, sortBy]);
 
+  // Abort the in-flight list request when a newer one starts or the page
+  // unmounts, so a slow response for an older search can't overwrite a newer one.
+  const listRequestRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => listRequestRef.current?.abort(), []);
+
   async function loadServices(searchVal: string, sortVal: string) {
+    listRequestRef.current?.abort();
+    const controller = new AbortController();
+    listRequestRef.current = controller;
     setLoading(true);
     setError("");
 
     try {
       const response = await fetch(
         `/api/services?search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
+        { signal: controller.signal },
       );
       const data = (await response.json()) as ServicesResponse;
+      if (controller.signal.aborted) return;
 
       if (!response.ok) {
         setError(data.error ?? "Unable to load services.");
@@ -93,10 +104,14 @@ export function ServiceManager() {
         setServices(data.services ?? []);
       }
     } catch {
+      if (controller.signal.aborted) return;
       setError("Unable to load services.");
     } finally {
-      setInitialLoading(false);
-      setLoading(false);
+      // A newer request owns the loading state now.
+      if (!controller.signal.aborted) {
+        setInitialLoading(false);
+        setLoading(false);
+      }
     }
   }
 
