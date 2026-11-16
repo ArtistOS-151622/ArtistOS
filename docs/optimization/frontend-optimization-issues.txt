@@ -8,6 +8,20 @@ Not covered in depth: admin pages (app/admin/**), the public inquiry form and
 the public share page (low traffic, or already optimized in the backend audit).
 Companion file: docs/optimization/api-optimization-issues.txt (backend, closed 2026-11-06).
 
+===============================================================================
+AUDIT STATUS: PAUSED (2026-11-16)
+===============================================================================
+Done: [F1]-[F10], [F12]-[F15] and correctness issues [FA]-[FD] (see each
+STATUS line).
+
+PENDING - deferred until time permits:
+  - [F11] SWR cache for the remaining list pages (customers, services,
+          bookings, inquiries, courses, support).
+  - [F16] Landing page pricing loaded on the server.
+  - [F17] Broadcast create: 1000 customers + unused exact count.
+  - [F12] optional part: fold payments / expenses / categories into the
+          booking /detail response.
+
 Why requests matter so much here: each API request checks the session and hits
 Supabase, and a Supabase round trip was MEASURED at 0.35 - 4 s (see the backend
 file). A request the UI did not need is not free: it is load on that slow DB
@@ -271,6 +285,8 @@ TIER 2 - REAL GAINS, MORE WORK OR LOWER TRAFFIC
 
 
 [F11] Pages without a cache refetch on every visit
+    STATUS: PENDING (2026-11-16) - deferred until time permits. Largest
+    remaining item (6 pages); do one page at a time, Services first.
     Files: customer-manager.tsx, service-manager.tsx, booking-manager.tsx,
            inquiry-manager.tsx, course-manager.tsx, bookings/[id]/page.tsx,
            artist-calendar.tsx, support/page.tsx
@@ -338,6 +354,7 @@ TIER 3 - SMALL / BUNDLE SIZE (not measured)
     Bundle size not measured; check with a build analyzer before and after.
 
 [F16] Landing page loads pricing in the browser
+    STATUS: PENDING (2026-11-16) - deferred until time permits.
     File: app/page.tsx  (PricingSection ~1025, whole file is "use client")
     /api/platform-subscriptions is fetched client-side on the public homepage.
     Fetching it on the server (static with revalidate) removes the request,
@@ -345,6 +362,7 @@ TIER 3 - SMALL / BUNDLE SIZE (not measured)
     PricingSection split out of the client file. Medium effort.
 
 [F17] Broadcast create loads up to 1000 customers with an exact count
+    STATUS: PENDING (2026-11-16) - deferred; fine at current scale.
     File: app/(dashboard)/customers/broadcasts/create/page.tsx  (line 51)
     Fine at current scale. The `count: "exact"` in GET /api/customers is
     unused by this page and the booking-form dropdown; a `?no_count=1` option
