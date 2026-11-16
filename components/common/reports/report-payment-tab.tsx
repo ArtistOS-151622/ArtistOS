@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
+import useSWR from "swr"
 import { useRouter } from "next/navigation"
 import {
   Search,
@@ -141,12 +142,6 @@ export function ReportPaymentTab({
 }) {
   const router = useRouter()
   const isMobile = useIsMobile()
-  const [data, setData] = useState<{
-    payments: PaymentRow[]
-    pending_bookings: PendingBooking[]
-    totals: any
-  } | null>(null)
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [paymentType, setPaymentType] = useState("all")
@@ -160,31 +155,23 @@ export function ReportPaymentTab({
     return () => clearTimeout(t)
   }, [search])
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({
-        search: debouncedSearch,
-        payment_type: paymentType,
-        view,
-      })
-      if (dateRange) {
-        params.set("start_date", dateRange.start)
-        params.set("end_date", dateRange.end)
-      }
-      const res = await fetch(`/api/reports/payments?${params}`)
-      const json = await res.json()
-      if (res.ok) setData(json)
-    } catch {
-      /* silent */
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, paymentType, view, dateRange])
-
-  useEffect(() => {
-    load()
-  }, [load])
+  // Cached per filter set: switching back to this tab (or to an earlier
+  // filter / view) shows the stored result instead of refetching the report.
+  // payment_type and view stay server-side: they change which rows come back.
+  const params = new URLSearchParams({
+    search: debouncedSearch,
+    payment_type: paymentType,
+    view,
+  })
+  if (dateRange) {
+    params.set("start_date", dateRange.start)
+    params.set("end_date", dateRange.end)
+  }
+  const { data, isLoading: loading } = useSWR<{
+    payments: PaymentRow[]
+    pending_bookings: PendingBooking[]
+    totals: any
+  }>(`/api/reports/payments?${params}`)
 
   const totals = data?.totals
   const payments = data?.payments ?? []

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
+import useSWR from "swr"
 import { useRouter } from "next/navigation"
 import {
   Search,
@@ -125,6 +126,15 @@ type ServiceReport = {
   }[]
 }
 
+/** Same order the API used; done here so changing the sort sends no request. */
+function sortServices(list: ServiceReport[], sort: string): ServiceReport[] {
+  const sorted = [...list]
+  if (sort === "most_revenue") return sorted.sort((a, b) => b.total_revenue - a.total_revenue)
+  if (sort === "name") return sorted.sort((a, b) => a.service_name.localeCompare(b.service_name))
+  if (sort === "price_high") return sorted.sort((a, b) => Number(b.price) - Number(a.price))
+  return sorted.sort((a, b) => b.usage_count - a.usage_count)
+}
+
 export function ReportServiceTab({
   dateRange,
 }: {
@@ -132,11 +142,6 @@ export function ReportServiceTab({
 }) {
   const router = useRouter()
   const isMobile = useIsMobile()
-  const [data, setData] = useState<{
-    services: ServiceReport[]
-    totals: any
-  } | null>(null)
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [sort, setSort] = useState("most_used")
@@ -148,30 +153,20 @@ export function ReportServiceTab({
     return () => clearTimeout(t)
   }, [search])
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({ search: debouncedSearch, sort })
-      if (dateRange) {
-        params.set("start_date", dateRange.start)
-        params.set("end_date", dateRange.end)
-      }
-      const res = await fetch(`/api/reports/services?${params}`)
-      const json = await res.json()
-      if (res.ok) setData(json)
-    } catch {
-      /* silent */
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, sort, dateRange])
-
-  useEffect(() => {
-    load()
-  }, [load])
+  // Cached per search + date range: switching back to this tab (or to an
+  // earlier filter) shows the stored result instead of refetching the report.
+  const params = new URLSearchParams({ search: debouncedSearch })
+  if (dateRange) {
+    params.set("start_date", dateRange.start)
+    params.set("end_date", dateRange.end)
+  }
+  const { data, isLoading: loading } = useSWR<{
+    services: ServiceReport[]
+    totals: any
+  }>(`/api/reports/services?${params}`)
 
   const totals = data?.totals
-  const services = data?.services ?? []
+  const services = useMemo(() => sortServices(data?.services ?? [], sort), [data, sort])
 
   // Top 5 services by revenue for bar chart
   const topServicesData = useMemo(() => {

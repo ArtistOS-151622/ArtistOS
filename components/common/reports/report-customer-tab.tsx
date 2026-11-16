@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
+import useSWR from "swr"
 import { useRouter } from "next/navigation"
 import {
   Search,
@@ -132,6 +133,16 @@ type CustomerReport = {
   bookings: any[]
 }
 
+/** Same order the API used; done here so changing the sort sends no request. */
+function sortCustomers(list: CustomerReport[], sort: string): CustomerReport[] {
+  const sorted = [...list]
+  if (sort === "most_bookings") return sorted.sort((a, b) => b.booking_count - a.booking_count)
+  if (sort === "highest_billed") return sorted.sort((a, b) => b.total_billed - a.total_billed)
+  if (sort === "highest_due") return sorted.sort((a, b) => b.balance_due - a.balance_due)
+  if (sort === "name") return sorted.sort((a, b) => a.customer_name.localeCompare(b.customer_name))
+  return sorted.sort((a, b) => (b.last_booking_date ?? "").localeCompare(a.last_booking_date ?? ""))
+}
+
 export function ReportCustomerTab({
   dateRange,
 }: {
@@ -139,11 +150,6 @@ export function ReportCustomerTab({
 }) {
   const router = useRouter()
   const isMobile = useIsMobile()
-  const [data, setData] = useState<{
-    customers: CustomerReport[]
-    totals: any
-  } | null>(null)
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [sort, setSort] = useState("recent")
@@ -155,30 +161,20 @@ export function ReportCustomerTab({
     return () => clearTimeout(t)
   }, [search])
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({ search: debouncedSearch, sort })
-      if (dateRange) {
-        params.set("start_date", dateRange.start)
-        params.set("end_date", dateRange.end)
-      }
-      const res = await fetch(`/api/reports/customers?${params}`)
-      const json = await res.json()
-      if (res.ok) setData(json)
-    } catch {
-      /* silent */
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, sort, dateRange])
-
-  useEffect(() => {
-    load()
-  }, [load])
+  // Cached per search + date range: switching back to this tab (or to an
+  // earlier filter) shows the stored result instead of refetching the report.
+  const params = new URLSearchParams({ search: debouncedSearch })
+  if (dateRange) {
+    params.set("start_date", dateRange.start)
+    params.set("end_date", dateRange.end)
+  }
+  const { data, isLoading: loading } = useSWR<{
+    customers: CustomerReport[]
+    totals: any
+  }>(`/api/reports/customers?${params}`)
 
   const totals = data?.totals
-  const customers = data?.customers ?? []
+  const customers = useMemo(() => sortCustomers(data?.customers ?? [], sort), [data, sort])
 
   // Top 5 customers chart data
   const topCustomersData = useMemo(() => {

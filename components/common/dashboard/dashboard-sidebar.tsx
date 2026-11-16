@@ -120,6 +120,8 @@ export function DashboardSidebar({ active }: DashboardSidebarProps) {
                       active={current === item.id}
                       onClick={navigate(item.id)}
                       indicator
+                      // New inquiries: on mobile the floating Inquiries button shows the count.
+                      showDot={item.id === "inquiries" && pendingInquiryCount > 0}
                     />
                   }
                 />
@@ -197,9 +199,11 @@ type DashboardNavLinkProps = Omit<ComponentProps<typeof Link>, "href"> & {
   active: boolean;
   /** True when a sliding indicator draws the active background behind the link. */
   indicator?: boolean;
+  /** Small rose dot (same style as the notifications bell) for something new. */
+  showDot?: boolean;
 };
 
-function DashboardNavLink({ item, active, indicator, className, ...props }: DashboardNavLinkProps) {
+function DashboardNavLink({ item, active, indicator, showDot, className, ...props }: DashboardNavLinkProps) {
   const Icon = item.icon;
 
   return (
@@ -217,6 +221,9 @@ function DashboardNavLink({ item, active, indicator, className, ...props }: Dash
       )}
     >
       <Icon className="size-5" />
+      {showDot && (
+        <span className="absolute top-3 right-3 size-2 rounded-full bg-rose-500 ring-2 ring-white" />
+      )}
     </Link>
   );
 }

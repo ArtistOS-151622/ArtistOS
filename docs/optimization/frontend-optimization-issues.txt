@@ -215,6 +215,12 @@ TIER 2 - REAL GAINS, MORE WORK OR LOWER TRAFFIC
 
 
 [F9] Reports: tab switch and sort change refetch the full report
+    STATUS: DONE (2026-11-16) - customers / services tabs sort in the browser
+    (same rules as the API; sort no longer sent), so a sort change sends 0
+    requests. All 3 tabs load via SWR keyed by search + filters + date range:
+    switching back to a tab or an earlier filter is served from cache
+    (revalidated in the background after 10 s). Payment type / view stay
+    server-side (they change which rows come back).
     Files: app/(dashboard)/reports/page.tsx  (~197-205)
            components/common/reports/report-{customer,service,payment}-tab.tsx
            app/api/reports/customers/route.ts  (sort ~110-115)
@@ -346,6 +352,9 @@ CORRECTNESS ISSUES FOUND DURING THE AUDIT (not speed, but worth fixing)
     Fix: mutate("/api/auth/me") after profile save and avatar/logo upload.
 
 [FB] Search results can arrive out of order
+    STATUS: FIXED for bookings + customers (2026-11-06, AbortController) and
+    the 3 report tabs (2026-11-16, SWR ignores stale responses). Still open:
+    services, inquiries.
     Files: customer-manager.tsx, service-manager.tsx, booking-manager.tsx,
            inquiry-manager.tsx, report-*-tab.tsx
     Debounced search does not cancel the previous request. With 0.35-4 s
