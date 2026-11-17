@@ -1,0 +1,10 @@
+{
+  "//": "Editor support only (go-to-definition for #src/* imports). No type checking: checkJs stays off.",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2023",
+    "checkJs": false
+  },
+  "include": ["src", "tests"]
+}

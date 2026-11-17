@@ -149,7 +149,7 @@ server/
 │   │
 │   └── utils/                    # framework plumbing, no domain knowledge
 │       ├── api-error.js          # class ApiError(status, message) + helpers (badRequest, notFound…)
-│       ├── async-handler.js      # wraps async controllers so rejections reach error-handler
+│       │                         # (no async-handler.js: Express 5 forwards rejected promises itself)
 │       ├── session-token.js      # create/verify artist + admin tokens (byte-compatible with lib/auth/session.ts)
 │       ├── cookies.js            # setSessionCookie / clearSessionCookie (Domain from config)
 │       ├── background.js         # runInBackground(fn): replaces next/server after()
@@ -231,8 +231,20 @@ Also set `app.set("trust proxy", 1)`. Render sits behind a proxy, and this setti
 - **Admin auth: fixed in phase 0, before the migration** (see *Admin panel*). The Express `require-admin.js` ports the fixed, signed-token check. Never port the old `=== "authenticated"` check.
 - **Cookie switch at cutover.** Today `artist_session` is a host-only cookie on `www.artistos.in`, set by Next. After cutover the API sets it with `Domain=.artistos.in`. The browser treats these as two different cookies with the same name, so it can send both.
   - **How long the old cookie lingers:** up to **1 year** for artists (`SESSION_MAX_AGE_SECONDS` in `lib/auth/session.ts` is 365 days, not 7) and up to 7 days for admin. Clearing it actively is therefore required.
-  - **The API's login, logout and every successful auth check clear the old host-only cookie**, by expiring it with no `Domain` attribute. Then active users lose it on their first request after cutover, not at its natural expiry.
-  - **Verification on both sides tries every `artist_session` value and accepts the first valid one.** Neither framework does this by default:
+  - **Correction (found in phase 1): the API can neither see nor clear the old cookie.** A host-only cookie for `www.artistos.in` is never sent to `api.artistos.in`. A response from `api.artistos.in` can only set or delete cookies for `api.artistos.in` or `.artistos.in`, never host-only `www` cookies. So the earlier idea of having the API clear the old cookie can't work. Left unhandled, **every logged-in user would be stuck in a loop at cutover**:
+    1. Their only cookie is the old host-only one, so the API returns 401.
+    2. The interceptor sends them to `/login`.
+    3. `proxy.ts` sees a perfectly valid token (correct signature) and sends them back to `/dashboard`.
+    4. Repeat.
+
+    The signature check in the proxy doesn't help here, because the old token *is* valid.
+  - **Fix: `proxy.ts` upgrades the cookie** (ships with phase 6, active only when `COOKIE_DOMAIN` is set on Vercel). `proxy.ts` runs on `www.artistos.in`, so it *can* manage both cookies. On any request with a verified `artist_session` (or `admin_session`) and no `session_scope=domain` marker cookie, it appends raw `Set-Cookie` headers:
+    1. expire the host-only cookie (`Max-Age=0`, no `Domain`)
+    2. set the same token with `Domain=.artistos.in`, the same flags and the remaining lifetime
+    3. set the marker `session_scope=domain` with `Domain=.artistos.in`
+
+    Use `response.headers.append("Set-Cookie", …)`. `NextResponse.cookies` keys cookies by name, so it can't hold two `artist_session` entries. API login also sets the marker, so fresh logins skip the upgrade. Each existing user is upgraded on their first page load after cutover, before any API call is made.
+  - **Verification on both sides tries every `artist_session` value and accepts the first valid one.** During the upgrade, `www` can briefly receive both cookies. Neither framework does this by default:
     - **Express:** `cookie-parser` keeps only one value per name. `require-artist.js` and `require-admin.js` must parse the raw `req.headers.cookie` themselves, with a small `getAllCookieValues(header, name)` helper in `utils/cookies.js`.
     - **Next (`proxy.ts`):** `request.cookies.get()` returns only the first value. Use `request.cookies.getAll("artist_session")` and loop.
   - Add a phase 5 check: log in before cutover, switch, then log out and confirm no `artist_session` cookie remains.
@@ -291,7 +303,7 @@ Also set `app.set("trust proxy", 1)`. Render sits behind a proxy, and this setti
   2. Express sets `admin_session` with `Domain=.artistos.in`.
   3. Both `proxy.ts` and Express verify it.
   - `SameSite=Strict` still works, because the two subdomains are the same site.
-- **Cookie switch:** same as the artist cookie. Admin login and logout also expire the old host-only `admin_session`.
+- **Cookie switch:** same as the artist cookie. The `proxy.ts` upgrade covers `admin_session` too, with `SameSite=Strict` preserved.
 - **The admin pages use the axios `api` client**, as listed in the frontend conversion order. On a 401 from an admin route, redirect to `/admin/login`, not `/login`, by checking the request path in the interceptor.
 - **Maintenance toggle:** the settings route can no longer call `invalidateMaintenanceModeCache()` in the Next process, so a toggle takes effect within the 30 s cache TTL (see *Things that need special care*).
 - **Unchanged:** the URLs, the admin password, and the delete-user OTP flow (`ADMIN_SECURITY_PHONE`).
@@ -408,6 +420,16 @@ lib/api/
    - config/env, logger, error handling, the middlewares, `/health`
    - eslint, `.env.example`, README, `render.yaml`
    - `session-token.js` and `cookies.js`, plus the token-compatibility test
+
+   **Done (2026-11-17).** Decisions made while implementing:
+   - `server/` is its own pnpm workspace (`server/pnpm-workspace.yaml`), with its own committed lockfile. The root `pnpm-workspace.yaml` only holds pnpm settings.
+   - There's no `async-handler.js`, because Express 5 handles rejected promises itself.
+   - `validate()` puts parsed input on `req.validated`, because Express 5's `req.query` is read-only. It also replaces `req.body`.
+   - `requireCron` **fails closed**: if `CRON_SECRET` is unset, every cron call is refused. The old Next routes allowed every call when it was unset.
+   - `read-only-guard` is a factory, `createReadOnlyGuard(isReadOnly)`. The subscriptions module supplies `isReadOnly` in phase 3.
+   - `env.js` validates only the core vars for now. Integration vars are added as each integration is ported.
+   - `render.yaml` uses `autoDeploy: false` and region `singapore`, so nothing deploys until cutover.
+   - Tests: 29 `node:test` cases, including byte-for-byte token equality with `lib/auth/session.ts` under a frozen clock.
 2. **Port integrations and cross-module logic.** Port the third-party clients to `server/src/integrations`, and code used by 2+ modules (notifications, OTP, phone) to `server/src/shared`. Port the matching tests from root `tests/` into the mirrored `server/tests/` paths, and make them pass. `lib/` code used by only one module (booking input, portfolio quota, billing dates, inquiry queries…) is ported with that module in phase 3, not here.
 3. **Port modules** in groups, one commit each, in this order:
    1. auth + profile

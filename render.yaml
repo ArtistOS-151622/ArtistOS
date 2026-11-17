@@ -1,0 +1,32 @@
+# Render Blueprint for the ArtistOS API (Express). The Next.js frontend stays on Vercel.
+services:
+  - type: web
+    name: artistos-api
+    runtime: node
+    rootDir: server
+    # Starter or above: the free plan sleeps after ~15 min idle (bad for webhooks/cron).
+    plan: starter
+    region: singapore
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod
+    startCommand: node src/server.js
+    healthCheckPath: /health
+    autoDeploy: false
+    domains:
+      - api.artistos.in
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "24"
+      - key: COOKIE_DOMAIN
+        value: .artistos.in
+      - key: FRONTEND_ORIGINS
+        value: https://www.artistos.in
+      # Secrets: set in the Render dashboard (sync: false keeps them out of this file).
+      # JWT_SECRET must match the Vercel value exactly.
+      - key: JWT_SECRET
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CRON_SECRET
+        sync: false
