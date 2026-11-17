@@ -118,7 +118,7 @@ export default function DashboardPage() {
   if (isLoading && !data) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Dashboard" />
+        <PageHeader title="Dashboards" />
 
         {/* Banner Skeleton */}
         <Card className="rounded-[1.75rem] border-slate-100 bg-white shadow-md shadow-purple-950/5 h-auto md:h-[156px] w-full">
