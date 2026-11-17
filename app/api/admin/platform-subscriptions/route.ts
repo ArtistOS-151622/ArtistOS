@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/auth/admin"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = requireAdmin(request)
+  if (denied) return denied
+
   const supabase = await createClient()
 
   try {
@@ -21,6 +25,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const denied = requireAdmin(req)
+  if (denied) return denied
+
   const supabase = await createClient()
 
   try {

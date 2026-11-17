@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/auth/admin"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { deleteFromR2 } from "@/lib/portfolio/files"
@@ -6,7 +7,10 @@ import { STORAGE_FREE_TIER_BYTES } from "@/lib/portfolio/config"
 import { verifyOtpInDatabase, ADMIN_SECURITY_PHONE } from "@/lib/auth/otp"
 import { invalidateReadOnlyCache } from "@/lib/auth/subscription"
 
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = requireAdmin(request)
+  if (denied) return denied
+
   const supabase = await createClient()
 
   try {
@@ -176,6 +180,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const denied = requireAdmin(request)
+  if (denied) return denied
+
   const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY
     ? createAdminClient()
     : await createClient()
@@ -322,6 +329,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const denied = requireAdmin(request)
+  if (denied) return denied
+
   // Use admin client with service role to bypass RLS and perform full cascade deletion
   const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY
     ? createAdminClient()

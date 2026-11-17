@@ -10,7 +10,7 @@
 - On a 401, the axios interceptor redirects to `/login` automatically. Login, OTP and public endpoints are exempt.
 - **No type checking in `server/`:** plain JS, no `@ts-check`, no JSDoc types, no `tsc`.
 - **Admin auth is fixed as part of this work**, first, as phase 0 in the current Next code, because the admin API is open today. Express ports the fixed version.
-- **Production domain: `artistos.in`.** Frontend on **Vercel** at `https://artistos.in` (`www.artistos.in` redirects there), API on Render at `https://api.artistos.in`.
+- **Production domain: `artistos.in`.** Frontend on **Vercel** at `https://www.artistos.in` (the bare `artistos.in` 308-redirects there, verified 2026-11-17), API on Render at `https://api.artistos.in`.
 
 ## Goal
 
@@ -41,12 +41,12 @@ For both to see the cookie, the frontend and API must live under the **same regi
 
 | | Host |
 |---|---|
-| Frontend (Next, on Vercel) | `https://artistos.in` (`www.artistos.in` redirects here, so it isn't an API origin) |
+| Frontend (Next, on Vercel) | `https://www.artistos.in` (bare `artistos.in` redirects here, so it isn't an API origin) |
 | API (Express on Render) | `https://api.artistos.in` |
 
 Production values:
 - `COOKIE_DOMAIN=.artistos.in`
-- `FRONTEND_ORIGINS=https://artistos.in`
+- `FRONTEND_ORIGINS=https://www.artistos.in`
 - `NEXT_PUBLIC_API_URL=https://api.artistos.in`
 
 The API sets the cookie with `Domain=.artistos.in; SameSite=Lax; Secure; HttpOnly`. Subdomains of the same site count as same-site, so this cookie is sent on `fetch(..., { credentials: "include" })`.
@@ -229,10 +229,23 @@ Also set `app.set("trust proxy", 1)`. Render sits behind a proxy, and this setti
 - **Read-only (expired subscription) gate.** This currently lives in `proxy.ts` for `/api/*` mutations. It moves into `read-only-guard.js` with the same exempt list and the same fail-open behaviour. The `/api` block in `proxy.ts` is removed only after cutover.
 - **Maintenance mode cache.** `proxy.ts` caches the maintenance flag. When an admin toggles maintenance via Express, the cache in the Next process isn't cleared, so the change can lag by up to 30 s. That's acceptable; noted here for awareness.
 - **Admin auth: fixed in phase 0, before the migration** (see *Admin panel*). The Express `require-admin.js` ports the fixed, signed-token check. Never port the old `=== "authenticated"` check.
-- **Cookie switch at cutover.** Today `artist_session` is a host-only cookie on `artistos.in`, set by Next. After cutover the API sets it with `Domain=.artistos.in`. The browser treats these as two different cookies with the same name, so for up to 7 days it can send both, and `proxy.ts` or the API may read the stale one.
-  - The API's logout and login must also clear the old host-only cookie, by expiring it with no `Domain` attribute.
-  - `session-token` verification on both sides should try each `artist_session` value and accept the first valid one.
+- **Cookie switch at cutover.** Today `artist_session` is a host-only cookie on `www.artistos.in`, set by Next. After cutover the API sets it with `Domain=.artistos.in`. The browser treats these as two different cookies with the same name, so it can send both.
+  - **How long the old cookie lingers:** up to **1 year** for artists (`SESSION_MAX_AGE_SECONDS` in `lib/auth/session.ts` is 365 days, not 7) and up to 7 days for admin. Clearing it actively is therefore required.
+  - **The API's login, logout and every successful auth check clear the old host-only cookie**, by expiring it with no `Domain` attribute. Then active users lose it on their first request after cutover, not at its natural expiry.
+  - **Verification on both sides tries every `artist_session` value and accepts the first valid one.** Neither framework does this by default:
+    - **Express:** `cookie-parser` keeps only one value per name. `require-artist.js` and `require-admin.js` must parse the raw `req.headers.cookie` themselves, with a small `getAllCookieValues(header, name)` helper in `utils/cookies.js`.
+    - **Next (`proxy.ts`):** `request.cookies.get()` returns only the first value. Use `request.cookies.getAll("artist_session")` and loop.
   - Add a phase 5 check: log in before cutover, switch, then log out and confirm no `artist_session` cookie remains.
+- **The `proxy.ts` page guard must verify the signature, not just `exp`.** Today the artist page guard only decodes the token and checks `exp`, without verifying the signature. The axios interceptor sends any 401 to `/login`, and `proxy.ts` sends a user with a "valid" cookie from `/login` back to `/dashboard`. So a token the API rejects but whose `exp` looks valid causes a **redirect loop**: `/dashboard` → API 401 → `/login` → proxy → `/dashboard` → … The "redirect only once" flag in the interceptor resets on each page load, so it doesn't break the loop. Ways this can happen:
+  - stale duplicate cookies (above)
+  - a `JWT_SECRET` mismatch between Vercel and Render
+  - a secret rotation
+
+  **Fix:**
+  - Replace `getJwtExpiry`/`isExpiredSession` in `proxy.ts` with `verifyArtistToken`, looping over all cookie values. It already runs on the Node runtime and uses `getArtistSession` for the API read-only check.
+  - When no value verifies, delete the cookie in the redirect response. Then `/login` can't bounce back.
+  - This ships at the start of phase 4, before the axios 401 redirect exists.
+- **`JWT_SECRET` must be identical on Vercel and Render.** Both sides sign or verify the same tokens. If they differ, every API call returns 401. Document this in `server/.env.example` and the README. `config/env.js` should also require a minimum length (≥ 32 chars) so a placeholder can't slip through.
 - **Vercel preview deployments** run on `*.vercel.app`, outside `artistos.in`, so they can't share the login cookie with `api.artistos.in`. Leave `NEXT_PUBLIC_API_URL` **unset for the Vercel Preview environment**, so previews keep using their own same-origin Next routes until cleanup. After cleanup, previews need a staging API plus a custom preview domain under `artistos.in` (e.g. `preview.artistos.in`), or they can only be used logged-out.
 - **Set `NEXT_PUBLIC_API_URL` only on Vercel's Production environment.** It's inlined at build time, so changing it (cutover or rollback) needs a **redeploy** on Vercel, not just an env edit.
 - **CORS.** Use an explicit origin allow-list with `credentials: true`, never `*`.
@@ -261,6 +274,7 @@ Also set `app.set("trust proxy", 1)`. Render sits behind a proxy, and this setti
   - Require `ADMIN_PASSWORD`; there's no fallback, so it returns 500 if it's unset.
   - Compare with `crypto.timingSafeEqual`.
   - Set `admin_session` to the signed token: HttpOnly, Secure, `SameSite=Strict`. Keep the 7-day expiry, or shorten it.
+  - **Known side effect of `Strict`:** the cookie isn't sent when an `/admin` link is opened from outside the site (email, chat), so that lands on `/admin/login`. Accepted for admin.
   - Add a simple per-IP attempt limit.
 - **`requireAdmin(request)`** helper in `lib/auth/admin.ts`. It returns 401 `{ error }` unless the cookie verifies. Call it at the top of **every** `app/api/admin/**` handler except login.
 - **`proxy.ts`** changes:
@@ -273,7 +287,7 @@ Also set `app.set("trust proxy", 1)`. Render sits behind a proxy, and this setti
 - **Stays on Vercel (Next):** the `/admin/*` pages, and the page guard in `proxy.ts`, which verifies the signed `admin_session`.
 - **Moves to Render (Express):** all admin endpoints, into `modules/admin/`. They're mounted behind `require-admin.js`, except login, which gets the strict rate limit.
 - **Login flow:**
-  1. The page at `artistos.in/admin/login` posts to `api.artistos.in/api/admin/login`.
+  1. The page at `www.artistos.in/admin/login` posts to `api.artistos.in/api/admin/login`.
   2. Express sets `admin_session` with `Domain=.artistos.in`.
   3. Both `proxy.ts` and Express verify it.
   - `SameSite=Strict` still works, because the two subdomains are the same site.
@@ -372,7 +386,7 @@ lib/api/
   - **Free plan sleeps after ~15 min idle, with a 30–60 s cold start.** That's unacceptable for webhooks, cron and the dashboard, so production needs **Starter or above**.
 - **Lockfile.** `server/` gets its own committed `pnpm-lock.yaml`, scoped to the server package. It is independent of the root's gitignored lockfile, so the root stays as-is.
 - **Env vars on Render.** All the env vars the API uses today:
-  - Auth: `JWT_SECRET`
+  - Auth: `JWT_SECRET` (**must match Vercel's value exactly**, see *Things that need special care*), `ADMIN_PASSWORD` (required: no fallback)
   - Supabase: URL, anon key, `SUPABASE_SERVICE_ROLE_KEY`
   - R2 credentials
   - Razorpay, including `RAZORPAY_WEBHOOK_SECRET`
@@ -380,8 +394,6 @@ lib/api/
   - WhatsApp
   - VAPID keys
   - Storage limits
-
-  - `ADMIN_PASSWORD` (required: no fallback)
 
   New ones: `FRONTEND_ORIGINS`, `COOKIE_DOMAIN`, `LOG_LEVEL`, `PORT`. `config/env.js` validates them at boot, so a missing var crashes the deploy instead of failing at runtime.
 - **Frontend env:** `NEXT_PUBLIC_API_URL=https://api.artistos.in`.
@@ -408,7 +420,7 @@ lib/api/
    8. reports / dashboard / badges / notifications / push / whatsapp
    9. cron
    10. webhooks
-4. **Frontend: move to axios.** Add `lib/api/` (the axios instance, interceptors and `ApiError`). Move SWR's `jsonFetcher` onto it, then convert all `fetch("/api…")` call sites and the XHR upload helpers, one feature per commit (see *Frontend changes*). Requests still default to same-origin, so this phase can ship to production on its own, before the backend moves. That isolates any axios regressions from the Express cutover.
+4. **Frontend: move to axios.** First commit: make the `proxy.ts` page guard verify signatures (all cookie values) and clear unverifiable cookies, to prevent the redirect loop (see *Things that need special care*). Then add `lib/api/` (the axios instance, interceptors and `ApiError`). Move SWR's `jsonFetcher` onto it, then convert all `fetch("/api…")` call sites and the XHR upload helpers, one feature per commit (see *Frontend changes*). Requests still default to same-origin, so this phase can ship to production on its own, before the backend moves. That isolates any axios regressions from the Express cutover.
 5. **Local end-to-end.** Run Next on `localhost:3000` and Express on `localhost:4000`, with `NEXT_PUBLIC_API_URL` set. Click through:
    - login
    - CRUD on each resource
@@ -438,6 +450,7 @@ lib/api/
   - No direct `import axios` outside `lib/api/`; the lint rule enforces this.
   - With `NEXT_PUBLIC_API_URL` unset, every page works same-origin.
   - An expired session hitting any API call redirects to `/login` exactly once.
+  - A cookie with a valid-looking `exp` but a bad signature (e.g. hand-edited payload) lands on `/login` and stays there. There's no loop back to `/dashboard`, and the bad cookie is cleared.
   - Typing quickly in a search box cancels the stale requests, with no error toast.
   - Upload progress bars still move, and R2 uploads succeed. Check that the `PUT` carries no cookie.
 - Phase 5 manual checklist, including:
@@ -449,6 +462,7 @@ lib/api/
   - the webhook signature validates
   - cron endpoints reject a missing or wrong `CRON_SECRET`
   - a missing env var fails boot with a clear message
+  - a token signed with a different `JWT_SECRET` is rejected by both `proxy.ts` and Express, and lands on `/login` with no loop
 
 ## Open questions
 

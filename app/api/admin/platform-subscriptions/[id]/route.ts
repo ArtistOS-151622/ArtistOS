@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/auth/admin"
 import { createClient } from "@/lib/supabase/server"
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = requireAdmin(req)
+  if (denied) return denied
+
   const supabase = await createClient()
 
   try {
@@ -62,6 +66,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = requireAdmin(req)
+  if (denied) return denied
+
   const supabase = await createClient()
 
   try {

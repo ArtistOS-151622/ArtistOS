@@ -1,32 +1,57 @@
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
+
+import {
+  clearFailedLogins,
+  getClientIp,
+  isAdminPasswordValid,
+  isLoginRateLimited,
+  recordFailedLogin,
+} from "@/lib/auth/admin"
+import {
+  ADMIN_SESSION_COOKIE,
+  ADMIN_SESSION_MAX_AGE_SECONDS,
+  createAdminToken,
+} from "@/lib/auth/session"
 
 export async function POST(request: Request) {
-  try {
-    const { password } = await request.json()
-    const correctPassword = process.env.ADMIN_PASSWORD || "admin123"
+  const expectedPassword = process.env.ADMIN_PASSWORD
+  if (!expectedPassword) {
+    return NextResponse.json({ error: "Admin login is not configured" }, { status: 500 })
+  }
 
-    if (password === correctPassword) {
-      const cookieStore = await cookies()
-      cookieStore.set("admin_session", "authenticated", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-      })
-
-      return NextResponse.json({ success: true })
-    }
-
+  const ip = getClientIp(request)
+  if (isLoginRateLimited(ip)) {
     return NextResponse.json(
-      { error: "Invalid password" },
-      { status: 401 }
-    )
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      { error: "Too many failed attempts. Please try again later." },
+      { status: 429 }
     )
   }
+
+  let password: unknown
+  try {
+    password = ((await request.json()) as { password?: unknown })?.password
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
+
+  if (typeof password !== "string" || !password) {
+    return NextResponse.json({ error: "Password is required" }, { status: 400 })
+  }
+
+  if (!isAdminPasswordValid(password, expectedPassword)) {
+    recordFailedLogin(ip)
+    return NextResponse.json({ error: "Invalid password" }, { status: 401 })
+  }
+
+  clearFailedLogins(ip)
+
+  const response = NextResponse.json({ success: true })
+  response.cookies.set(ADMIN_SESSION_COOKIE, createAdminToken(), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: ADMIN_SESSION_MAX_AGE_SECONDS,
+  })
+  return response
 }

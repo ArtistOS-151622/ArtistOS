@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/auth/admin"
 import {
   generate6DigitOtp,
   hashOtp,
@@ -8,7 +9,10 @@ import {
   OTP_EXPIRY_MINUTES,
 } from "@/lib/auth/otp"
 
-export async function POST() {
+export async function POST(request: Request) {
+  const denied = requireAdmin(request)
+  if (denied) return denied
+
   try {
     const otp = generate6DigitOtp()
     const otpHash = hashOtp(otp)

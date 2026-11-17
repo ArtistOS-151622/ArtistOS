@@ -11,7 +11,17 @@ export type ArtistSession = {
 // Session expiration duration: 1 year (365 days)
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 
+export const ADMIN_SESSION_COOKIE = "admin_session"
+export const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
+const ADMIN_ROLE = "admin"
+
 type JwtPayload = ArtistSession & {
+  iat: number
+  exp: number
+}
+
+type AdminJwtPayload = {
+  role: typeof ADMIN_ROLE
   iat: number
   exp: number
 }
@@ -58,7 +68,8 @@ export function createArtistToken(session: ArtistSession): string {
   return `${unsignedToken}.${signTokenPart(unsignedToken)}`
 }
 
-export function verifyArtistToken(token: string): ArtistSession | null {
+/** Checks the signature and returns the decoded payload, or null. Does not check `exp`. */
+function decodeSignedToken(token: string): Record<string, unknown> | null {
   const parts = token.split(".")
   if (parts.length !== 3) return null
 
@@ -77,7 +88,44 @@ export function verifyArtistToken(token: string): ArtistSession | null {
   }
 
   try {
-    const decoded = JSON.parse(base64UrlDecode(payload).toString("utf8")) as Partial<JwtPayload>
+    const decoded: unknown = JSON.parse(base64UrlDecode(payload).toString("utf8"))
+    return decoded && typeof decoded === "object" ? (decoded as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
+}
+
+export function createAdminToken(): string {
+  const now = Math.floor(Date.now() / 1000)
+  const header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }))
+  const payload = base64UrlEncode(
+    JSON.stringify({
+      role: ADMIN_ROLE,
+      iat: now,
+      exp: now + ADMIN_SESSION_MAX_AGE_SECONDS,
+    } satisfies AdminJwtPayload)
+  )
+  const unsignedToken = `${header}.${payload}`
+  return `${unsignedToken}.${signTokenPart(unsignedToken)}`
+}
+
+export function verifyAdminToken(token: string | null | undefined): boolean {
+  if (!token) return false
+  const decoded = decodeSignedToken(token)
+  if (!decoded || decoded.role !== ADMIN_ROLE) return false
+
+  const exp = Number(decoded.exp)
+  return Number.isFinite(exp) && exp >= Math.floor(Date.now() / 1000)
+}
+
+export function verifyArtistToken(token: string): ArtistSession | null {
+  const raw = decodeSignedToken(token)
+  if (!raw) return null
+
+  try {
+    const decoded = raw as Partial<JwtPayload> & { role?: unknown }
+    // Admin tokens share the signing format; never accept one as an artist session.
+    if (decoded.role === ADMIN_ROLE) return null
     const id = Number(decoded.id)
     const exp = Number(decoded.exp)
 

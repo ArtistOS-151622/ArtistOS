@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/auth/admin"
 import { createClient } from "@/lib/supabase/server"
 import { STORAGE_FREE_TIER_BYTES } from "@/lib/portfolio/config"
 
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = requireAdmin(request)
+  if (denied) return denied
+
   const supabase = await createClient()
 
   try {

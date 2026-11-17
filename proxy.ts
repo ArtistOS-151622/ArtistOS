@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-import { getArtistSession } from "@/lib/auth/session"
+import { ADMIN_SESSION_COOKIE, getArtistSession, verifyAdminToken } from "@/lib/auth/session"
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 
 // List of protected routes that require a session
@@ -95,16 +95,21 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Admin API backstop: every handler also calls requireAdmin(), this catches any that forget.
+  if (pathname.startsWith("/api/admin/") && pathname !== "/api/admin/login") {
+    if (!verifyAdminToken(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+  }
+
   // Admin routes check
   if (pathname.startsWith('/admin')) {
     if (pathname === '/admin/login') {
       // Allow access to admin login page
       return NextResponse.next()
     }
-    
-    const adminSession = request.cookies.get('admin_session')?.value
-    
-    if (!adminSession || adminSession !== 'authenticated') {
+
+    if (!verifyAdminToken(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)) {
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
       return NextResponse.redirect(url)
