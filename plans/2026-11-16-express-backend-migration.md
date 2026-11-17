@@ -16,6 +16,16 @@
 
 Every endpoint under `app/api/**/route.ts` (97 handlers) is served by a JavaScript Express app in `server/`, on its own domain, deployed to Render. Next.js keeps the pages and the `proxy.ts` page guards only. Paths stay the same (`/api/...`), so for the frontend the move is a base-URL switch.
 
+**Dropped routes (decided 2026-11-17).** These 6 routes had no callers anywhere. They were deleted from the Next.js app and won't be ported:
+- `auth/login` and `auth/signup` (login is WhatsApp OTP now)
+- `portfolio/files/presign` and `portfolio/files/confirm` (uploads go through `files/upload`)
+- `portfolio/view-preference`
+- `whatsapp/test`
+
+That leaves **91 routes** to port. `lib/` exports that only these routes used are also not ported, and are deleted with `lib/` at cleanup: `createPresignedUploadUrl` and `requiresServerUpload` in `lib/portfolio/files.ts`. `findFolderByName`, `getBookingIndex` and `enrichFolderWithShareUrl` in `lib/portfolio/folders.ts` also have no callers left.
+
+**Testing.** `.env.local` points at a separate **dev** Supabase database, so local end-to-end checks may write data. Production checks stay GET-only.
+
 ## Key consequence of "JS, not TS": the server owns its backend code
 
 Plain JS can't import the TypeScript files in `lib/` without a build step. So the server is **self-contained**: the backend logic in `lib/` (Supabase queries, R2, Razorpay, billing, quota, WhatsApp, push, notifications, OTP, etc.) is **ported to JS inside `server/src/`**, not shared.
