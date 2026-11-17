@@ -23,6 +23,7 @@ const requiredInProduction = (schema) =>
 const withDefault = (fallback) => cleanString.transform((value) => value ?? fallback)
 
 const positiveInt = (fallback) => cleanString.pipe(z.coerce.number().int().positive().default(fallback))
+const nonNegativeNumber = (fallback) => cleanString.pipe(z.coerce.number().nonnegative().default(fallback))
 
 const csvList = z
   .string()
@@ -54,6 +55,9 @@ const schema = z.object({
   FRONTEND_ORIGINS: isProduction ? csvList : csvList.default(["http://localhost:3000"]),
   // e.g. ".artistos.in" in production; unset locally (host-only cookies).
   COOKIE_DOMAIN: requiredInProduction(z.string().startsWith(".")),
+  // Public frontend URL, used to build links (portfolio share links). NEXT_PUBLIC_APP_URL accepted.
+  APP_URL: cleanString.pipe(z.url().optional()),
+  NEXT_PUBLIC_APP_URL: cleanString.pipe(z.url().optional()),
 
   // --- Supabase (the NEXT_PUBLIC_* names are accepted so one .env works for both apps) ---
   SUPABASE_URL: cleanString,
@@ -73,6 +77,13 @@ const schema = z.object({
   RAZORPAY_KEY_ID: requiredInProduction(z.string().min(1)),
   RAZORPAY_KEY_SECRET: requiredInProduction(z.string().min(1)),
   RAZORPAY_WEBHOOK_SECRET: requiredInProduction(z.string().min(1)),
+
+  // --- Portfolio storage -----------------------------------------------------------------
+  STORAGE_FREE_TIER_BYTES: nonNegativeNumber(10 * 1024 * 1024),
+  STORAGE_DEFAULT_SHARE_EXPIRY_DAYS: nonNegativeNumber(30),
+  STORAGE_GRACE_PERIOD_DAYS: nonNegativeNumber(30),
+  STORAGE_GST_RATE: nonNegativeNumber(0.18),
+  STORAGE_MAX_FILE_SIZE_MB: nonNegativeNumber(100),
 
   // --- WhatsApp (Meta Cloud API). Optional: sends are skipped when the token is unset. ---
   WHATSAPP_ACCESS_TOKEN: cleanString,
@@ -120,6 +131,9 @@ function loadConfig() {
   if (isProduction && !supabaseUrl) problems.push("  - SUPABASE_URL: required in production")
   if (isProduction && !supabaseAnonKey) problems.push("  - SUPABASE_ANON_KEY: required in production")
 
+  const appUrl = env.APP_URL ?? env.NEXT_PUBLIC_APP_URL
+  if (isProduction && !appUrl) problems.push("  - APP_URL: required in production (e.g. https://www.artistos.in)")
+
   if (problems.length) fail(problems)
 
   return Object.freeze({
@@ -135,6 +149,7 @@ function loadConfig() {
     cronSecret: env.CRON_SECRET,
     frontendOrigins: Object.freeze(env.FRONTEND_ORIGINS),
     cookieDomain: env.COOKIE_DOMAIN,
+    appUrl: (appUrl ?? "http://localhost:3000").replace(/\/$/, ""),
 
     supabase: Object.freeze({
       url: supabaseUrl,
@@ -152,6 +167,13 @@ function loadConfig() {
       keyId: env.RAZORPAY_KEY_ID,
       keySecret: env.RAZORPAY_KEY_SECRET,
       webhookSecret: env.RAZORPAY_WEBHOOK_SECRET,
+    }),
+    storage: Object.freeze({
+      freeTierBytes: env.STORAGE_FREE_TIER_BYTES,
+      defaultShareExpiryDays: env.STORAGE_DEFAULT_SHARE_EXPIRY_DAYS,
+      gracePeriodDays: env.STORAGE_GRACE_PERIOD_DAYS,
+      gstRate: env.STORAGE_GST_RATE,
+      maxFileSizeBytes: env.STORAGE_MAX_FILE_SIZE_MB * 1024 * 1024,
     }),
     whatsapp: Object.freeze({
       accessToken: env.WHATSAPP_ACCESS_TOKEN,

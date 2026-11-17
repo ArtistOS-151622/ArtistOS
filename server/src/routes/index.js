@@ -1,14 +1,16 @@
 import { Router } from "express"
 
+import { authRouter } from "#src/modules/auth/auth.routes.js"
+import { profileRouter } from "#src/modules/profile/profile.routes.js"
+
 /**
- * Module routers are mounted here as they are ported (phase 3), e.g.
- *   apiRouter.use("/bookings", bookingsRouter)
- *
- * Public, unauthenticated routers (`<module>.public.routes.js`) mount under
- * "/public" with `publicLimiter`; everything else uses `requireArtist` (or
- * `requireAdmin` for /admin) inside its own router.
+ * Every module router, mounted under /api. Paths match the old Next.js routes
+ * exactly (e.g. /api/auth/otp/send). Each router applies its own auth.
  */
 export const apiRouter = Router()
+
+apiRouter.use("/auth", authRouter)
+apiRouter.use("/profile", profileRouter)
 
 /**
  * Webhooks need the raw request body for signature verification, so app.js

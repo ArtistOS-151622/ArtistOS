@@ -475,6 +475,26 @@ lib/api/
    8. reports / dashboard / badges / notifications / push / whatsapp
    9. cron
    10. webhooks
+   **Progress log**
+   - **3.0 + 3.1 Shared portfolio layer, auth and profile: done (2026-11-17).**
+     - **`shared/portfolio/`** (config, quota, files, folders) was ported ahead of the portfolio module, because about 10 modules use it: auth, profile, admin, bookings, courses, public share links, cron, webhooks and subscriptions. `r2/keys` was folded into `files.js` (`prepareUploadKey`).
+     - **New env vars:** `APP_URL` (required in production, used for share links; `NEXT_PUBLIC_APP_URL` is accepted) and the `STORAGE_*` settings.
+     - **Framework changes:**
+       - `ApiError` takes `extra` fields for error bodies that carry more than `error`, such as OTP `isLocked`, `canResend`, `sendCount` and `attemptsRemaining`.
+       - Zod messages are returned without a field prefix, because the frontend shows them as-is.
+       - The read-only guard is mounted **globally** on `/api` and resolves the session itself, so like `proxy.ts` it covers every mutating request from a logged-in artist.
+       - `/api/auth/register-profile` gets a 10 MB JSON limit for the base64 studio logo.
+     - **zod 4 gotcha:** a transformed object key must be `.unknown().optional().transform(...)`. Without `.optional()`, a missing key fails with "expected nonoptional". The parity run caught this, and there's a regression test.
+     - **Verified against the dev DB.** A parity harness (`scratchpad`, not committed) ran identical requests against Next on :3100 and Express on :4100:
+       - **auth+profile: 19/19 responses identical.**
+       - A real signup (register-profile with a studio logo) wrote identical rows to both: user, quota, default folder and logo file.
+       - Session tokens issued by either server were accepted by the other, via cookie and Bearer.
+       - The test data and the two R2 test objects were deleted afterwards.
+
+   **Found while porting (not changed; for you to decide)**
+   - `auth/otp/verify`: the "fall back to the signed `stateToken` when the DB errors" branch compares against `reason === "db_error"`, but `verifyOtpInDatabase` never returns that reason, so the fallback has never run. It isn't ported, so behaviour is unchanged. `otp/send` still returns a `stateToken`; it's unused, and it's kept for response parity.
+   - `profile` GET/PUT used to return raw exception messages in 500s. Express returns a generic "Internal server error" and logs the details instead.
+
 4. **Frontend: move to axios.** First commit: make the `proxy.ts` page guard verify signatures (all cookie values) and clear unverifiable cookies, to prevent the redirect loop (see *Things that need special care*). Then add `lib/api/` (the axios instance, interceptors and `ApiError`). Move SWR's `jsonFetcher` onto it, then convert all `fetch("/api…")` call sites and the XHR upload helpers, one feature per commit (see *Frontend changes*). Requests still default to same-origin, so this phase can ship to production on its own, before the backend moves. That isolates any axios regressions from the Express cutover.
 5. **Local end-to-end.** Run Next on `localhost:3000` and Express on `localhost:4000`, with `NEXT_PUBLIC_API_URL` set. Click through:
    - login

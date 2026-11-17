@@ -105,14 +105,16 @@ test("validate: coerces params/query, strips unknown body fields", async () => {
   assert.deepEqual(await res.json(), { params: { id: 12 }, query: { dry: "false" }, body: { name: "Bridal" } })
 })
 
-test("validate: invalid input returns 400 naming the field", async () => {
+test("validate: invalid input returns 400 with the schema's message (no field prefix)", async () => {
   const res = await fetch(`${server.url}/items/abc`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "x" }),
   })
   assert.equal(res.status, 400)
-  assert.match((await res.json()).error, /^id: /)
+  const { error } = await res.json()
+  assert.equal(typeof error, "string")
+  assert.doesNotMatch(error, /^id: /)
 })
 
 test("read-only guard: blocks writes for read-only artists, allows reads and exempt paths", async () => {

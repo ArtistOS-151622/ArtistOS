@@ -6,13 +6,10 @@ import { logger } from "#src/utils/logger.js"
 const INTERNAL_ERROR_MESSAGE = "Internal server error"
 
 function toResponse(err) {
-  if (err instanceof ApiError) return { status: err.status, error: err.message, code: err.code }
+  if (err instanceof ApiError) return { status: err.status, error: err.message, code: err.code, extra: err.extra }
 
-  if (err instanceof ZodError) {
-    const issue = err.issues[0]
-    const field = issue?.path.join(".")
-    return { status: 400, error: field ? `${field}: ${issue.message}` : (issue?.message ?? "Invalid request") }
-  }
+  // Schemas carry user-facing messages (shown as-is by the frontend), so no field prefix.
+  if (err instanceof ZodError) return { status: 400, error: err.issues[0]?.message ?? "Invalid request" }
 
   // body-parser errors carry a `type` and a 4xx `status`.
   if (err?.type === "entity.parse.failed") return { status: 400, error: "Invalid JSON body" }
@@ -24,7 +21,7 @@ function toResponse(err) {
 /** Last middleware: every failure becomes `{ error }` with the right status. */
 // Express identifies error handlers by their 4 arguments, so `_next` must stay.
 export function errorHandler(err, req, res, _next) {
-  const { status, error, code } = toResponse(err)
+  const { status, error, code, extra } = toResponse(err)
   const log = req.log ?? logger
 
   if (status >= 500) log.error({ err }, "request failed")
@@ -34,5 +31,5 @@ export function errorHandler(err, req, res, _next) {
     res.destroy()
     return
   }
-  res.status(status).json(code ? { error, code } : { error })
+  res.status(status).json({ error, ...(code ? { code } : {}), ...extra })
 }

@@ -1,13 +1,16 @@
 /**
  * An error with an HTTP status. Services throw these; the error handler turns
- * them into `{ error: message }` responses. Anything else becomes a 500.
+ * them into `{ error: message, ...extra }` responses (plus `code` when set).
+ * `extra` carries additional fields the frontend reads (e.g. OTP `isLocked`).
+ * Anything that isn't an ApiError becomes a 500.
  */
 export class ApiError extends Error {
-  constructor(status, message, { code, cause } = {}) {
+  constructor(status, message, { code, extra, cause } = {}) {
     super(message, { cause })
     this.name = "ApiError"
     this.status = status
     this.code = code
+    this.extra = extra
   }
 }
 

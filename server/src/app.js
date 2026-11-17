@@ -5,13 +5,16 @@ import express from "express"
 import helmet from "helmet"
 import { pinoHttp } from "pino-http"
 
-import { JSON_BODY_LIMIT } from "#src/config/constants.js"
+import { JSON_BODY_LIMIT, LARGE_JSON_BODY_LIMIT, LARGE_JSON_ROUTES } from "#src/config/constants.js"
 import { corsOptions } from "#src/config/cors.js"
 import { errorHandler } from "#src/middlewares/error-handler.js"
 import { notFound } from "#src/middlewares/not-found.js"
+import { createReadOnlyGuard } from "#src/middlewares/read-only-guard.js"
 import { apiLimiter } from "#src/middlewares/rate-limit.js"
 import { requestId } from "#src/middlewares/request-id.js"
+import { createPreferredClient } from "#src/integrations/supabase.js"
 import { apiRouter, webhooksRouter } from "#src/routes/index.js"
+import { checkIsReadOnly } from "#src/shared/subscription/read-only.js"
 import { logger } from "#src/utils/logger.js"
 
 export function createApp() {
@@ -43,10 +46,13 @@ export function createApp() {
   // Before the JSON parser: webhook signatures are computed over the raw body.
   app.use("/api/webhooks", webhooksRouter)
 
+  // Larger bodies first: express.json skips requests that are already parsed.
+  for (const route of LARGE_JSON_ROUTES) app.use(route, express.json({ limit: LARGE_JSON_BODY_LIMIT }))
   app.use(express.json({ limit: JSON_BODY_LIMIT }))
   app.use(cookieParser())
 
-  app.use("/api", apiLimiter, apiRouter)
+  const readOnlyGuard = createReadOnlyGuard((artistId) => checkIsReadOnly(createPreferredClient(), artistId))
+  app.use("/api", apiLimiter, readOnlyGuard, apiRouter)
 
   app.use(notFound)
   app.use(errorHandler)

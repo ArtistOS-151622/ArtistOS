@@ -6,6 +6,11 @@ export const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
 export const JSON_BODY_LIMIT = "1mb"
 
+// Routes whose JSON body can legitimately be larger (base64 images). Next.js route
+// handlers had no 1 MB cap, so these keep working.
+export const LARGE_JSON_BODY_LIMIT = "10mb"
+export const LARGE_JSON_ROUTES = Object.freeze(["/api/auth/register-profile"])
+
 export const MUTATING_METHODS = Object.freeze(["POST", "PUT", "PATCH", "DELETE"])
 
 // Paths (under /api) that skip the read-only subscription gate. Same list as proxy.ts.
