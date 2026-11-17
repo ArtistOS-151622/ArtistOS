@@ -12,7 +12,7 @@ export const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
-  exposedHeaders: ["X-Request-Id", "Content-Disposition"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "x-booking-request-id"],
+  exposedHeaders: ["X-Request-Id", "Content-Disposition", "x-booking-request-id"],
   maxAge: 600,
 }

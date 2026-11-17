@@ -35,5 +35,6 @@ export function errorHandler(err, req, res, _next) {
     res.status(status).json({ status: false, message: error, data: null })
     return
   }
-  res.status(status).json({ error, ...(code ? { code } : {}), ...extra })
+  // res.locals.errorExtra: fields a router adds to every error it returns (e.g. booking requestId).
+  res.status(status).json({ error, ...(code ? { code } : {}), ...extra, ...res.locals.errorExtra })
 }

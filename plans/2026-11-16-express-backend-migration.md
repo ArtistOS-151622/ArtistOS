@@ -504,8 +504,27 @@ lib/api/
        - **Route-level read-only messages** ("…upgrade to create customers.") are kept via `assertWritable()`, as the second layer behind the global guard.
        - **Verified against the dev DB:** the parity suite ran a full create/read/update/delete cycle for every resource (validation errors, duplicate phone, partial PATCH semantics, installments, stats, the envelope 400/401/404). **46/46 responses identical.** Auth still 19/19, and no test data was left behind.
 
+     - **3.3 Bookings: done (2026-11-17).**
+       - **Module layout (`modules/bookings`):**
+         - main routes: list (required range of 100 days or less), counts, create, update, delete, detail, discount, services sync, manual WhatsApp reminder
+         - sub-routers with `mergeParams` for `payments/`, `charges/` (additional-charges), `expenses/` and `expense-categories/`
+         - `portfolio-tags/` for the envelope tab
+         - `pdf/`
+         - `booking-input.js` and `guards.js` (from `lib/bookings`); `calendar-cache.ts` stays in the frontend
+       - **Request id:** create and update keep the `x-booking-request-id` header and a `requestId` in every error body, including the 401. `bookingRequestContext` sets `res.locals.errorExtra`, which the error handler merges in. CORS allows and exposes that header. Stage-tagged failure logs are kept as structured pino logs.
+       - **WhatsApp confirmation:** runs via `runInBackground` (the replacement for `after()`), so it's awaited on graceful shutdown.
+       - **PDF:**
+         - `components/pdf/quotation-pdf.tsx` was converted once to plain JS (TypeScript compiler, classic `React.createElement` output, alias `h`). Both copies must stay in sync until cleanup.
+         - The ArtistOS watermark is bundled in the server (`pdf/assets/`) and loaded from disk. The old route fetched it from its own host, which on Render would be `api.artistos.in`, where it doesn't exist.
+         - Errors stay **plain text**, as before, so the PDF route does its own auth check.
+       - **Verified against the dev DB** (both servers started with `WHATSAPP_ACCESS_TOKEN=""`):
+         - **bookings: 72/72 responses identical.** The run covered validation and range errors, create with services, charges and advance, update with service and charge sync and advance removal, discount, services sync, all four line-item resources, the envelope portfolio tab, the WhatsApp reminder, PDF headers and errors, and delete.
+         - The same booking's quotation PDF, downloaded from both servers, had **identical text and 0 differing pixels** when rendered.
+         - The dev DB was left clean.
+
    **Found while porting (not changed; for you to decide)**
    - `auth/otp/verify`: the "fall back to the signed `stateToken` when the DB errors" branch compares against `reason === "db_error"`, but `verifyOtpInDatabase` never returns that reason, so the fallback has never run. It isn't ported, so behaviour is unchanged. `otp/send` still returns a `stateToken`; it's unused, and it's kept for response parity.
+   - Deleting a booking leaves its "Booking - <customer> (#n)" portfolio folder behind, with `booking_id` set to null. If the same customer gets a booking with the same index later, creating its folder hits the unique `(user, name)` constraint and the portfolio tab returns a 500. This is the same in both apps. The parity run found it (see 3.3).
    - `profile` GET/PUT used to return raw exception messages in 500s. Express returns a generic "Internal server error" and logs the details instead.
 
 4. **Frontend: move to axios.** First commit: make the `proxy.ts` page guard verify signatures (all cookie values) and clear unverifiable cookies, to prevent the redirect loop (see *Things that need special care*). Then add `lib/api/` (the axios instance, interceptors and `ApiError`). Move SWR's `jsonFetcher` onto it, then convert all `fetch("/api…")` call sites and the XHR upload helpers, one feature per commit (see *Frontend changes*). Requests still default to same-origin, so this phase can ship to production on its own, before the backend moves. That isolates any axios regressions from the Express cutover.

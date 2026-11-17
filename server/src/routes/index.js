@@ -1,6 +1,7 @@
 import { Router } from "express"
 
 import { authRouter } from "#src/modules/auth/auth.routes.js"
+import { bookingsRouter } from "#src/modules/bookings/bookings.routes.js"
 import { coursesRouter } from "#src/modules/courses/courses.routes.js"
 import { customersRouter } from "#src/modules/customers/customers.routes.js"
 import { profileRouter } from "#src/modules/profile/profile.routes.js"
@@ -17,6 +18,7 @@ apiRouter.use("/profile", profileRouter)
 apiRouter.use("/customers", customersRouter)
 apiRouter.use("/services", servicesRouter)
 apiRouter.use("/courses", coursesRouter)
+apiRouter.use("/bookings", bookingsRouter)
 
 /**
  * Webhooks need the raw request body for signature verification, so app.js
