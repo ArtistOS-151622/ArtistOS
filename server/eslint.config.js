@@ -25,8 +25,10 @@ export default [
   {
     files: ["tests/**/*.js"],
     rules: {
-      // Tests import the TypeScript session implementation from the Next.js app.
+      // Tests import the TypeScript originals from the Next.js app (parity tests).
       "n/no-missing-import": "off",
+      // Module mocking is experimental in Node; fine for tests, never used in src/.
+      "n/no-unsupported-features/node-builtins": ["error", { ignores: ["test.mock.module"] }],
     },
   },
 ]

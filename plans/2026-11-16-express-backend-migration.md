@@ -135,17 +135,19 @@ server/
 │   │   └── error-handler.js      # ApiError/ZodError/unknown → { error } + status; logs with request id
 │   │
 │   ├── integrations/             # third-party CLIENTS only — no app logic, no message templates
-│   │   ├── supabase.js           # createDbClient() / admin (service-role) client
-│   │   ├── r2/                   # client.js, keys.js, url.js (presigned URLs)
-│   │   ├── razorpay/             # client.js, verify-signature.js
+│   │   ├── supabase.js           # createDbClient() / createAdminClient() / createPreferredClient()
+│   │   ├── r2/                   # client.js, url.js (keys.js is portfolio-only → portfolio module)
+│   │   ├── razorpay/             # client.js (webhook signature/events → subscriptions module)
 │   │   ├── whatsapp.js           # send-message API client
 │   │   └── web-push.js
 │   │
 │   ├── shared/                   # ONLY code used by 2+ modules
-│   │   ├── notifications/        # dispatcher.js, events.js, time.js, producers/ (booking, inquiry, agenda,
-│   │   │                         #   WhatsApp message building + worker)
-│   │   ├── otp.js
-│   │   └── phone.js              # e164
+│   │   ├── notifications/        # time.js, events.js, push.js, dispatcher.js, producers/booking-reminders.js,
+│   │   │                         #   whatsapp/{booking,inquiry,daily-agenda}.js
+│   │   ├── subscription/         # plan-features.js (getUserPlanFeatures), read-only.js (checkIsReadOnly);
+│   │   │                         #   used by ~40 routes across modules + the notification producers
+│   │   └── otp.js                # auth + admin modules
+│   │                             # (phone/e164 is customers-only → customers module)
 │   │
 │   └── utils/                    # framework plumbing, no domain knowledge
 │       ├── api-error.js          # class ApiError(status, message) + helpers (badRequest, notFound…)
@@ -431,6 +433,27 @@ lib/api/
    - `render.yaml` uses `autoDeploy: false` and region `singapore`, so nothing deploys until cutover.
    - Tests: 29 `node:test` cases, including byte-for-byte token equality with `lib/auth/session.ts` under a frozen clock.
 2. **Port integrations and cross-module logic.** Port the third-party clients to `server/src/integrations`, and code used by 2+ modules (notifications, OTP, phone) to `server/src/shared`. Port the matching tests from root `tests/` into the mirrored `server/tests/` paths, and make them pass. `lib/` code used by only one module (booking input, portfolio quota, billing dates, inquiry queries…) is ported with that module in phase 3, not here.
+
+   **Done (2026-11-17).** What was ported, and decisions made while implementing:
+   - **Integrations:** `supabase.js`, `r2/client.js`, `r2/url.js`, `razorpay/client.js`, `whatsapp.js` and `web-push.js`. All read from the validated `config`. Supabase clients are process-wide singletons, because there are no sessions.
+   - **Shared code:**
+     - `notifications/*`
+     - `subscription/plan-features.js` and `subscription/read-only.js`. These moved to `shared/` instead of the subscriptions module because about 40 routes in most modules and the notification producers use them.
+     - `otp.js`
+   - **Moved to phase 3 under the 2+ modules rule:** `r2/keys` goes to portfolio, `phone/e164` to customers, and the Razorpay webhook-event logic to subscriptions.
+   - **Not ported, because nothing calls them:** `lib/whatsapp/worker.ts` (`wakeWhatsAppWorker`), `BOOKING_REMINDER_MINUTES_BEFORE` and `lib/push/types.ts`. The last one is types only; its shapes are documented in comments.
+   - **New env vars in `env.js`:** Supabase, R2 and Razorpay are **required in production**. WhatsApp and VAPID stay optional and are skipped when unset, as before. `NEXT_PUBLIC_SUPABASE_*` and `NEXT_PUBLIC_VAPID_PUBLIC_KEY` are accepted as fallbacks. Wrapping quotes are stripped from every value, a step that used to apply only to R2 and push.
+   - **`isRazorpayConfigured()`** no longer requires `NEXT_PUBLIC_RAZORPAY_KEY_ID`, which is the same value as `RAZORPAY_KEY_ID`. `getRazorpayPublicKeyId()` returns it so the API can give it to the browser.
+   - **One de-duplication:** the three identical WhatsApp audit-log blocks are now `recordWhatsAppEvent()` in `events.js`, with the same queries and rows. The daily agenda keeps its own logging, because its rows are keyed by URL and date.
+   - **Logging:** `console.*` calls became structured pino logs (`req.log`/`logger.child({ feature })`).
+   - **Tests:** all 26 related root tests were converted mechanically (Node type stripping + import rewrite), with every case carried over. New tests:
+     - **parity tests** that run the JS and TS implementations on the same inputs: phone formatting, param sanitising, time helpers, and OTP/registration token interop;
+     - an **OTP lockout flow** test against an in-memory table, using `mock.module`;
+     - tests for the event queue and push logic;
+     - env loader tests.
+
+     Server total: 76 tests.
+
 3. **Port modules** in groups, one commit each, in this order:
    1. auth + profile
    2. customers / services / courses

@@ -52,3 +52,5 @@ whatsapp-service/sessions_data/
 .wwebjs_cache/
 
 pnpm-lock.yaml
+# The Express API commits its lockfile: Render installs with --frozen-lockfile.
+!server/pnpm-lock.yaml
