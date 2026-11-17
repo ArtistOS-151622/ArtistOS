@@ -1,9 +1,9 @@
-import "../../helpers/env.js"
+import "../helpers/env.js"
 
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { isE164Phone, normalizeE164Phone } from "#src/modules/customers/customers.validation.js"
+import { isE164Phone, normalizeE164Phone } from "#src/shared/phone.js"
 
 test("keeps valid international E.164 customer numbers", () => {
   assert.equal(normalizeE164Phone("+14155552671"), "+14155552671")

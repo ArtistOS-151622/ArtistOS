@@ -522,6 +522,15 @@ lib/api/
          - The same booking's quotation PDF, downloaded from both servers, had **identical text and 0 differing pixels** when rendered.
          - The dev DB was left clean.
 
+     - **3.4 Inquiries and the public inquiry form: done (2026-11-17).**
+       - **Module layout (`modules/inquiries`):**
+         - list, counts, form-link GET/POST, convert, cancel
+         - `inquiries.public.routes.js` mounted at `/api/public/inquiry`, with no auth and `publicLimiter`
+         - `queries.js` (formatting and convert-to-booking) and `form-link.js`, from `lib/inquiries`
+       - **Phone normaliser:** `normalizeE164Phone` moved to `shared/phone.js`, because customers and inquiries both use it.
+       - **WhatsApp notifications:** the new-inquiry notification and the converted-booking confirmation run via `runInBackground`.
+       - **Verified against the dev DB** (WhatsApp disabled): **inquiries: 31/31 responses identical.** The run covered the public form (lowercase code, unknown code, every validation error, submit, the 409 duplicate guard), artist list, search and counts, convert including the repeat, and the cancel and convert rules. The earlier suites re-ran unchanged at 19/19, 46/46 and 72/72. 105 server tests.
+
    **Found while porting (not changed; for you to decide)**
    - `auth/otp/verify`: the "fall back to the signed `stateToken` when the DB errors" branch compares against `reason === "db_error"`, but `verifyOtpInDatabase` never returns that reason, so the fallback has never run. It isn't ported, so behaviour is unchanged. `otp/send` still returns a `stateToken`; it's unused, and it's kept for response parity.
    - Deleting a booking leaves its "Booking - <customer> (#n)" portfolio folder behind, with `booking_id` set to null. If the same customer gets a booking with the same index later, creating its folder hits the unique `(user, name)` constraint and the portfolio tab returns a 500. This is the same in both apps. The parity run found it (see 3.3).

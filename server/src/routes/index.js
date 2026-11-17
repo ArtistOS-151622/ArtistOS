@@ -4,6 +4,8 @@ import { authRouter } from "#src/modules/auth/auth.routes.js"
 import { bookingsRouter } from "#src/modules/bookings/bookings.routes.js"
 import { coursesRouter } from "#src/modules/courses/courses.routes.js"
 import { customersRouter } from "#src/modules/customers/customers.routes.js"
+import { publicInquiryRouter } from "#src/modules/inquiries/inquiries.public.routes.js"
+import { inquiriesRouter } from "#src/modules/inquiries/inquiries.routes.js"
 import { profileRouter } from "#src/modules/profile/profile.routes.js"
 import { servicesRouter } from "#src/modules/services/services.routes.js"
 
@@ -19,6 +21,10 @@ apiRouter.use("/customers", customersRouter)
 apiRouter.use("/services", servicesRouter)
 apiRouter.use("/courses", coursesRouter)
 apiRouter.use("/bookings", bookingsRouter)
+apiRouter.use("/inquiries", inquiriesRouter)
+
+// Public, unauthenticated routers.
+apiRouter.use("/public/inquiry", publicInquiryRouter)
 
 /**
  * Webhooks need the raw request body for signature verification, so app.js
