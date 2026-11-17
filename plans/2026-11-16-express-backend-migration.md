@@ -559,6 +559,31 @@ lib/api/
 
          The one difference is bulk download: a 500 on Next, a working zip on Express. Unzipping it gave both files, Hindi filename intact, **byte-identical** to the uploads. The earlier suites re-ran unchanged (19, 46, 72, 31), and R2 and the DB were left clean. 109 server tests.
 
+     - **3.6 Subscriptions and billing: done (2026-11-17).**
+       - **Module layout (`modules/subscriptions`):**
+         - `platform/`: plan list, purchase, verify, failed, cancel. The service also holds `completePlatformPayment`, `extendPlatformSubscriptionToDate` and `processPlatformRenewal`, for the webhook in 3.10.
+         - `storage/`: `/api/portfolio/purchase-storage` with verify, failed and cancel. It's mounted **before** the portfolio router.
+         - `billing/`: `/api/billing` and the invoice PDF.
+         - `/api/subscription-status`
+         - `webhook-events.js`: the claim and release of Razorpay webhook events.
+       - **Signatures:** `integrations/razorpay/verify-signature.js` holds both checks (checkout signatures with the key secret, and webhook signatures over the raw body with the webhook secret).
+       - **Response shapes are kept per endpoint, including 401s:**
+         - `{ error }` for billing and status
+         - plain text for the invoice
+         - the envelope for purchase and verify
+         - bare `{ status, message }` for failed and cancel
+       - **Invoice PDF:** converted from JSX the same way as the quotation; `date-fns` was added.
+       - **Checkout key:** `checkout.key` now comes from `RAZORPAY_KEY_ID`, which is the same value as `NEXT_PUBLIC_RAZORPAY_KEY_ID`.
+       - **Missed in the original route count:** `app/api/billing/invoice/[id]/route.tsx` is a `.tsx` route; it's ported here.
+       - **Verified against the dev DB with Razorpay TEST mode** (the suite refuses to run unless the key is `rzp_test`): **subscriptions: 42/42 identical.** The run covered:
+         - every response shape and error
+         - the invoice PDF
+         - platform purchase, creating and then cancelling a real Razorpay test subscription
+         - a valid-signature platform verify that activates the plan, and a repeat verify that's a no-op
+         - storage purchase as a real test order, a valid-signature verify that credits the quota via `complete_storage_purchase`, plus failed and cancel
+
+         The test account's billing state and quota were snapshotted and restored for each run. The earlier suites are unchanged. 123 server tests, including signature verification.
+
    **Found while porting (not changed; for you to decide)**
    - `auth/otp/verify`: the "fall back to the signed `stateToken` when the DB errors" branch compares against `reason === "db_error"`, but `verifyOtpInDatabase` never returns that reason, so the fallback has never run. It isn't ported, so behaviour is unchanged. `otp/send` still returns a `stateToken`; it's unused, and it's kept for response parity.
    - Deleting a booking leaves its "Booking - <customer> (#n)" portfolio folder behind, with `booking_id` set to null. If the same customer gets a booking with the same index later, creating its folder hits the unique `(user, name)` constraint and the portfolio tab returns a 500. This is the same in both apps. The parity run found it (see 3.3).

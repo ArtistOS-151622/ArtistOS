@@ -10,6 +10,12 @@ import { publicPortfolioRouter } from "#src/modules/portfolio/portfolio.public.r
 import { portfolioRouter } from "#src/modules/portfolio/portfolio.routes.js"
 import { profileRouter } from "#src/modules/profile/profile.routes.js"
 import { servicesRouter } from "#src/modules/services/services.routes.js"
+import {
+  billingRouter,
+  platformSubscriptionsRouter,
+  storagePurchaseRouter,
+  subscriptionStatusRouter,
+} from "#src/modules/subscriptions/subscriptions.routes.js"
 
 /**
  * Every module router, mounted under /api. Paths match the old Next.js routes
@@ -24,7 +30,12 @@ apiRouter.use("/services", servicesRouter)
 apiRouter.use("/courses", coursesRouter)
 apiRouter.use("/bookings", bookingsRouter)
 apiRouter.use("/inquiries", inquiriesRouter)
+// Before /portfolio: storage purchases have their own response shapes and auth.
+apiRouter.use("/portfolio/purchase-storage", storagePurchaseRouter)
 apiRouter.use("/portfolio", portfolioRouter)
+apiRouter.use("/billing", billingRouter)
+apiRouter.use("/subscription-status", subscriptionStatusRouter)
+apiRouter.use("/platform-subscriptions", platformSubscriptionsRouter)
 
 // Public, unauthenticated routers.
 apiRouter.use("/public/inquiry", publicInquiryRouter)
