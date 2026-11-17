@@ -64,3 +64,14 @@ test("a short secret is rejected", async () => {
   assert.equal(code, 1)
   assert.match(stderr, /JWT_SECRET/)
 })
+
+test("DISABLE_RATE_LIMITS is refused in production", async () => {
+  const { code, stderr } = await loadConfig({ NODE_ENV: "production", JWT_SECRET: SECRET, DISABLE_RATE_LIMITS: "true" })
+  assert.equal(code, 1)
+  assert.match(stderr, /DISABLE_RATE_LIMITS: must not be enabled in production/)
+})
+
+test("rate limits are on by default and can be disabled outside production", async () => {
+  assert.equal((await loadConfig({ JWT_SECRET: SECRET })).config.rateLimitsEnabled, true)
+  assert.equal((await loadConfig({ JWT_SECRET: SECRET, DISABLE_RATE_LIMITS: "true" })).config.rateLimitsEnabled, false)
+})

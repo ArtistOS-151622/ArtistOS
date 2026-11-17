@@ -1,5 +1,6 @@
 import { Router } from "express"
 
+import { adminRouter } from "#src/modules/admin/admin.routes.js"
 import { authRouter } from "#src/modules/auth/auth.routes.js"
 import { bookingsRouter } from "#src/modules/bookings/bookings.routes.js"
 import { coursesRouter } from "#src/modules/courses/courses.routes.js"
@@ -36,6 +37,7 @@ apiRouter.use("/portfolio", portfolioRouter)
 apiRouter.use("/billing", billingRouter)
 apiRouter.use("/subscription-status", subscriptionStatusRouter)
 apiRouter.use("/platform-subscriptions", platformSubscriptionsRouter)
+apiRouter.use("/admin", adminRouter)
 
 // Public, unauthenticated routers.
 apiRouter.use("/public/inquiry", publicInquiryRouter)

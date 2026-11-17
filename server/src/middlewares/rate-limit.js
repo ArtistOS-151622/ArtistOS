@@ -1,8 +1,13 @@
 import { rateLimit } from "express-rate-limit"
 
 import { RATE_LIMITS } from "#src/config/constants.js"
+import { config } from "#src/config/env.js"
+
+const passThrough = (_req, _res, next) => next()
 
 function createLimiter({ windowMs, limit }, message) {
+  // DISABLE_RATE_LIMITS=true (never allowed in production) turns limiting off for local test runs.
+  if (!config.rateLimitsEnabled) return passThrough
   return rateLimit({
     windowMs,
     limit,

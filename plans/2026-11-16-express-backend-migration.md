@@ -584,6 +584,28 @@ lib/api/
 
          The test account's billing state and quota were snapshotted and restored for each run. The earlier suites are unchanged. 123 server tests, including signature verification.
 
+     - **3.7 Admin: done (2026-11-17).**
+       - **Module layout (`modules/admin`):**
+         - login and logout
+         - stats, payments, storage
+         - settings
+         - platform plans CRUD and storage plans
+         - support tickets
+         - users: list, flag/storage PATCH, delete with WhatsApp 2FA, and send the 2FA code
+       - **Auth:** everything except login is behind `requireAdmin`, including logout, which matches the `proxy.ts` backstop. Login keeps the phase 0 rules: no fallback password, constant-time compare, and 5 failures per IP per 15 min, now also behind `authLimiter`.
+       - **Settings:** saving can't clear the Next app's maintenance-mode cache. A toggle takes effect there within its 30 s TTL.
+       - **New `DISABLE_RATE_LIMITS` env var**, for local and automated test runs that log in many times from one IP. Parity runs tripped the 20-per-15-min auth limiter, which is correct production behaviour. **`env.js` refuses the variable in production**, so a misconfigured deploy fails to boot instead of running without limits. Tested.
+       - **Verified against the dev DB:** **admin: 41/41 identical.** The run covered:
+         - auth: no session, forged cookie, wrong password, login, logout
+         - every overview read, including the full users aggregate
+         - settings and storage plans written back unchanged
+         - a throwaway platform plan, created, edited and deleted
+         - a ticket the artist opens and the admin answers and resolves
+         - user storage override and reset
+         - delete-artist 2FA: missing, wrong and valid OTP; a throwaway artist signed up and fully deleted
+
+         The test account was restored. All earlier suites re-ran unchanged. 125 server tests.
+
    **Found while porting (not changed; for you to decide)**
    - `auth/otp/verify`: the "fall back to the signed `stateToken` when the DB errors" branch compares against `reason === "db_error"`, but `verifyOtpInDatabase` never returns that reason, so the fallback has never run. It isn't ported, so behaviour is unchanged. `otp/send` still returns a `stateToken`; it's unused, and it's kept for response parity.
    - Deleting a booking leaves its "Booking - <customer> (#n)" portfolio folder behind, with `booking_id` set to null. If the same customer gets a booking with the same index later, creating its folder hits the unique `(user, name)` constraint and the portfolio tab returns a 500. This is the same in both apps. The parity run found it (see 3.3).

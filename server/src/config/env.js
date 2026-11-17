@@ -39,6 +39,10 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  // Local/automated testing only (many logins from one IP). Rejected in production below.
+  DISABLE_RATE_LIMITS: isProduction
+    ? z.enum(["false"], { error: "must not be enabled in production" }).default("false")
+    : z.enum(["true", "false"]).default("false"),
   APP_TIMEZONE: withDefault("Asia/Kolkata"),
 
   // --- Auth -------------------------------------------------------------------
@@ -142,6 +146,7 @@ function loadConfig() {
     isTest: env.NODE_ENV === "test",
     port: env.PORT,
     logLevel: env.LOG_LEVEL,
+    rateLimitsEnabled: env.DISABLE_RATE_LIMITS !== "true",
     appTimezone: env.APP_TIMEZONE,
 
     jwtSecret,
