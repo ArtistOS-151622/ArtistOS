@@ -531,9 +531,38 @@ lib/api/
        - **WhatsApp notifications:** the new-inquiry notification and the converted-booking confirmation run via `runInBackground`.
        - **Verified against the dev DB** (WhatsApp disabled): **inquiries: 31/31 responses identical.** The run covered the public form (lowercase code, unknown code, every validation error, submit, the 409 duplicate guard), artist list, search and counts, convert including the repeat, and the cancel and convert rules. The earlier suites re-ran unchanged at 19/19, 46/46 and 72/72. 105 server tests.
 
+     - **3.5 Portfolio: done (2026-11-17).**
+       - **Module layout (`modules/portfolio`):**
+         - `folders/`: list/by uuid/by folder_id, create, update, delete, toggle-share
+         - `files/`: upload, delete, rename, download URL, bulk delete, bulk zip, compress, crop
+         - `tickets/`
+         - `storage/` (storage-info; `getActivePlans` inlined, since it was its only caller)
+         - `security.js` (filename sanitising and magic-byte checks)
+         - `shared-link.*` with `portfolio.public.routes.js` at `/api/public/portfolio`
+       - **Envelope responses:** every route uses `{ status, message, data }`, including 401s.
+       - **`purchase-storage/*` belongs to the subscriptions group (3.6).** It should be mounted inside `/api/portfolio`, so it inherits the envelope and auth.
+       - **Uploads:** `multer`, in-memory like Next's `formData()`.
+         - The size limit is max + 1 byte, so oversized files still get the original "File exceeds maximum size of N MB" message.
+         - `defParamCharset: "utf8"`, so non-ASCII filenames (Hindi, Gujarati) aren't garbled; multer's default is latin1.
+       - **Compress:** reads the image straight from R2 (`getObjectBuffer`) instead of presigning a URL and fetching it. The output is the same.
+       - **Bulk zip download: fixed, and now streamed.**
+         - The Next route has been **broken since the project started**: `archiver` 8 is ESM-only and exports classes, so `require("archiver")("zip")` throws "a is not a function", and every bulk download returns a 500.
+         - Express uses `new ZipArchive(...)` and streams each R2 object into the zip and on to the response. The old version buffered every file plus the whole zip in memory, which could run a 512 MB Render instance out of memory.
+       - **New dependencies:** `sharp` 0.35.3 and `archiver` 8.0.0 (the app's versions), and `multer` 2.
+       - **Verified against the dev DB and R2:** **portfolio: 47/48 identical.** The run covered:
+         - folders CRUD, duplicate names and sharing
+         - every upload rejection (missing file, disallowed type, spoofed magic bytes, bad section, another artist's folder, unauthenticated)
+         - PNG, JPEG and default-folder uploads with a Hindi filename
+         - by-uuid and folder_id reads, and the public share viewer
+         - rename, download URL, compress and crop (identical output sizes from sharp)
+         - bulk delete, delete, tickets and storage info
+
+         The one difference is bulk download: a 500 on Next, a working zip on Express. Unzipping it gave both files, Hindi filename intact, **byte-identical** to the uploads. The earlier suites re-ran unchanged (19, 46, 72, 31), and R2 and the DB were left clean. 109 server tests.
+
    **Found while porting (not changed; for you to decide)**
    - `auth/otp/verify`: the "fall back to the signed `stateToken` when the DB errors" branch compares against `reason === "db_error"`, but `verifyOtpInDatabase` never returns that reason, so the fallback has never run. It isn't ported, so behaviour is unchanged. `otp/send` still returns a `stateToken`; it's unused, and it's kept for response parity.
    - Deleting a booking leaves its "Booking - <customer> (#n)" portfolio folder behind, with `booking_id` set to null. If the same customer gets a booking with the same index later, creating its folder hits the unique `(user, name)` constraint and the portfolio tab returns a 500. This is the same in both apps. The parity run found it (see 3.3).
+   - **Portfolio bulk zip download is broken in production** (archiver 8 API change; every request is a 500). **Fixed in Express** (see 3.5). It will start working at cutover. If you want it working before then, the same one-line fix applies to the Next route: `const { ZipArchive } = await import("archiver")`, then `new ZipArchive(...)`.
    - `profile` GET/PUT used to return raw exception messages in 500s. Express returns a generic "Internal server error" and logs the details instead.
 
 4. **Frontend: move to axios.** First commit: make the `proxy.ts` page guard verify signatures (all cookie values) and clear unverifiable cookies, to prevent the redirect loop (see *Things that need special care*). Then add `lib/api/` (the axios instance, interceptors and `ApiError`). Move SWR's `jsonFetcher` onto it, then convert all `fetch("/api…")` call sites and the XHR upload helpers, one feature per commit (see *Frontend changes*). Requests still default to same-origin, so this phase can ship to production on its own, before the backend moves. That isolates any axios regressions from the Express cutover.

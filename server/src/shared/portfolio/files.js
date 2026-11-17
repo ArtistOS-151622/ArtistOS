@@ -236,3 +236,15 @@ export async function getFileUrlsById(supabase, fileIds) {
   if (error) throw new Error(error.message)
   return new Map((data ?? []).map((file) => [file.id, fileUrl(file)]))
 }
+
+/** An R2 object's body as a Node stream (null if empty). */
+export async function getObjectStream(storagePath) {
+  const response = await getR2Client().send(new GetObjectCommand({ Bucket: getR2BucketName(), Key: storagePath }))
+  return response.Body ?? null
+}
+
+/** An R2 object's bytes. */
+export async function getObjectBuffer(storagePath) {
+  const response = await getR2Client().send(new GetObjectCommand({ Bucket: getR2BucketName(), Key: storagePath }))
+  return Buffer.from(await response.Body.transformToByteArray())
+}
