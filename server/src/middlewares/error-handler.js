@@ -31,5 +31,9 @@ export function errorHandler(err, req, res, _next) {
     res.destroy()
     return
   }
+  if (err?.envelope || res.locals.errorEnvelope) {
+    res.status(status).json({ status: false, message: error, data: null })
+    return
+  }
   res.status(status).json({ error, ...(code ? { code } : {}), ...extra })
 }

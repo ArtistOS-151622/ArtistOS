@@ -5,12 +5,14 @@
  * Anything that isn't an ApiError becomes a 500.
  */
 export class ApiError extends Error {
-  constructor(status, message, { code, extra, cause } = {}) {
+  constructor(status, message, { code, extra, envelope, cause } = {}) {
     super(message, { cause })
     this.name = "ApiError"
     this.status = status
     this.code = code
     this.extra = extra
+    // Render as { status: false, message, data: null } (portfolio-style endpoints).
+    this.envelope = envelope
   }
 }
 

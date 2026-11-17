@@ -491,6 +491,19 @@ lib/api/
        - Session tokens issued by either server were accepted by the other, via cookie and Bearer.
        - The test data and the two R2 test objects were deleted afterwards.
 
+     - **3.2 Customers, services and courses: done (2026-11-17).**
+       - **Modules:**
+         - `modules/customers`, which now holds the phone (e164) normaliser
+         - `modules/services`
+         - `modules/courses`, with `students/` as a sub-resource mounted before `/:id`, plus the `/:id/portfolio` tab
+       - **Hand-written validation:** routes whose messages depend on check order keep plain check functions in `*.validation.js` (no zod), so messages and their precedence match exactly. The README convention allows both.
+       - **Portfolio envelope support:**
+         - `sendPortfolio(res, message, data)` for success;
+         - `portfolioError(message, status)`, an `ApiError` with `envelope`, for failures;
+         - `useEnvelopeErrors`, which sets `res.locals.errorEnvelope` so that even 401s on that router render `{ status: false, message, data: null }`.
+       - **Route-level read-only messages** ("…upgrade to create customers.") are kept via `assertWritable()`, as the second layer behind the global guard.
+       - **Verified against the dev DB:** the parity suite ran a full create/read/update/delete cycle for every resource (validation errors, duplicate phone, partial PATCH semantics, installments, stats, the envelope 400/401/404). **46/46 responses identical.** Auth still 19/19, and no test data was left behind.
+
    **Found while porting (not changed; for you to decide)**
    - `auth/otp/verify`: the "fall back to the signed `stateToken` when the DB errors" branch compares against `reason === "db_error"`, but `verifyOtpInDatabase` never returns that reason, so the fallback has never run. It isn't ported, so behaviour is unchanged. `otp/send` still returns a `stateToken`; it's unused, and it's kept for response parity.
    - `profile` GET/PUT used to return raw exception messages in 500s. Express returns a generic "Internal server error" and logs the details instead.

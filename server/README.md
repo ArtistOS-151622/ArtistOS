@@ -44,9 +44,14 @@ tests/             mirrors src/
 - **Layers:** routes → controller → service. Only controllers touch `req`/`res`. Services take
   plain arguments and throw `ApiError` (`src/utils/api-error.js`). Modules never import another
   module's routes or controller; calling another module's service is fine.
-- **Validation:** every route with input uses `validate({ body, query, params })` with zod
-  schemas from `<name>.validation.js`. Controllers read `req.validated.query` / `.params`
-  (Express 5's `req.query` is read-only) and `req.body`.
+- **Validation:** input is checked by `<name>.validation.js`: either zod schemas applied with
+  `validate({ body, query, params })` (controllers read `req.validated.query` / `.params`, since
+  Express 5's `req.query` is read-only), or, where user-facing messages depend on check
+  order (ported routes), plain functions returning `{ data }` or `{ error }`. In zod 4 a
+  transformed key must be `z.unknown().optional().transform(...)`, or a missing key fails.
+- **Envelope routes:** portfolio-style endpoints answer `{ status, message, data }`. Use
+  `sendPortfolio()` / `portfolioError()` from `shared/portfolio/response.js` and mount
+  `useEnvelopeErrors` so every error on that router (including 401s) uses the envelope.
 - **Errors:** every failure response is `{ error: string }` (plus `code` when useful) with the
   right status. Express 5 forwards rejected promises from async handlers to the error handler,
   so no async wrapper is needed.

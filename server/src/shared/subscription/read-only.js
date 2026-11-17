@@ -1,4 +1,5 @@
 import { FREE_TRIAL_DAYS } from "#src/shared/subscription/plan-features.js"
+import { ApiError } from "#src/utils/api-error.js"
 
 const READ_ONLY_CACHE_TTL_MS = 60 * 1000
 const READ_ONLY_CACHE_MAX_ENTRIES = 2000
@@ -77,4 +78,12 @@ export async function checkIsReadOnly(supabase, userId, bypassCache = false) {
   if (readOnlyCache.size > READ_ONLY_CACHE_MAX_ENTRIES) readOnlyCache.clear()
   readOnlyCache.set(cacheKey, { isReadOnly, expiresAt: Date.now() + READ_ONLY_CACHE_TTL_MS })
   return isReadOnly
+}
+
+/**
+ * Route-level read-only check with a route-specific message (403). This is the
+ * second layer behind the global read-only guard, as in the Next.js routes.
+ */
+export async function assertWritable(supabase, userId, message) {
+  if (await checkIsReadOnly(supabase, userId)) throw new ApiError(403, message)
 }
