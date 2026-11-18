@@ -72,6 +72,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DatePicker } from "@/components/common/shared/date-picker";
 import { BookingPortfolioTab } from "@/components/portfolio/booking-portfolio-tab";
+import { toast } from "sonner";
+import { api, getErrorMessage, isCancel } from "@/lib/api";
 import { useServices } from "@/lib/hooks/use-lookups";
 
 // Real DB Types
@@ -223,6 +225,9 @@ function BookingDetailsSkeleton() {
   );
 }
 
+// Rendering the quotation can take longer than a normal API call.
+const PDF_TIMEOUT_MS = 60_000;
+
 export default function BookingDetailsPage() {
   const router = useRouter();
   const params = useParams();
@@ -369,15 +374,18 @@ export default function BookingDetailsPage() {
 
   const handleAddCustomExpense = async () => {
     if (!newCustomExpense.trim()) return;
-    const res = await fetch(`/api/bookings/${bookingId}/expense-categories`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category_name: newCustomExpense.trim() }),
-    });
-    const data = await res.json();
-    if (data.category) {
-      setExpenseCategories((prev) => [...prev, data.category]);
-      setNewCustomExpense("");
+    try {
+      const { data } = await api.post<{ category?: ExpenseCategory }>(
+        `/api/bookings/${bookingId}/expense-categories`,
+        { category_name: newCustomExpense.trim() },
+      );
+      const category = data.category;
+      if (category) {
+        setExpenseCategories((prev) => [...prev, category]);
+        setNewCustomExpense("");
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to add expense category."));
     }
   };
 
@@ -385,24 +393,20 @@ export default function BookingDetailsPage() {
     if (!editingCustomExpenseName.trim() || !editingCustomExpenseId) return;
     setIsUpdatingCustomExpense(true);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/expense-categories`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          categoryId: editingCustomExpenseId,
-          category_name: editingCustomExpenseName.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (data.category) {
+      const { data } = await api.patch<{ category?: ExpenseCategory }>(
+        `/api/bookings/${bookingId}/expense-categories`,
+        { categoryId: editingCustomExpenseId, category_name: editingCustomExpenseName.trim() },
+      );
+      const category = data.category;
+      if (category) {
         setExpenseCategories((prev) =>
-          prev.map((c) =>
-            c.id === Number(editingCustomExpenseId) ? data.category : c,
-          ),
+          prev.map((c) => (c.id === Number(editingCustomExpenseId) ? category : c)),
         );
         setEditingCustomExpenseId(null);
         setEditingCustomExpenseName("");
       }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to update expense category."));
     } finally {
       setIsUpdatingCustomExpense(false);
     }
@@ -411,13 +415,10 @@ export default function BookingDetailsPage() {
   const handleDeleteCustomExpense = async (id: string) => {
     setDeletingCustomExpenseId(id);
     try {
-      const res = await fetch(
-        `/api/bookings/${bookingId}/expense-categories?categoryId=${id}`,
-        { method: "DELETE" },
-      );
-      if (res.ok) {
-        setExpenseCategories((prev) => prev.filter((c) => String(c.id) !== id));
-      }
+      await api.delete(`/api/bookings/${bookingId}/expense-categories`, { params: { categoryId: id } });
+      setExpenseCategories((prev) => prev.filter((c) => String(c.id) !== id));
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to delete expense category."));
     } finally {
       setDeletingCustomExpenseId(null);
     }
@@ -432,23 +433,25 @@ export default function BookingDetailsPage() {
     setLoading(true);
     setError(null);
 
+    const get = <T,>(path: string) => api.get<T>(path, { signal }).then((res) => res.data);
+    // The lists are secondary: a failure shows an empty list rather than an error page (as before).
+    const optional = <T,>(path: string) =>
+      get<T>(path).catch((err: unknown) => {
+        if (isCancel(err)) throw err;
+        return {} as T;
+      });
+
     Promise.all([
-      fetch(`/api/bookings/${bookingId}/detail`, { signal }).then((r) => r.json()),
-      fetch(`/api/bookings/${bookingId}/payments`, { signal }).then((r) => r.json()),
-      fetch(`/api/bookings/${bookingId}/expenses`, { signal }).then((r) => r.json()),
-      fetch(`/api/bookings/${bookingId}/expense-categories`, { signal }).then((r) =>
-        r.json(),
-      ),
+      get<{ booking: BookingDetail }>(`/api/bookings/${bookingId}/detail`),
+      optional<{ payments?: Payment[] }>(`/api/bookings/${bookingId}/payments`),
+      optional<{ expenses?: Expense[] }>(`/api/bookings/${bookingId}/expenses`),
+      optional<{ categories?: ExpenseCategory[] }>(`/api/bookings/${bookingId}/expense-categories`),
     ])
       .then(
         ([detailRes, paymentsRes, expensesRes, categoriesRes]) => {
           if (signal.aborted) return;
-          if (detailRes.error) {
-            setError(detailRes.error);
-            return;
-          }
 
-          const b = detailRes.booking as BookingDetail;
+          const b = detailRes.booking;
           // Gate: redirect non-actionable statuses
           if (b.status === "pending" || b.status === "cancelled") {
             router.replace("/bookings");
@@ -466,8 +469,8 @@ export default function BookingDetailsPage() {
           }
         },
       )
-      .catch(() => {
-        if (!signal.aborted) setError("Failed to load booking. Please try again.");
+      .catch((err: unknown) => {
+        if (!signal.aborted) setError(getErrorMessage(err, "Failed to load booking. Please try again."));
       })
       .finally(() => {
         if (!signal.aborted) setLoading(false);
@@ -480,25 +483,22 @@ export default function BookingDetailsPage() {
     if (!newChargeName.trim() || !newChargeRate) return;
     setIsAddingCharge(true);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/additional-charges`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          charge_name: newChargeName,
-          quantity: Number(newChargeQty) || 1,
-          rate: Number(newChargeRate),
-        }),
-      });
-      const data = await res.json();
-      if (data.charge && booking) {
+      const { data } = await api.post<{ charge?: BookingDetail["additional_charges"][number] }>(
+        `/api/bookings/${bookingId}/additional-charges`,
+        { charge_name: newChargeName, quantity: Number(newChargeQty) || 1, rate: Number(newChargeRate) },
+      );
+      const charge = data.charge;
+      if (charge && booking) {
         setBooking({
           ...booking,
-          additional_charges: [...booking.additional_charges, data.charge],
+          additional_charges: [...booking.additional_charges, charge],
         });
         setNewChargeName("");
         setNewChargeQty("1");
         setNewChargeRate("");
       }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to add charge."));
     } finally {
       setIsAddingCharge(false);
     }
@@ -509,26 +509,27 @@ export default function BookingDetailsPage() {
       return;
     setIsUpdatingCharge(true);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/additional-charges`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const { data } = await api.patch<{ charge?: BookingDetail["additional_charges"][number] }>(
+        `/api/bookings/${bookingId}/additional-charges`,
+        {
           chargeId: editingChargeId,
           charge_name: editChargeName,
           quantity: Number(editChargeQty) || 1,
           rate: Number(editChargeRate),
-        }),
-      });
-      const data = await res.json();
-      if (data.charge && booking) {
+        },
+      );
+      const charge = data.charge;
+      if (charge && booking) {
         setBooking({
           ...booking,
           additional_charges: booking.additional_charges.map((c) =>
-            c.id === editingChargeId ? data.charge : c,
+            c.id === editingChargeId ? charge : c,
           ),
         });
         setEditingChargeId(null);
       }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to update charge."));
     } finally {
       setIsUpdatingCharge(false);
     }
@@ -537,11 +538,8 @@ export default function BookingDetailsPage() {
   const handleDeleteAdditionalCharge = async (chargeId: number) => {
     setDeletingChargeId(chargeId);
     try {
-      const res = await fetch(
-        `/api/bookings/${bookingId}/additional-charges?chargeId=${chargeId}`,
-        { method: "DELETE" },
-      );
-      if (res.ok && booking) {
+      await api.delete(`/api/bookings/${bookingId}/additional-charges`, { params: { chargeId } });
+      if (booking) {
         setBooking({
           ...booking,
           additional_charges: booking.additional_charges.filter(
@@ -549,6 +547,8 @@ export default function BookingDetailsPage() {
           ),
         });
       }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to delete charge."));
     } finally {
       setDeletingChargeId(null);
     }
@@ -558,15 +558,17 @@ export default function BookingDetailsPage() {
     const parsed = Number(tempDiscount);
     if (Number.isNaN(parsed) || parsed < 0) return;
 
-    const res = await fetch(`/api/bookings/${bookingId}/discount`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ discount: parsed }),
-    });
-    const data = await res.json();
-    if (data.success && booking) {
-      setBooking({ ...booking, discount: data.discount });
-      setIsEditingDiscount(false);
+    try {
+      const { data } = await api.patch<{ success?: boolean; discount: number }>(
+        `/api/bookings/${bookingId}/discount`,
+        { discount: parsed },
+      );
+      if (data.success && booking) {
+        setBooking({ ...booking, discount: data.discount });
+        setIsEditingDiscount(false);
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to update discount."));
     }
   };
 
@@ -610,16 +612,15 @@ export default function BookingDetailsPage() {
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true);
     try {
-      const response = await fetch(`/api/bookings/${bookingId}/pdf`);
-      if (!response.ok) {
-        throw new Error("Failed to generate PDF");
-      }
+      const response = await api.get<Blob>(`/api/bookings/${bookingId}/pdf`, {
+        responseType: "blob",
+        timeout: PDF_TIMEOUT_MS,
+      });
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(response.data);
       const link = document.createElement("a");
       link.href = url;
-      const contentDisposition = response.headers.get("content-disposition");
+      const contentDisposition = response.headers["content-disposition"] as string | undefined;
       const encodedFilename = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
       const fallbackFilename = contentDisposition?.match(/filename="([^"]+)"/i)?.[1];
       link.download = encodedFilename
@@ -1541,14 +1542,14 @@ export default function BookingDetailsPage() {
                             onClick={async () => {
                               setDeletingPaymentId(payment.id);
                               try {
-                                const res = await fetch(
-                                  `/api/bookings/${bookingId}/payments?paymentId=${payment.id}`,
-                                  { method: "DELETE" }
+                                await api.delete(`/api/bookings/${bookingId}/payments`, {
+                                  params: { paymentId: payment.id },
+                                });
+                                setPayments((prev) =>
+                                  prev.filter((p) => p.id !== payment.id)
                                 );
-                                if (res.ok)
-                                  setPayments((prev) =>
-                                    prev.filter((p) => p.id !== payment.id)
-                                  );
+                              } catch (err) {
+                                toast.error(getErrorMessage(err, "Unable to delete payment."));
                               } finally {
                                 setDeletingPaymentId(null);
                               }
@@ -1812,14 +1813,14 @@ export default function BookingDetailsPage() {
                             onClick={async () => {
                               setDeletingExpenseId(expense.id);
                               try {
-                                const res = await fetch(
-                                  `/api/bookings/${bookingId}/expenses?expenseId=${expense.id}`,
-                                  { method: "DELETE" },
+                                await api.delete(`/api/bookings/${bookingId}/expenses`, {
+                                  params: { expenseId: expense.id },
+                                });
+                                setExpenses((prev) =>
+                                  prev.filter((e) => e.id !== expense.id),
                                 );
-                                if (res.ok)
-                                  setExpenses((prev) =>
-                                    prev.filter((e) => e.id !== expense.id),
-                                  );
+                              } catch (err) {
+                                toast.error(getErrorMessage(err, "Unable to delete expense."));
                               } finally {
                                 setDeletingExpenseId(null);
                               }
@@ -2083,23 +2084,19 @@ export default function BookingDetailsPage() {
                 onClick={async () => {
                   setIsSavingPayment(true);
                   try {
-                    const res = await fetch(
+                    const { data } = await api.post<{ payment?: Payment }>(
                       `/api/bookings/${bookingId}/payments`,
                       {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          payment_type: paymentType,
-                          payment_method: paymentMethod,
-                          amount: Number(paymentAmount),
-                          payment_date: paymentDate,
-                          remark: paymentRemark,
-                        }),
+                        payment_type: paymentType,
+                        payment_method: paymentMethod,
+                        amount: Number(paymentAmount),
+                        payment_date: paymentDate,
+                        remark: paymentRemark,
                       },
                     );
-                    const data = await res.json();
-                    if (data.payment) {
-                      setPayments((prev) => [data.payment, ...prev]);
+                    const payment = data.payment;
+                    if (payment) {
+                      setPayments((prev) => [payment, ...prev]);
                       setPaymentSuccess(true);
                       setTimeout(() => {
                         setPaymentOpen(false);
@@ -2110,6 +2107,8 @@ export default function BookingDetailsPage() {
                         }, 500);
                       }, 2000);
                     }
+                  } catch (err) {
+                    toast.error(getErrorMessage(err, "Unable to save payment."));
                   } finally {
                     setIsSavingPayment(false);
                   }
@@ -2260,22 +2259,18 @@ export default function BookingDetailsPage() {
                 onClick={async () => {
                   setIsSavingExpense(true);
                   try {
-                    const res = await fetch(
+                    const { data } = await api.post<{ expense?: Expense }>(
                       `/api/bookings/${bookingId}/expenses`,
                       {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          expense_name: expenseName,
-                          amount: Number(expenseAmount),
-                          expense_date: expenseDate,
-                          description: expenseDescription,
-                        }),
+                        expense_name: expenseName,
+                        amount: Number(expenseAmount),
+                        expense_date: expenseDate,
+                        description: expenseDescription,
                       },
                     );
-                    const data = await res.json();
-                    if (data.expense) {
-                      setExpenses((prev) => [data.expense, ...prev]);
+                    const expense = data.expense;
+                    if (expense) {
+                      setExpenses((prev) => [expense, ...prev]);
                       setExpenseSuccess(true);
                       setTimeout(() => {
                         setExpenseOpen(false);
@@ -2287,6 +2282,8 @@ export default function BookingDetailsPage() {
                         }, 500);
                       }, 2000);
                     }
+                  } catch (err) {
+                    toast.error(getErrorMessage(err, "Unable to save expense."));
                   } finally {
                     setIsSavingExpense(false);
                   }
@@ -2410,31 +2407,27 @@ export default function BookingDetailsPage() {
                 if (!editingPayment) return;
                 setIsSavingPayment(true);
                 try {
-                  const res = await fetch(
+                  const { data } = await api.patch<{ payment?: Payment }>(
                     `/api/bookings/${bookingId}/payments`,
                     {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        paymentId: editingPayment.id,
-                        payment_type: editPaymentType,
-                        payment_method: editPaymentMethod,
-                        amount: Number(editPaymentAmount),
-                        payment_date: editPaymentDate,
-                        remark: editPaymentRemark,
-                      }),
+                      paymentId: editingPayment.id,
+                      payment_type: editPaymentType,
+                      payment_method: editPaymentMethod,
+                      amount: Number(editPaymentAmount),
+                      payment_date: editPaymentDate,
+                      remark: editPaymentRemark,
                     },
                   );
-                  const data = await res.json();
-                  if (data.payment) {
+                  const updated = data.payment;
+                  if (updated) {
                     setPayments((prev) =>
-                      prev.map((p) =>
-                        p.id === data.payment.id ? data.payment : p,
-                      ),
+                      prev.map((p) => (p.id === updated.id ? updated : p)),
                     );
                     setEditPaymentOpen(false);
                     setEditingPayment(null);
                   }
+                } catch (err) {
+                  toast.error(getErrorMessage(err, "Unable to update payment."));
                 } finally {
                   setIsSavingPayment(false);
                 }
@@ -2551,30 +2544,26 @@ export default function BookingDetailsPage() {
                 if (!editingExpense) return;
                 setIsSavingExpense(true);
                 try {
-                  const res = await fetch(
+                  const { data } = await api.patch<{ expense?: Expense }>(
                     `/api/bookings/${bookingId}/expenses`,
                     {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        expenseId: editingExpense.id,
-                        expense_name: editExpenseName,
-                        amount: Number(editExpenseAmount),
-                        expense_date: editExpenseDate,
-                        description: editExpenseDescription,
-                      }),
+                      expenseId: editingExpense.id,
+                      expense_name: editExpenseName,
+                      amount: Number(editExpenseAmount),
+                      expense_date: editExpenseDate,
+                      description: editExpenseDescription,
                     },
                   );
-                  const data = await res.json();
-                  if (data.expense) {
+                  const updated = data.expense;
+                  if (updated) {
                     setExpenses((prev) =>
-                      prev.map((e) =>
-                        e.id === data.expense.id ? data.expense : e,
-                      ),
+                      prev.map((e) => (e.id === updated.id ? updated : e)),
                     );
                     setEditExpenseOpen(false);
                     setEditingExpense(null);
                   }
+                } catch (err) {
+                  toast.error(getErrorMessage(err, "Unable to update expense."));
                 } finally {
                   setIsSavingExpense(false);
                 }
@@ -2640,24 +2629,17 @@ export default function BookingDetailsPage() {
               onClick={async () => {
                 setIsSavingServices(true);
                 try {
-                  const res = await fetch(
-                    `/api/bookings/${bookingId}/services`,
-                    {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        services: editingServices.map((s) => ({
-                          service_id: s.id,
-                          quantity: Number(s.quantity) || 1,
-                          unit_price: Number(s.price) || 0,
-                        })),
-                      }),
-                    },
-                  );
-                  if (res.ok) {
-                    setBooking({ ...booking!, services: [...editingServices] });
-                    setEditServicesOpen(false);
-                  }
+                  await api.patch(`/api/bookings/${bookingId}/services`, {
+                    services: editingServices.map((s) => ({
+                      service_id: s.id,
+                      quantity: Number(s.quantity) || 1,
+                      unit_price: Number(s.price) || 0,
+                    })),
+                  });
+                  setBooking({ ...booking!, services: [...editingServices] });
+                  setEditServicesOpen(false);
+                } catch (err) {
+                  toast.error(getErrorMessage(err, "Unable to update services."));
                 } finally {
                   setIsSavingServices(false);
                 }

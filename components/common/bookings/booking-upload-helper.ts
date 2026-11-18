@@ -1,5 +1,10 @@
 import { toast } from "sonner";
 
+import { api, getErrorMessage, isApiError } from "@/lib/api";
+
+/** The upload API answers 402 when the file would exceed the storage quota. */
+const QUOTA_EXCEEDED_STATUS = 402;
+
 export type UploadProgressState = {
   percentage: number;
   message: string;
@@ -37,48 +42,32 @@ export async function uploadReferenceImagesWithProgress(
   });
 
   await Promise.all(
-    files.map((file, index) => {
-      return new Promise<void>((resolve) => {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("booking_id", String(bookingId));
-        formData.append("section", "reference");
+    files.map(async (file, index) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("booking_id", String(bookingId));
+      formData.append("section", "reference");
 
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/api/portfolio/files/upload");
-
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
+      try {
+        await api.post("/api/portfolio/files/upload", formData, {
+          timeout: 0,
+          onUploadProgress: (event) => {
             loadedPerFile[index] = event.loaded;
             updateProgress();
-          }
-        };
-
-        xhr.onload = () => {
-          loadedPerFile[index] = file.size;
-          updateProgress();
-
-          if (xhr.status === 402) {
-            toast.error(`Storage quota exceeded: "${file.name}" was not uploaded.`);
-          } else if (xhr.status < 200 || xhr.status >= 300) {
-            let msg = `Failed to upload "${file.name}"`;
-            try {
-              const res = JSON.parse(xhr.responseText);
-              if (res.message) msg = res.message;
-            } catch {}
-            toast.error(msg);
-          }
-          resolve();
-        };
-
-        xhr.onerror = () => {
-          console.error(`Network error uploading "${file.name}"`);
+          },
+        });
+      } catch (err) {
+        if (isApiError(err) && err.status === QUOTA_EXCEEDED_STATUS) {
+          toast.error(`Storage quota exceeded: "${file.name}" was not uploaded.`);
+        } else if (isApiError(err) && err.status === 0) {
           toast.error(`Network error uploading "${file.name}"`);
-          resolve();
-        };
-
-        xhr.send(formData);
-      });
+        } else {
+          toast.error(getErrorMessage(err, `Failed to upload "${file.name}"`));
+        }
+      } finally {
+        loadedPerFile[index] = file.size;
+        updateProgress();
+      }
     })
   );
 

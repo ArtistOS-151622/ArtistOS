@@ -50,6 +50,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { api, getErrorMessage } from "@/lib/api"
 import { invalidateCalendarBookings } from "@/lib/bookings/calendar-cache"
 import { refreshBadges } from "@/lib/hooks/use-badges"
 import { useIsMobile } from "@/lib/hooks/use-is-mobile"
@@ -131,15 +132,10 @@ export function InquiryManager() {
   useEffect(() => {
     async function loadFormLink() {
       try {
-        const res = await fetch("/api/inquiries/form-link")
-        const data = (await res.json()) as FormLinkResponse
-        if (!res.ok) {
-          toast.error(data.error ?? "Unable to load inquiry link.")
-          return
-        }
+        const { data } = await api.get<FormLinkResponse>("/api/inquiries/form-link")
         setFormLink(data)
-      } catch {
-        toast.error("Unable to load inquiry link.")
+      } catch (err) {
+        toast.error(getErrorMessage(err, "Unable to load inquiry link."))
       }
     }
 
@@ -163,26 +159,20 @@ export function InquiryManager() {
     }
 
     try {
-      const res = await fetch(
-        `/api/inquiries?page=${pageNum}&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`,
-        { signal: controller.signal }
-      )
-      const data = (await res.json()) as InquiriesResponse
+      const { data } = await api.get<InquiriesResponse>("/api/inquiries", {
+        params: { page: pageNum, search, status },
+        signal: controller.signal,
+      })
       if (controller.signal.aborted) return
-
-      if (!res.ok) {
-        toast.error(data.error ?? "Unable to load inquiries.")
-        return
-      }
 
       setInquiries((current) =>
         append ? [...current, ...(data.inquiries ?? [])] : data.inquiries ?? []
       )
       setHasMore(data.hasMore ?? false)
       setPage(pageNum)
-    } catch {
+    } catch (err) {
       if (controller.signal.aborted) return
-      toast.error("Unable to load inquiries.")
+      toast.error(getErrorMessage(err, "Unable to load inquiries."))
     } finally {
       // A newer request owns the loading state now.
       if (!controller.signal.aborted) {
@@ -229,12 +219,8 @@ export function InquiryManager() {
     setActingId(inquiry.id)
     setActingAction("convert")
     try {
-      const res = await fetch(`/api/inquiries/${inquiry.id}/convert`, {
-        method: "POST",
-      })
-      const data = (await res.json()) as InquiriesResponse
-
-      if (!res.ok || !data.inquiry) {
+      const { data } = await api.post<InquiriesResponse>(`/api/inquiries/${inquiry.id}/convert`)
+      if (!data.inquiry) {
         toast.error(data.error ?? "Unable to convert inquiry.")
         return
       }
@@ -250,8 +236,8 @@ export function InquiryManager() {
       // A booking was created: cached calendar months are out of date.
       invalidateCalendarBookings()
       toast.success("Booking created successfully from inquiry!")
-    } catch {
-      toast.error("Unable to convert inquiry.")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to convert inquiry."))
     } finally {
       setActingId(null)
       setActingAction(null)
@@ -267,12 +253,8 @@ export function InquiryManager() {
     setActingId(inquiry.id)
     setActingAction("cancel")
     try {
-      const res = await fetch(`/api/inquiries/${inquiry.id}/cancel`, {
-        method: "POST",
-      })
-      const data = (await res.json()) as InquiriesResponse
-
-      if (!res.ok || !data.inquiry) {
+      const { data } = await api.post<InquiriesResponse>(`/api/inquiries/${inquiry.id}/cancel`)
+      if (!data.inquiry) {
         toast.error(data.error ?? "Unable to cancel inquiry.")
         return
       }
@@ -285,8 +267,8 @@ export function InquiryManager() {
       }
       refreshBadges()
       toast.success("Inquiry marked as cancelled")
-    } catch {
-      toast.error("Unable to cancel inquiry.")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to cancel inquiry."))
     } finally {
       setActingId(null)
       setActingAction(null)

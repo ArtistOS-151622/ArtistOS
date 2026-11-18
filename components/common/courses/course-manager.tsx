@@ -46,6 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { api, getErrorMessage, isApiError } from "@/lib/api"
 import { invalidateStorageInfo, useServices } from "@/lib/hooks/use-lookups"
 
 type CoursesResponse = { courses?: Course[]; stats?: CourseStats }
@@ -104,13 +105,13 @@ export function CourseManager() {
 
   // Load Data
   const loadCourses = async () => {
-    const data = (await (await fetch("/api/courses")).json()) as CoursesResponse
+    const { data } = await api.get<CoursesResponse>("/api/courses")
     if (data.courses) setCourses(data.courses)
     if (data.stats) setStats(data.stats)
   }
 
   const loadStudents = async () => {
-    const data = (await (await fetch("/api/courses/students")).json()) as StudentsResponse
+    const { data } = await api.get<StudentsResponse>("/api/courses/students")
     if (data.students) setStudents(data.students)
   }
 
@@ -124,7 +125,7 @@ export function CourseManager() {
     try {
       await Promise.all([parts.courses ? loadCourses() : null, parts.students ? loadStudents() : null])
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load courses data.")
+      setError(getErrorMessage(err, "Failed to load courses data."))
     }
   }
 
@@ -153,21 +154,14 @@ export function CourseManager() {
     }
 
     try {
-      const url = editingCourse ? `/api/courses/${editingCourse.id}` : "/api/courses"
-      const method = editingCourse ? "PATCH" : "POST"
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...values,
-          fee: Number(values.fee),
-          max_students: values.max_students ? Number(values.max_students) : null,
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to save course.")
+      const payload = {
+        ...values,
+        fee: Number(values.fee),
+        max_students: values.max_students ? Number(values.max_students) : null,
+      }
+      const { data } = editingCourse
+        ? await api.patch(`/api/courses/${editingCourse.id}`, payload)
+        : await api.post("/api/courses", payload)
 
       const targetCourseId = editingCourse ? editingCourse.id : (data.course?.id ?? data.id)
 
@@ -180,9 +174,7 @@ export function CourseManager() {
         await Promise.all(
           values.removed_image_ids.map(async (fileId) => {
             try {
-              await fetch(`/api/portfolio/files/${fileId}`, {
-                method: "DELETE",
-              })
+              await api.delete(`/api/portfolio/files/${fileId}`)
             } catch (delErr) {
               console.error("Failed to delete removed course image:", delErr)
             }
@@ -208,8 +200,13 @@ export function CourseManager() {
       if (hasImagesToUpload || hasImagesToDelete) invalidateStorageInfo()
       // A new course has no students yet; an edit can change what student cards show.
       await refresh({ courses: true, students: wasEditing })
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to save course.")
+    } catch (err) {
+      // Image-upload failures carry their own message; API failures come back as ApiError.
+      toast.error(
+        err instanceof Error && !isApiError(err) && err.message
+          ? err.message
+          : getErrorMessage(err, "Failed to save course.")
+      )
       setUploadProgress(null)
     } finally {
       setFormLoading(false)
@@ -225,9 +222,7 @@ export function CourseManager() {
 
     setFormLoading(true)
     try {
-      const res = await fetch(`/api/courses/${deletingCourse.id}`, { method: "DELETE" })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to delete course.")
+      await api.delete(`/api/courses/${deletingCourse.id}`)
 
       toast.success("Course deleted successfully.")
       setDeletingCourse(null)
@@ -236,8 +231,8 @@ export function CourseManager() {
       }
       // Its students are deleted with it (ON DELETE CASCADE).
       await refresh({ courses: true, students: true })
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to delete course.")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete course."))
     } finally {
       setFormLoading(false)
     }
@@ -252,30 +247,22 @@ export function CourseManager() {
 
     setFormLoading(true)
     try {
-      const url = editingStudent ? `/api/courses/students/${editingStudent.id}` : "/api/courses/students"
-      const method = editingStudent ? "PATCH" : "POST"
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...values,
-          course_id: Number(values.course_id),
-          total_fee: Number(values.total_fee),
-          paid_fee: Number(values.paid_fee),
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to save student.")
+      const payload = {
+        ...values,
+        course_id: Number(values.course_id),
+        total_fee: Number(values.total_fee),
+        paid_fee: Number(values.paid_fee),
+      }
+      if (editingStudent) await api.patch(`/api/courses/students/${editingStudent.id}`, payload)
+      else await api.post("/api/courses/students", payload)
 
       toast.success(editingStudent ? "Student record updated." : "Student enrolled successfully.")
       setStudentModalOpen(false)
       setEditingStudent(null)
       setPreselectedCourse(null)
       await refresh({ courses: true, students: true })
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to save student.")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to save student."))
     } finally {
       setFormLoading(false)
     }
@@ -289,20 +276,13 @@ export function CourseManager() {
 
     setFormLoading(true)
     try {
-      const res = await fetch(`/api/courses/students/${studentId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ add_payment: addAmount }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to record installment payment.")
+      await api.patch(`/api/courses/students/${studentId}`, { add_payment: addAmount })
 
       toast.success("Payment recorded successfully.")
       setPaymentStudent(null)
       await refresh({ courses: true, students: true })
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to record payment.")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to record installment payment."))
     } finally {
       setFormLoading(false)
     }
@@ -317,15 +297,13 @@ export function CourseManager() {
 
     setFormLoading(true)
     try {
-      const res = await fetch(`/api/courses/students/${deletingStudent.id}`, { method: "DELETE" })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to delete student record.")
+      await api.delete(`/api/courses/students/${deletingStudent.id}`)
 
       toast.success("Student removed successfully.")
       setDeletingStudent(null)
       await refresh({ courses: true, students: true })
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to delete student.")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete student record."))
     } finally {
       setFormLoading(false)
     }

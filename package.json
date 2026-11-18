@@ -21,6 +21,7 @@
     "@supabase/supabase-js": "^2.110.2",
     "@types/react-big-calendar": "^1.16.3",
     "archiver": "^8.0.0",
+    "axios": "^1.21.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",

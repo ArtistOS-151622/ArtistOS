@@ -7,6 +7,7 @@ import { AppModal } from "@/components/common/shared/app-modal"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { api } from "@/lib/api"
 import type { PortfolioFolderWithStats } from "@/lib/portfolio/types"
 
 type PortfolioShareModalProps = {
@@ -40,12 +41,9 @@ export function PortfolioShareModal({
     if (!folder) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/portfolio/folders/${folder.id}/toggle-share`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_shared: enable }),
+      const { data: json } = await api.post(`/api/portfolio/folders/${folder.id}/toggle-share`, {
+        is_shared: enable,
       })
-      const json = await res.json()
       if (!json.status) throw new Error(json.message)
 
       setIsShared(enable)

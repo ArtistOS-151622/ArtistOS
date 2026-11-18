@@ -21,6 +21,7 @@ import { FloatingInput } from "@/components/common/shared/floating-input";
 import { FloatingTextarea } from "@/components/common/shared/floating-input";
 import { AppModal } from "@/components/common/shared/app-modal";
 import { Skeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type TicketMessage = {
@@ -77,8 +78,7 @@ export default function UserSupportPage() {
 
   const loadTickets = async () => {
     try {
-      const res = await fetch("/api/portfolio/tickets");
-      const json = await res.json();
+      const { data: json } = await api.get("/api/portfolio/tickets");
       if (json.status) setTickets(json.data);
     } catch (e) {
       console.error(e);
@@ -90,8 +90,7 @@ export default function UserSupportPage() {
   const loadMessages = async (ticketId: number) => {
     setLoadingMessages(true);
     try {
-      const res = await fetch(`/api/portfolio/tickets/${ticketId}/messages`);
-      const json = await res.json();
+      const { data: json } = await api.get(`/api/portfolio/tickets/${ticketId}/messages`);
       if (json.status) setMessages(json.data);
     } catch (e) {
       console.error(e);
@@ -104,15 +103,10 @@ export default function UserSupportPage() {
     if (!newSubject.trim() || !newMessage.trim()) return;
     setCreating(true);
     try {
-      const res = await fetch("/api/portfolio/tickets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject: newSubject.trim(),
-          message: newMessage.trim(),
-        }),
+      const { data: json } = await api.post("/api/portfolio/tickets", {
+        subject: newSubject.trim(),
+        message: newMessage.trim(),
       });
-      const json = await res.json();
       if (json.status) {
         setCreateModalOpen(false);
         setNewSubject("");
@@ -131,15 +125,9 @@ export default function UserSupportPage() {
     if (!selectedTicket || !replyText.trim()) return;
     setSendingReply(true);
     try {
-      const res = await fetch(
-        `/api/portfolio/tickets/${selectedTicket.id}/messages`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: replyText.trim() }),
-        },
-      );
-      const json = await res.json();
+      const { data: json } = await api.post(`/api/portfolio/tickets/${selectedTicket.id}/messages`, {
+        message: replyText.trim(),
+      });
       if (json.status) {
         setReplyText("");
         await loadMessages(selectedTicket.id);

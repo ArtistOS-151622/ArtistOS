@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, FileImage, Loader2, 
 
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { api, getErrorMessage, isApiError } from "@/lib/api"
 import { formatBytes } from "@/lib/portfolio/response"
 import { cn } from "@/lib/utils"
 
@@ -29,7 +30,10 @@ type UploadItem = {
   error?: string
 }
 
-function uploadSingleFile(
+/** The upload API answers 402 when the file would exceed the storage quota. */
+const QUOTA_EXCEEDED_STATUS = 402
+
+async function uploadSingleFile(
   file: File,
   params: {
     folderId?: number
@@ -40,47 +44,34 @@ function uploadSingleFile(
   },
   onProgress: (percent: number) => void
 ): Promise<{ status: boolean; message?: string; quotaExceeded?: boolean }> {
-  return new Promise((resolve) => {
-    const xhr = new XMLHttpRequest()
-    const formData = new FormData()
-    formData.append("file", file)
-    if (params.folderId) formData.append("folder_id", String(params.folderId))
-    if (params.bookingId) formData.append("booking_id", String(params.bookingId))
-    if (params.section) formData.append("section", params.section)
-    if (params.setAsAvatar) formData.append("set_as_avatar", "true")
-    if (params.setAsStudioLogo) formData.append("set_as_studio_logo", "true")
+  const formData = new FormData()
+  formData.append("file", file)
+  if (params.folderId) formData.append("folder_id", String(params.folderId))
+  if (params.bookingId) formData.append("booking_id", String(params.bookingId))
+  if (params.section) formData.append("section", params.section)
+  if (params.setAsAvatar) formData.append("set_as_avatar", "true")
+  if (params.setAsStudioLogo) formData.append("set_as_studio_logo", "true")
 
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = Math.round((event.loaded / event.total) * 100)
-        onProgress(percent)
+  try {
+    const { data } = await api.post<{ status?: boolean; message?: string }>(
+      "/api/portfolio/files/upload",
+      formData,
+      {
+        timeout: 0,
+        onUploadProgress: (event) => {
+          if (event.total) onProgress(Math.round((event.loaded / event.total) * 100))
+        },
       }
+    )
+    return data.status ? { status: true } : { status: false, message: data.message || "Upload failed" }
+  } catch (err) {
+    if (isApiError(err) && err.status === 0) return { status: false, message: "Network error" }
+    return {
+      status: false,
+      message: getErrorMessage(err, "Upload failed"),
+      quotaExceeded: isApiError(err) && err.status === QUOTA_EXCEEDED_STATUS,
     }
-
-    xhr.onload = () => {
-      try {
-        const res = JSON.parse(xhr.responseText)
-        if (xhr.status >= 200 && xhr.status < 300 && res.status) {
-          resolve({ status: true })
-        } else {
-          resolve({
-            status: false,
-            message: res.message || "Upload failed",
-            quotaExceeded: xhr.status === 402,
-          })
-        }
-      } catch {
-        resolve({ status: false, message: "Upload failed" })
-      }
-    }
-
-    xhr.onerror = () => {
-      resolve({ status: false, message: "Network error" })
-    }
-
-    xhr.open("POST", "/api/portfolio/files/upload")
-    xhr.send(formData)
-  })
+  }
 }
 
 function CustomProgressBar({

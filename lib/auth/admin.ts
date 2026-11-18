@@ -1,31 +1,14 @@
 import { NextResponse } from "next/server"
 import { createHash, timingSafeEqual } from "crypto"
 
-import { ADMIN_SESSION_COOKIE, verifyAdminToken } from "@/lib/auth/session"
+import { hasValidAdminCookie } from "@/lib/auth/session"
 
 const LOGIN_MAX_FAILURES = 5
 const LOGIN_WINDOW_MS = 15 * 60 * 1000
 
-function readCookie(request: Request, name: string): string | null {
-  const header = request.headers.get("cookie")
-  if (!header) return null
-
-  for (const part of header.split(";")) {
-    const separator = part.indexOf("=")
-    if (separator === -1) continue
-    if (part.slice(0, separator).trim() !== name) continue
-    const value = part.slice(separator + 1).trim()
-    try {
-      return decodeURIComponent(value)
-    } catch {
-      return value
-    }
-  }
-  return null
-}
-
+/** Any `admin_session` value that verifies (the browser can briefly hold two, see getAllCookieValues). */
 export function isAdminRequest(request: Request): boolean {
-  return verifyAdminToken(readCookie(request, ADMIN_SESSION_COOKIE))
+  return hasValidAdminCookie(request.headers.get("cookie"))
 }
 
 /**

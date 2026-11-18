@@ -5,6 +5,7 @@ import { useHeaderContext } from "@/components/common/dashboard/dashboard-header
 import { UsersRound, CreditCard, HardDrive, Loader2, ArrowRight, Crown } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import Link from "next/link"
+import { api } from "@/lib/api"
 
 type Stats = {
   users: number
@@ -23,11 +24,8 @@ export default function AdminOverview() {
 
     const fetchStats = async () => {
       try {
-        const res = await fetch("/api/admin/stats")
-        if (res.ok) {
-          const data = await res.json()
-          setStats(data)
-        }
+        const { data } = await api.get("/api/admin/stats")
+        setStats(data)
       } catch (e) {
         console.error("Failed to fetch stats", e)
       } finally {

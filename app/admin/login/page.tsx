@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { FloatingInput } from "@/components/common/shared/floating-input"
 import { BrandMark } from "@/components/common/brand/brand-logo"
 import { ShieldAlert, Loader2 } from "lucide-react"
+import { api, getErrorMessage, isApiError } from "@/lib/api"
 
 // Ensure we don't wrap login with AdminShell, so we export a custom layout here or just style it standalone
 // Wait, the layout.tsx in app/admin/layout.tsx wraps everything in AdminShell.
@@ -32,21 +33,15 @@ export default function AdminLogin() {
     }
 
     try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      })
-
-      if (res.ok) {
-        router.push("/admin")
-        router.refresh()
-      } else {
-        const data = await res.json()
-        setError(data.error || "Login failed")
-      }
+      await api.post("/api/admin/login", { password })
+      router.push("/admin")
+      router.refresh()
     } catch (err) {
-      setError("An unexpected error occurred")
+      setError(
+        isApiError(err) && err.status !== 0
+          ? getErrorMessage(err, "Login failed")
+          : "An unexpected error occurred"
+      )
     } finally {
       setLoading(false)
     }

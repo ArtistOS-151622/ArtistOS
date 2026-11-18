@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { AppModal } from "@/components/common/shared/app-modal"
+import { api } from "@/lib/api"
 
 type CourseDetailDrawerProps = {
   course: Course | null
@@ -62,9 +63,7 @@ export function CourseDetailDrawer({
     async function loadImages() {
       try {
         setLoadingImages(true)
-        const res = await fetch(`/api/courses/${course!.id}/portfolio`)
-        if (!res.ok) return
-        const data = await res.json()
+        const { data } = await api.get(`/api/courses/${course!.id}/portfolio`)
         if (isMounted) {
           setCourseImages(data.data?.files || [])
         }

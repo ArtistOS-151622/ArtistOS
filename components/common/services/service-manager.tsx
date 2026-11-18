@@ -24,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { api, getErrorMessage } from "@/lib/api";
 import { invalidateServices } from "@/lib/hooks/use-lookups";
 import { cn } from "@/lib/utils";
 
@@ -91,21 +92,15 @@ export function ServiceManager() {
     setError("");
 
     try {
-      const response = await fetch(
-        `/api/services?search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
-        { signal: controller.signal },
-      );
-      const data = (await response.json()) as ServicesResponse;
+      const { data } = await api.get<ServicesResponse>("/api/services", {
+        params: { search: searchVal, sort: sortVal },
+        signal: controller.signal,
+      });
       if (controller.signal.aborted) return;
-
-      if (!response.ok) {
-        setError(data.error ?? "Unable to load services.");
-      } else {
-        setServices(data.services ?? []);
-      }
-    } catch {
+      setServices(data.services ?? []);
+    } catch (err) {
       if (controller.signal.aborted) return;
-      setError("Unable to load services.");
+      setError(getErrorMessage(err, "Unable to load services."));
     } finally {
       // A newer request owns the loading state now.
       if (!controller.signal.aborted) {
@@ -120,21 +115,16 @@ export function ServiceManager() {
     setError("");
 
     try {
-      const response = await fetch(
-        editing ? `/api/services/${editing.id}` : "/api/services",
-        {
-          method: editing ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            service_name: values.service_name,
-            duration_minutes: values.duration_minutes,
-            price: Number(values.price),
-          }),
-        },
-      );
-      const data = (await response.json()) as ServicesResponse;
+      const payload = {
+        service_name: values.service_name,
+        duration_minutes: values.duration_minutes,
+        price: Number(values.price),
+      };
+      const { data } = editing
+        ? await api.patch<ServicesResponse>(`/api/services/${editing.id}`, payload)
+        : await api.post<ServicesResponse>("/api/services", payload);
 
-      if (!response.ok || !data.service) {
+      if (!data.service) {
         setError(data.error ?? "Unable to save service.");
       } else {
         const savedService = data.service;
@@ -153,8 +143,8 @@ export function ServiceManager() {
         invalidateServices();
         cancelEdit();
       }
-    } catch {
-      setError("Unable to save service.");
+    } catch (err) {
+      setError(getErrorMessage(err, "Unable to save service."));
     } finally {
       setLoading(false);
     }
@@ -167,21 +157,13 @@ export function ServiceManager() {
     setError("");
 
     try {
-      const response = await fetch(`/api/services/${deleting.id}`, {
-        method: "DELETE",
-      });
-      const data = (await response.json()) as ServicesResponse;
-
-      if (!response.ok) {
-        setError(data.error ?? "Unable to delete service.");
-      } else {
-        const targetId = deleting.id;
-        setServices((prev) => prev.filter((s) => s.id !== targetId));
-        setDeleting(null);
-        invalidateServices();
-      }
-    } catch {
-      setError("Unable to delete service.");
+      await api.delete(`/api/services/${deleting.id}`);
+      const targetId = deleting.id;
+      setServices((prev) => prev.filter((s) => s.id !== targetId));
+      setDeleting(null);
+      invalidateServices();
+    } catch (err) {
+      setError(getErrorMessage(err, "Unable to delete service."));
     } finally {
       setLoading(false);
     }

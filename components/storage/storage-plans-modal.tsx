@@ -5,6 +5,7 @@ import { HardDrive, Loader2 } from "lucide-react"
 
 import { AppModal } from "@/components/common/shared/app-modal"
 import { Button } from "@/components/ui/button"
+import { ApiError, api, getErrorMessage } from "@/lib/api"
 import type { StoragePlanRow } from "@/lib/portfolio/types"
 
 declare global {
@@ -65,12 +66,10 @@ export function StoragePlansModal({
     setError("")
 
     try {
-      const res = await fetch("/api/portfolio/purchase-storage", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan_id: effectiveSelectedPlanId, quantity }),
+      const { data: json } = await api.post("/api/portfolio/purchase-storage", {
+        plan_id: effectiveSelectedPlanId,
+        quantity,
       })
-      const json = await res.json()
       if (!json.status) throw new Error(json.message || "Purchase failed")
 
       if (json.data.demo_mode || !json.data.checkout) {
@@ -93,18 +92,13 @@ export function StoragePlansModal({
           setError("")
 
           try {
-            const verifyRes = await fetch("/api/portfolio/purchase-storage/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                purchase_id: checkout.purchase_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_subscription_id: response.razorpay_subscription_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
+            const { data: verifyJson } = await api.post("/api/portfolio/purchase-storage/verify", {
+              purchase_id: checkout.purchase_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_subscription_id: response.razorpay_subscription_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
             })
-            const verifyJson = await verifyRes.json()
             if (!verifyJson.status) {
               throw new Error(verifyJson.message || "Payment verification failed")
             }
@@ -112,7 +106,11 @@ export function StoragePlansModal({
             onSuccess?.()
             onClose()
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Payment verification failed")
+            setError(
+              err instanceof Error && !(err instanceof ApiError) && err.message
+                ? err.message
+                : getErrorMessage(err, "Payment verification failed")
+            )
           } finally {
             setLoading(false)
           }
@@ -122,11 +120,7 @@ export function StoragePlansModal({
             setLoading(false)
             try {
               // Physically delete the pending record if user closes the modal
-              await fetch("/api/portfolio/purchase-storage/cancel", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ purchase_id: checkout.purchase_id }),
-              })
+              await api.post("/api/portfolio/purchase-storage/cancel", { purchase_id: checkout.purchase_id })
             } catch (e) {
               console.error("Failed to cancel purchase", e)
             }
@@ -145,13 +139,9 @@ export function StoragePlansModal({
       rzp.on('payment.failed', async function (response: any) {
         try {
           // Update status to 'failed' if the payment is rejected by bank
-          await fetch("/api/portfolio/purchase-storage/failed", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              purchase_id: checkout.purchase_id,
-              error_description: response.error?.description || "Payment failed"
-            }),
+          await api.post("/api/portfolio/purchase-storage/failed", {
+            purchase_id: checkout.purchase_id,
+            error_description: response.error?.description || "Payment failed",
           })
         } catch (e) {
           console.error("Failed to log payment failure", e)
@@ -160,7 +150,11 @@ export function StoragePlansModal({
 
       rzp.open()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Purchase failed")
+      setError(
+        err instanceof Error && !(err instanceof ApiError) && err.message
+          ? err.message
+          : getErrorMessage(err, "Purchase failed")
+      )
     } finally {
       // Don't set loading false here, let ondismiss or success handle it
       // otherwise it flickers off while modal is open

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { mutate } from "swr";
+import { api, getErrorMessage } from "@/lib/api";
+import { submitBooking } from "@/components/common/bookings/submit-booking";
 import { invalidateStorageInfo } from "@/lib/hooks/use-lookups";
 import { invalidateCalendarBookings } from "@/lib/bookings/calendar-cache";
 import { format } from "date-fns";
@@ -141,22 +143,16 @@ export function BookingManager() {
     setLoading(true);
 
     try {
-      const res = await fetch(
-        `/api/bookings?search=${encodeURIComponent(searchVal)}&status=${encodeURIComponent(statusVal)}&start_date=${date}&end_date=${date}`,
-        { signal: controller.signal },
-      );
-      const data = (await res.json()) as BookingsResponse;
+      const { data } = await api.get<BookingsResponse>("/api/bookings", {
+        params: { search: searchVal, status: statusVal, start_date: date, end_date: date },
+        signal: controller.signal,
+      });
       if (controller.signal.aborted) return;
-
-      if (!res.ok) {
-        toast.error(data.error ?? "Unable to load bookings.");
-      } else {
-        setBookings(data.bookings ?? []);
-        replaceListUrl(searchVal, statusVal);
-      }
-    } catch {
+      setBookings(data.bookings ?? []);
+      replaceListUrl(searchVal, statusVal);
+    } catch (err) {
       if (controller.signal.aborted) return;
-      toast.error("Unable to load bookings.");
+      toast.error(getErrorMessage(err, "Unable to load bookings."));
     } finally {
       // A newer request owns the loading state now.
       if (!controller.signal.aborted) {
@@ -214,45 +210,13 @@ export function BookingManager() {
 
     const requestId = crypto.randomUUID();
     try {
-      const res = await fetch(
-        editing ? `/api/bookings/${editing.id}` : "/api/bookings",
-        {
-          method: editing ? "PATCH" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-booking-request-id": requestId,
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-      const responseText = await res.text();
-      let data: BookingsResponse = {};
-      try {
-        data = responseText ? JSON.parse(responseText) as BookingsResponse : {};
-      } catch (error) {
-        console.error("[BookingSave] Invalid API response", {
-          requestId,
-          status: res.status,
-          contentType: res.headers.get("content-type"),
-          responsePreview: responseText.slice(0, 200),
-          error,
-        });
-      }
-
-      if (!res.ok || !data.booking) {
-        const failureId = data.requestId ?? res.headers.get("x-booking-request-id") ?? requestId;
-        console.error("[BookingSave] API request failed", {
-          requestId: failureId,
-          status: res.status,
-          statusText: res.statusText,
-          error: data.error,
-        });
-        toast.error(`${data.error ?? "Unable to save booking."} Reference: ${failureId}`);
+      const savedBooking = await submitBooking<Booking>(payload, requestId, editing?.id);
+      if (!savedBooking) {
         setUploadProgress(null);
         return;
       }
 
-      const targetBookingId = editing ? editing.id : data.booking.id;
+      const targetBookingId = editing ? editing.id : savedBooking.id;
 
       // Run image deletions and uploads in parallel if both exist
       if (hasImagesToDelete || hasImagesToUpload) {
@@ -265,9 +229,7 @@ export function BookingManager() {
           ? Promise.all(
               values.removed_reference_image_ids!.map(async (fileId) => {
                 try {
-                  await fetch(`/api/portfolio/files/${fileId}`, {
-                    method: "DELETE",
-                  });
+                  await api.delete(`/api/portfolio/files/${fileId}`);
                 } catch (delErr) {
                   console.error("Failed to delete removed reference image:", delErr);
                 }
@@ -301,7 +263,7 @@ export function BookingManager() {
       setFormOpen(false);
       setUploadProgress(null);
 
-      const createdBookingDate = data.booking?.booking_date;
+      const createdBookingDate = savedBooking.booking_date;
       if (!editing && createdBookingDate && createdBookingDate !== date) {
         setDate(createdBookingDate);
         const nextParams = new URLSearchParams(searchParams.toString());
@@ -310,7 +272,6 @@ export function BookingManager() {
         router.replace(`/bookings?${nextParams.toString()}`, { scroll: false });
       }
 
-      const savedBooking = data.booking;
       if (editing) {
         // Optimistically update the booking in state directly without waterfall multi-page re-fetching!
         setBookings((prev) =>
@@ -342,24 +303,17 @@ export function BookingManager() {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/bookings/${deleting.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error ?? "Unable to delete booking.");
-      } else {
-        toast.success("Booking deleted successfully");
-        const targetId = deleting.id;
-        // Optimistically remove deleted booking from state immediately without multi-page waterfall!
-        setBookings((prev) => prev.filter((b) => b.id !== targetId));
-        setDeleting(null);
-        void mutate("/api/dashboard");
-        void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
-        invalidateCalendarBookings();
-      }
-    } catch {
-      toast.error("Unable to delete booking.");
+      await api.delete(`/api/bookings/${deleting.id}`);
+      toast.success("Booking deleted successfully");
+      const targetId = deleting.id;
+      // Optimistically remove deleted booking from state immediately without multi-page waterfall!
+      setBookings((prev) => prev.filter((b) => b.id !== targetId));
+      setDeleting(null);
+      void mutate("/api/dashboard");
+      void mutate((key) => typeof key === "string" && key.startsWith("/api/bookings/counts"));
+      invalidateCalendarBookings();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to delete booking."));
     } finally {
       setLoading(false);
     }

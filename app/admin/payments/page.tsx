@@ -5,6 +5,7 @@ import { useHeaderContext } from "@/components/common/dashboard/dashboard-header
 import { Loader2, CreditCard, Receipt, Crown, IndianRupee } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/api"
 
 type PlatformPayment = {
   id: number
@@ -35,9 +36,8 @@ export default function AdminPaymentsPage() {
 
   useEffect(() => {
     setTitle("Platform Payments")
-    fetch("/api/admin/payments")
-      .then(r => r.json())
-      .then(data => setPayments(Array.isArray(data) ? data : []))
+    api.get("/api/admin/payments")
+      .then(({ data }) => setPayments(Array.isArray(data) ? data : []))
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [setTitle])

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Filter, Loader2, Plus, Search, User, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { api, getErrorMessage, isApiError } from "@/lib/api";
 import { invalidateCustomerList } from "@/lib/hooks/use-lookups";
 
 import { SkeletonCard } from "@/components/common/shared/skeleton-card";
@@ -134,24 +135,19 @@ export function CustomerManager() {
       setLoadingMore(true);
     }
     try {
-      const res = await fetch(
-        `/api/customers?page=${pageNum}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
-        { signal: controller.signal },
-      );
-      const data = (await res.json()) as CustomersResponse;
+      const { data } = await api.get<CustomersResponse>("/api/customers", {
+        params: { page: pageNum, search: searchVal, sort: sortVal },
+        signal: controller.signal,
+      });
       if (controller.signal.aborted) return;
-      if (!res.ok) {
-        toast.error(data.error ?? "Unable to load customers.");
-      } else {
-        const fetched = data.customers ?? [];
-        setCustomers((prev) => (append ? [...prev, ...fetched] : fetched));
-        setHasMore(data.hasMore ?? false);
-        setPage(pageNum);
-        if (syncUrl) replaceListUrl(pageNum, searchVal, sortVal);
-      }
-    } catch {
+      const fetched = data.customers ?? [];
+      setCustomers((prev) => (append ? [...prev, ...fetched] : fetched));
+      setHasMore(data.hasMore ?? false);
+      setPage(pageNum);
+      if (syncUrl) replaceListUrl(pageNum, searchVal, sortVal);
+    } catch (err) {
       if (controller.signal.aborted) return;
-      toast.error("Unable to load customers.");
+      toast.error(getErrorMessage(err, "Unable to load customers."));
     } finally {
       // A newer request owns the loading state now.
       if (!controller.signal.aborted) {
@@ -173,30 +169,22 @@ export function CustomerManager() {
     try {
       const responses = await Promise.all(
         Array.from({ length: pageNum }, (_, index) =>
-          fetch(
-            `/api/customers?page=${index + 1}&search=${encodeURIComponent(searchVal)}&sort=${encodeURIComponent(sortVal)}`,
-            { signal: controller.signal },
-          ),
+          api.get<CustomersResponse>("/api/customers", {
+            params: { page: index + 1, search: searchVal, sort: sortVal },
+            signal: controller.signal,
+          }),
         ),
       );
-      const payloads = (await Promise.all(
-        responses.map((res) => res.json()),
-      )) as CustomersResponse[];
+      const payloads = responses.map((res) => res.data);
       if (controller.signal.aborted) return;
-      const failedIndex = responses.findIndex((res) => !res.ok);
-
-      if (failedIndex !== -1) {
-        toast.error(payloads[failedIndex]?.error ?? "Unable to load customers.");
-        return;
-      }
 
       setCustomers(payloads.flatMap((payload) => payload.customers ?? []));
       setHasMore(payloads[payloads.length - 1]?.hasMore ?? false);
       setPage(pageNum);
       replaceListUrl(pageNum, searchVal, sortVal);
-    } catch {
+    } catch (err) {
       if (controller.signal.aborted) return;
-      toast.error("Unable to load customers.");
+      toast.error(getErrorMessage(err, "Unable to load customers."));
     } finally {
       if (!controller.signal.aborted) {
         setInitialLoading(false);
@@ -250,23 +238,12 @@ export function CustomerManager() {
     };
 
     try {
-      const res = await fetch(
-        editing ? `/api/customers/${editing.id}` : "/api/customers",
-        {
-          method: editing ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
-      const data = (await res.json()) as CustomersResponse;
+      const { data } = editing
+        ? await api.patch<CustomersResponse>(`/api/customers/${editing.id}`, payload)
+        : await api.post<CustomersResponse>("/api/customers", payload);
 
-      if (!res.ok || !data.customer) {
-        if (data.error === "phone_exists") {
-          setDuplicatePhonePopupOpen(true);
-          cancelEdit();
-        } else {
-          toast.error(data.error ?? "Unable to save customer.");
-        }
+      if (!data.customer) {
+        toast.error(data.error ?? "Unable to save customer.");
       } else {
         const savedCustomer = data.customer;
         if (editing) {
@@ -286,8 +263,13 @@ export function CustomerManager() {
         invalidateCustomerList();
         cancelEdit();
       }
-    } catch {
-      toast.error("Unable to save customer.");
+    } catch (err) {
+      if (isApiError(err) && err.message === "phone_exists") {
+        setDuplicatePhonePopupOpen(true);
+        cancelEdit();
+      } else {
+        toast.error(getErrorMessage(err, "Unable to save customer."));
+      }
     } finally {
       setLoading(false);
     }
@@ -298,22 +280,14 @@ export function CustomerManager() {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/customers/${deleting.id}`, {
-        method: "DELETE",
-      });
-      const data = (await res.json()) as CustomersResponse;
-
-      if (!res.ok) {
-        toast.error(data.error ?? "Unable to delete customer.");
-      } else {
-        const targetId = deleting.id;
-        // Optimistically remove customer from state immediately without multi-page waterfall!
-        setCustomers((prev) => prev.filter((c) => c.id !== targetId));
-        setDeleting(null);
-        invalidateCustomerList();
-      }
-    } catch {
-      toast.error("Unable to delete customer.");
+      await api.delete(`/api/customers/${deleting.id}`);
+      const targetId = deleting.id;
+      // Optimistically remove customer from state immediately without multi-page waterfall!
+      setCustomers((prev) => prev.filter((c) => c.id !== targetId));
+      setDeleting(null);
+      invalidateCustomerList();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Unable to delete customer."));
     } finally {
       setLoading(false);
     }

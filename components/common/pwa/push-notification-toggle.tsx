@@ -4,6 +4,8 @@ import { BellRing, Loader2, Send } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import { api, getErrorMessage } from "@/lib/api"
+
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 
@@ -111,17 +113,12 @@ export function PushNotificationToggle() {
       applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
     })
 
-    const res = await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(created.toJSON()),
-    })
-
-    if (!res.ok) {
+    try {
+      await api.post("/api/push/subscribe", created.toJSON())
+    } catch (err) {
       // Don't leave a browser subscription the server has no record of.
       await created.unsubscribe()
-      const data = await res.json().catch(() => null)
-      throw new Error(data?.error || "Failed to enable notifications")
+      throw new Error(getErrorMessage(err, "Failed to enable notifications"))
     }
 
     setSubscription(created)
@@ -135,11 +132,7 @@ export function PushNotificationToggle() {
     const endpoint = subscription.endpoint
     await subscription.unsubscribe()
 
-    await fetch("/api/push/unsubscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endpoint }),
-    })
+    await api.post("/api/push/unsubscribe", { endpoint })
 
     setSubscription(null)
     setHint("")
@@ -165,18 +158,11 @@ export function PushNotificationToggle() {
     setTesting(true)
 
     try {
-      const res = await fetch("/api/push/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint: subscription.endpoint }),
-      })
-      const data = await res.json().catch(() => null)
-
-      if (!res.ok) throw new Error(data?.error || "Failed to send test notification")
+      await api.post("/api/push/test", { endpoint: subscription.endpoint })
 
       toast.success("Test notification sent")
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to send test notification")
+      toast.error(getErrorMessage(err, "Failed to send test notification"))
     } finally {
       setTesting(false)
     }

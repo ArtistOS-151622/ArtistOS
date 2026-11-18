@@ -9,6 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { api, getErrorMessage, isApiError } from "@/lib/api"
+
+type OtpErrorInfo = { isLocked?: boolean; canResend?: boolean; needsResend?: boolean }
+
+/** Lockout/resend fields the delete-OTP endpoints send with an error. */
+function otpErrorInfo(err: unknown): OtpErrorInfo {
+  return isApiError(err) && err.info && typeof err.info === "object" ? (err.info as OtpErrorInfo) : {}
+}
 
 type UserData = {
   id: number
@@ -109,17 +117,7 @@ export default function AdminUsersPage() {
   const handleUpdateStorage = async (user: UserData, customGb: number | null) => {
     try {
       setUpdatingStorage(true)
-      const res = await fetch("/api/admin/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: user.id,
-          custom_storage_gb: customGb,
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to update storage quota")
+      await api.patch("/api/admin/users", { id: user.id, custom_storage_gb: customGb })
 
       const newBytes = customGb !== null ? Math.round(customGb * 1024 * 1024 * 1024) : null
 
@@ -166,9 +164,9 @@ export default function AdminUsersPage() {
       } else {
         toast.success("Storage quota reset to plan default")
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Storage update error:", err)
-      toast.error(err.message || "Failed to update storage quota")
+      toast.error(getErrorMessage(err, "Failed to update storage quota"))
     } finally {
       setUpdatingStorage(false)
     }
@@ -193,15 +191,12 @@ export default function AdminUsersPage() {
   const handleSendAdminOtp = async () => {
     try {
       setSendingOtp(true)
-      const res = await fetch("/api/admin/users/delete-otp", {
-        method: "POST"
+      const { data } = await api.post("/api/admin/users/delete-otp").catch((err: unknown) => {
+        const info = otpErrorInfo(err)
+        if (info.isLocked) setAdminIsLocked(true)
+        if (info.canResend === false) setAdminCanResend(false)
+        throw err
       })
-      const data = await res.json()
-      if (!res.ok) {
-        if (data.isLocked) setAdminIsLocked(true)
-        if (data.canResend === false) setAdminCanResend(false)
-        throw new Error(data.error || "Failed to send security OTP")
-      }
       setOtpSent(true)
       setOtpCooldown(30)
       setAdminSendCount(data.sendCount || 1)
@@ -212,7 +207,7 @@ export default function AdminUsersPage() {
       toast.success(data.message || "Security OTP sent to Admin WhatsApp (+91 9313202075)")
     } catch (err) {
       console.error("Send OTP error:", err)
-      toast.error(err instanceof Error ? err.message : "Failed to send security OTP")
+      toast.error(getErrorMessage(err, "Failed to send security OTP"))
     } finally {
       setSendingOtp(false)
     }
@@ -229,22 +224,15 @@ export default function AdminUsersPage() {
     const id = deleteTargetUser.id
     try {
       setDeletingId(id)
-      const res = await fetch(`/api/admin/users`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, otp: adminOtp })
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        if (data.isLocked) {
+      await api.delete("/api/admin/users", { data: { id, otp: adminOtp } }).catch((err: unknown) => {
+        const info = otpErrorInfo(err)
+        if (info.isLocked) {
           setAdminIsLocked(true)
           setAdminCanResend(false)
         }
-        if (data.needsResend) {
-          setAdminNeedsResend(true)
-        }
-        throw new Error(data.error || "Failed to delete artist")
-      }
+        if (info.needsResend) setAdminNeedsResend(true)
+        throw err
+      })
       toast.success(`Artist "${deleteTargetUser.profile.artist_name}" and all records deleted successfully`)
       setUsers(prev => prev.filter(u => u.id !== id))
       if (selectedUser?.id === id) {
@@ -255,7 +243,7 @@ export default function AdminUsersPage() {
       setOtpSent(false)
     } catch (err) {
       console.error("Delete user error:", err)
-      toast.error(err instanceof Error ? err.message : "Failed to delete artist")
+      toast.error(getErrorMessage(err, "Failed to delete artist"))
     } finally {
       setDeletingId(null)
     }
@@ -266,16 +254,10 @@ export default function AdminUsersPage() {
     try {
       setTogglingKey(key)
       const newValue = !user.profile[field]
-      const res = await fetch("/api/admin/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: user.id, [field]: newValue })
-      })
-      if (res.ok) {
-        const { user: updated } = await res.json()
-        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, profile: { ...u.profile, [field]: updated[field] } } : u))
-        setSelectedUser(prev => prev && prev.id === user.id ? { ...prev, profile: { ...prev.profile, [field]: updated[field] } } : prev)
-      }
+      const { data } = await api.patch("/api/admin/users", { id: user.id, [field]: newValue })
+      const updated = data.user
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, profile: { ...u.profile, [field]: updated[field] } } : u))
+      setSelectedUser(prev => prev && prev.id === user.id ? { ...prev, profile: { ...prev.profile, [field]: updated[field] } } : prev)
     } catch (e) {
       console.error(`Failed to toggle ${field}`, e)
     } finally {
@@ -288,11 +270,8 @@ export default function AdminUsersPage() {
     
     const fetchUsers = async () => {
       try {
-        const res = await fetch("/api/admin/users")
-        if (res.ok) {
-          const data = await res.json()
-          setUsers(data)
-        }
+        const { data } = await api.get("/api/admin/users")
+        setUsers(data)
       } catch (e) {
         console.error("Failed to fetch users", e)
       } finally {

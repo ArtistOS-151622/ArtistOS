@@ -4,7 +4,9 @@ import { useState } from "react";
 import { mutate } from "swr";
 import { User, Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { api, getErrorMessage, isApiError } from "@/lib/api";
 import { invalidateCustomerList, invalidateStorageInfo } from "@/lib/hooks/use-lookups";
+import { submitBooking } from "@/components/common/bookings/submit-booking";
 import { invalidateCalendarBookings } from "@/lib/bookings/calendar-cache";
 
 import { AppModal } from "@/components/common/shared/app-modal";
@@ -59,28 +61,18 @@ export function QuickAddModals({
     };
 
     try {
-      const res = await fetch("/api/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.customer) {
-        if (data.error === "phone_exists") {
-          toast.error("A customer with this phone number already exists.");
-        } else {
-          toast.error(data.error ?? "Unable to save customer.");
-        }
-      } else {
-        toast.success("Customer added successfully!");
-        void mutate("/api/dashboard");
-        invalidateCustomerList();
-        setCustomerModalOpen(false);
-        setCustomerValues(emptyCustomerForm);
-      }
-    } catch {
-      toast.error("Unable to save customer.");
+      await api.post("/api/customers", payload);
+      toast.success("Customer added successfully!");
+      void mutate("/api/dashboard");
+      invalidateCustomerList();
+      setCustomerModalOpen(false);
+      setCustomerValues(emptyCustomerForm);
+    } catch (err) {
+      toast.error(
+        isApiError(err) && err.message === "phone_exists"
+          ? "A customer with this phone number already exists."
+          : getErrorMessage(err, "Unable to save customer."),
+      );
     } finally {
       setCustomerLoading(false);
     }
@@ -123,42 +115,13 @@ export function QuickAddModals({
 
     const requestId = crypto.randomUUID();
     try {
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-booking-request-id": requestId,
-        },
-        body: JSON.stringify(payload),
-      });
-      const responseText = await res.text();
-      let data: { booking?: { id: number }; error?: string; requestId?: string } = {};
-      try {
-        data = responseText ? JSON.parse(responseText) : {};
-      } catch (error) {
-        console.error("[BookingSave] Invalid API response", {
-          requestId,
-          status: res.status,
-          contentType: res.headers.get("content-type"),
-          responsePreview: responseText.slice(0, 200),
-          error,
-        });
-      }
-
-      if (!res.ok || !data.booking) {
-        const failureId = data.requestId ?? res.headers.get("x-booking-request-id") ?? requestId;
-        console.error("[BookingSave] API request failed", {
-          requestId: failureId,
-          status: res.status,
-          statusText: res.statusText,
-          error: data.error,
-        });
-        toast.error(`${data.error ?? "Unable to save booking."} Reference: ${failureId}`);
+      const booking = await submitBooking<{ id: number }>(payload, requestId);
+      if (!booking) {
         setBookingUploadProgress(null);
         return;
       }
 
-      const newBookingId = data.booking.id;
+      const newBookingId = booking.id;
 
       // Upload reference images with real-time byte-level progress
       if (hasImagesToUpload) {

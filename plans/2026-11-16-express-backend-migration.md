@@ -258,7 +258,7 @@ Also set `app.set("trust proxy", 1)`. Render sits behind a proxy, and this setti
     Use `response.headers.append("Set-Cookie", …)`. `NextResponse.cookies` keys cookies by name, so it can't hold two `artist_session` entries. API login also sets the marker, so fresh logins skip the upgrade. Each existing user is upgraded on their first page load after cutover, before any API call is made.
   - **Verification on both sides tries every `artist_session` value and accepts the first valid one.** During the upgrade, `www` can briefly receive both cookies. Neither framework does this by default:
     - **Express:** `cookie-parser` keeps only one value per name. `require-artist.js` and `require-admin.js` must parse the raw `req.headers.cookie` themselves, with a small `getAllCookieValues(header, name)` helper in `utils/cookies.js`.
-    - **Next (`proxy.ts`):** `request.cookies.get()` returns only the first value. Use `request.cookies.getAll("artist_session")` and loop.
+    - **Next (`proxy.ts`):** `request.cookies` parses into a `Map`, so duplicate names collapse to one value, and `getAll("artist_session")` returns only one too (checked in `next/dist/compiled/@edge-runtime/cookies`). Parse the raw `Cookie` header instead: `getAllCookieValues()` in `lib/auth/session.ts`, the same logic as the Express helper.
   - Add a phase 5 check: log in before cutover, switch, then log out and confirm no `artist_session` cookie remains.
 - **The `proxy.ts` page guard must verify the signature, not just `exp`.** Today the artist page guard only decodes the token and checks `exp`, without verifying the signature. The axios interceptor sends any 401 to `/login`, and `proxy.ts` sends a user with a "valid" cookie from `/login` back to `/dashboard`. So a token the API rejects but whose `exp` looks valid causes a **redirect loop**: `/dashboard` → API 401 → `/login` → proxy → `/dashboard` → … The "redirect only once" flag in the interceptor resets on each page load, so it doesn't break the loop. Ways this can happen:
   - stale duplicate cookies (above)
@@ -653,6 +653,27 @@ lib/api/
    - `reports/customers` puts the raw search text into a PostgREST `.or()` filter. A comma or parenthesis in the search changes the filter rather than being searched for. Same in both apps; kept for parity. Escaping it, or quoting the values, would fix it.
 
 4. **Frontend: move to axios.** First commit: make the `proxy.ts` page guard verify signatures (all cookie values) and clear unverifiable cookies, to prevent the redirect loop (see *Things that need special care*). Then add `lib/api/` (the axios instance, interceptors and `ApiError`). Move SWR's `jsonFetcher` onto it, then convert all `fetch("/api…")` call sites and the XHR upload helpers, one feature per commit (see *Frontend changes*). Requests still default to same-origin, so this phase can ship to production on its own, before the backend moves. That isolates any axios regressions from the Express cutover.
+   **Progress log**
+   - **4.0–4.3 done (2026-11-18), uncommitted, awaiting review.**
+     - **`proxy.ts`:**
+       - Artist and admin page guards now verify every cookie value, signature included, through `getArtistSessionFromCookies()` and `hasValidAdminCookie()`.
+       - A cookie that doesn't verify is expired on the response: host-only, plus `Domain=$COOKIE_DOMAIN` when that's set.
+       - `getArtistSession()` and `requireAdmin()` also try every value.
+       - `tests/proxy-session-guard.test.ts` covers the loop case (future `exp`, wrong secret): `/dashboard` → `/login` with the cookie cleared, and `/login` stays put. It also covers stale-plus-valid duplicates, admin tokens used as artist tokens, forged admin cookies, and `COOKIE_DOMAIN`. Re-checked with curl against `next start`.
+     - **`lib/api/`:**
+       - `client.ts`: the `api` and `uploadClient` instances, `apiUrl()`, 401 → `/login?next=` (or `/admin/login`) once per page load, and a read-only 403 → `mutate("/api/subscription-status")`. The read-only check matches `code: "READ_ONLY"` or the proxy's message.
+       - `errors.ts`: `ApiError`, `toApiError`, and `getErrorMessage(err, fallback)`, which keeps each call site's own fallback text.
+       - Routes exempt from the 401 redirect: `/api/auth/`, `/api/public/`, `/api/admin/login`.
+       - `tests/api-client.test.ts` runs against a local HTTP server.
+     - **SWR:** `jsonFetcher` uses `api`, `FetchError` is gone, and retries happen only on 5xx and network errors.
+     - **Call sites:** every browser `fetch("/api…")` call and all three XHR upload helpers now go through `api`. The only `fetch` calls left are plain downloads from R2 presigned or public URLs, not the API.
+       - Booking create and edit share `components/common/bookings/submit-booking.ts`, which keeps the request-id reference in error toasts.
+       - Handlers that used to swallow failures (`try`/`finally` with no `catch`, on the booking detail page and others) now show a toast. Otherwise each failure would surface as an unhandled rejection.
+     - **ESLint:** `no-restricted-imports` blocks importing `axios` outside `lib/api/**`.
+     - **Checks:** `tsc` is clean, `pnpm build` passes, and root tests are 95/95. Lint on the touched files went from 134 problems to 127, with no new findings.
+     - **Not checked here (no browser in this environment), so it moves to phase 5:** the 401 redirect and progress bars in a real browser, and an R2 `PUT` carrying no cookie.
+     - **Found:** `customers/broadcasts/[id]` calls `/api/whatsapp/campaigns/:id`, which exists in neither app. The page polls a 404 every 3 s. It was converted as is.
+
 5. **Local end-to-end.** Run Next on `localhost:3000` and Express on `localhost:4000`, with `NEXT_PUBLIC_API_URL` set. Click through:
    - login
    - CRUD on each resource

@@ -13,6 +13,8 @@ import { format } from "date-fns"
 import useSWR, { mutate } from "swr"
 import { toast } from "sonner"
 
+import { api } from "@/lib/api"
+
 
 type CheckoutData = {
   key?: string
@@ -132,10 +134,9 @@ export default function BillingPage() {
   const handleDownloadInvoice = async (payment: Payment) => {
     setDownloadingId(payment.id)
     try {
-      const response = await fetch(`/api/billing/invoice/${payment.id}`)
-      if (!response.ok) throw new Error("Failed to generate PDF")
-
-      const blob = await response.blob()
+      const { data: blob } = await api.get<Blob>(`/api/billing/invoice/${payment.id}`, {
+        responseType: "blob",
+      })
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
@@ -172,12 +173,7 @@ export default function BillingPage() {
 
     setLoadingPlanId(plan.id)
     try {
-      const res = await fetch("/api/platform-subscriptions/purchase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan_id: plan.id }),
-      })
-      const json = await res.json()
+      const { data: json } = await api.post("/api/platform-subscriptions/purchase", { plan_id: plan.id })
       if (!json.status) throw new Error(json.message || "Purchase failed")
 
       if (json.data.free_plan) {
@@ -205,18 +201,13 @@ export default function BillingPage() {
         handler: async (response) => {
           setLoadingPlanId(plan.id)
           try {
-            const verifyRes = await fetch("/api/platform-subscriptions/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                payment_id: checkout.payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_subscription_id: response.razorpay_subscription_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
+            const { data: verifyJson } = await api.post("/api/platform-subscriptions/verify", {
+              payment_id: checkout.payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_subscription_id: response.razorpay_subscription_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
             })
-            const verifyJson = await verifyRes.json()
             if (!verifyJson.status) {
               throw new Error(verifyJson.message || "Payment verification failed")
             }
@@ -234,11 +225,7 @@ export default function BillingPage() {
           ondismiss: async () => {
             setLoadingPlanId(null)
             try {
-              await fetch("/api/platform-subscriptions/cancel", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ payment_id: checkout.payment_id }),
-              })
+              await api.post("/api/platform-subscriptions/cancel", { payment_id: checkout.payment_id })
             } catch (e) {
               console.error(e)
             }
@@ -252,13 +239,9 @@ export default function BillingPage() {
       const rzp = new Razorpay(options)
       rzp.on('payment.failed', async function (response) {
         try {
-          await fetch("/api/platform-subscriptions/failed", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              payment_id: checkout.payment_id,
-              error_description: response.error?.description || "Payment failed"
-            }),
+          await api.post("/api/platform-subscriptions/failed", {
+            payment_id: checkout.payment_id,
+            error_description: response.error?.description || "Payment failed",
           })
         } catch (e) {
           console.error(e)

@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation"
 import { BrandMark } from "@/components/common/brand/brand-logo"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/api"
 
 type SidebarItem = {
   id: "overview" | "users" | "payments" | "storage" | "settings" | "support"
@@ -42,7 +43,7 @@ export function AdminSidebar({ active }: AdminSidebarProps) {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/admin/logout', { method: 'POST' })
+      await api.post("/api/admin/logout").catch(() => undefined)
       router.push('/admin/login')
       router.refresh()
     } catch (e) {

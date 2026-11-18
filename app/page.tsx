@@ -42,6 +42,7 @@ import { TestimonialCard } from "@/components/common/landing/testimonial-card"
 import { FloatingClientChip } from "@/components/common/landing/floating-client-chip"
 import { Footer } from "@/components/common/marketing/footer"
 import { SeoContentSection } from "@/components/common/marketing/seo-content-section"
+import { api } from "@/lib/api"
 
 const productFeatures = [
   {
@@ -1394,7 +1395,7 @@ function Testimonials() {
   )
 }
 
-const fetcher = (url: string) => fetch(url).then(res => res.json())
+const fetcher = (url: string) => api.get(url).then((res) => res.data)
 
 
 function FaqSection() {

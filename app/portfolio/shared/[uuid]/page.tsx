@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { Loader2, PlayCircle } from "lucide-react"
 
+import { api } from "@/lib/api"
 import type { PortfolioFileWithUrl } from "@/lib/portfolio/types"
 
 type ShareData = {
@@ -23,9 +24,12 @@ export default function PublicPortfolioSharePage() {
 
   useEffect(() => {
     async function load() {
-      const res = await fetch(`/api/public/portfolio/shared/${uuid}`)
-      const json = await res.json()
-      if (json.status) setData(json.data)
+      try {
+        const { data: json } = await api.get(`/api/public/portfolio/shared/${uuid}`)
+        if (json.status) setData(json.data)
+      } catch {
+        // Expired, revoked or unknown link: the "Link not found" state below.
+      }
       setLoading(false)
     }
     void load()

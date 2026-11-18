@@ -30,6 +30,15 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp"
+import { api, getErrorMessage, isApiError } from "@/lib/api"
+
+type AuthErrorInfo = { isLocked?: boolean; canResend?: boolean; needsResend?: boolean }
+
+/** Extra fields the auth API sends with an error, or null when no response arrived (network/timeout). */
+function authErrorInfo(err: unknown): AuthErrorInfo | null {
+  if (!isApiError(err) || err.status === 0) return null
+  return (err.info ?? {}) as AuthErrorInfo
+}
 
 type MobileAuthFormProps = {
   mode?: "login" | "signup"
@@ -105,20 +114,7 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
     setLoading(true)
 
     try {
-      const res = await fetch("/api/auth/otp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: cleanPhone }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || "Failed to send OTP via WhatsApp. Please try again.")
-        if (data.isLocked) setIsLocked(true)
-        if (data.canResend === false) setCanResend(false)
-        return
-      }
+      const { data } = await api.post("/api/auth/otp/send", { phone: cleanPhone })
 
       setStateToken(data.stateToken || null)
       setCooldown(data.cooldownSeconds || 30)
@@ -128,8 +124,15 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
       setNeedsResend(false)
       setOtp("")
       setStep("otp")
-    } catch {
-      setError("Unable to connect to the authentication server. Please check your internet connection.")
+    } catch (err) {
+      const info = authErrorInfo(err)
+      if (!info) {
+        setError("Unable to connect to the authentication server. Please check your internet connection.")
+        return
+      }
+      setError(getErrorMessage(err, "Failed to send OTP via WhatsApp. Please try again."))
+      if (info.isLocked) setIsLocked(true)
+      if (info.canResend === false) setCanResend(false)
     } finally {
       setLoading(false)
     }
@@ -149,29 +152,7 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
     setLoading(true)
 
     try {
-      const res = await fetch("/api/auth/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone,
-          otp: codeToVerify,
-          stateToken,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || "Invalid OTP. Please check the code received on WhatsApp.")
-        if (data.isLocked) {
-          setIsLocked(true)
-          setCanResend(false)
-        }
-        if (data.needsResend) {
-          setNeedsResend(true)
-        }
-        return
-      }
+      const { data } = await api.post("/api/auth/otp/verify", { phone, otp: codeToVerify, stateToken })
 
       if (data.isNewUser) {
         // First-time artist: proceed to studio profile setup
@@ -181,8 +162,18 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
         // Returning artist: instantly open dashboard
         window.location.href = data.redirectUrl || redirectPath
       }
-    } catch {
-      setError("Failed to verify OTP. Please try again.")
+    } catch (err) {
+      const info = authErrorInfo(err)
+      if (!info) {
+        setError("Failed to verify OTP. Please try again.")
+        return
+      }
+      setError(getErrorMessage(err, "Invalid OTP. Please check the code received on WhatsApp."))
+      if (info.isLocked) {
+        setIsLocked(true)
+        setCanResend(false)
+      }
+      if (info.needsResend) setNeedsResend(true)
     } finally {
       setLoading(false)
     }
@@ -218,30 +209,21 @@ export function MobileAuthForm({ mode = "login" }: MobileAuthFormProps) {
     setLoading(true)
 
     try {
-      const res = await fetch("/api/auth/register-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          registrationToken,
-          artistName,
-          studioName,
-          address,
-          email,
-          studioLogo,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || "Failed to create your studio profile. Please try again.")
-        return
-      }
+      // The body carries the base64 studio logo: allow longer than a normal call.
+      const { data } = await api.post(
+        "/api/auth/register-profile",
+        { registrationToken, artistName, studioName, address, email, studioLogo },
+        { timeout: 0 }
+      )
 
       // Profile completed, direct to dashboard
       window.location.href = data.redirectUrl || redirectPath
-    } catch {
-      setError("Failed to save studio profile. Please check your connection and try again.")
+    } catch (err) {
+      setError(
+        authErrorInfo(err)
+          ? getErrorMessage(err, "Failed to create your studio profile. Please try again.")
+          : "Failed to save studio profile. Please check your connection and try again."
+      )
     } finally {
       setLoading(false)
     }

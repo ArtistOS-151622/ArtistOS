@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/api"
 
 type TicketMessage = {
   id: number
@@ -73,8 +74,8 @@ export default function AdminSupportPage() {
 
   const loadTickets = async () => {
     try {
-      const res = await fetch("/api/admin/tickets")
-      if (res.ok) setTickets(await res.json())
+      const { data } = await api.get("/api/admin/tickets")
+      setTickets(data)
     } catch (e) {
       console.error(e)
     } finally {
@@ -85,8 +86,8 @@ export default function AdminSupportPage() {
   const loadMessages = async (ticketId: number) => {
     setLoadingMessages(true)
     try {
-      const res = await fetch(`/api/admin/tickets/${ticketId}/messages`)
-      if (res.ok) setMessages(await res.json())
+      const { data } = await api.get(`/api/admin/tickets/${ticketId}/messages`)
+      setMessages(data)
     } catch (e) {
       console.error(e)
     } finally {
@@ -98,18 +99,12 @@ export default function AdminSupportPage() {
     if (!selectedTicket || !replyText.trim()) return
     setSendingReply(true)
     try {
-      const res = await fetch(`/api/admin/tickets/${selectedTicket.id}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: replyText.trim() })
-      })
-      if (res.ok) {
-        setReplyText("")
-        await loadMessages(selectedTicket.id)
-        if (selectedTicket.status === 'open') {
-          loadTickets() // Refresh to show in_progress
-          setSelectedTicket({...selectedTicket, status: 'in_progress'})
-        }
+      await api.post(`/api/admin/tickets/${selectedTicket.id}/messages`, { message: replyText.trim() })
+      setReplyText("")
+      await loadMessages(selectedTicket.id)
+      if (selectedTicket.status === 'open') {
+        loadTickets() // Refresh to show in_progress
+        setSelectedTicket({...selectedTicket, status: 'in_progress'})
       }
     } catch (e) {
       console.error(e)
@@ -121,15 +116,9 @@ export default function AdminSupportPage() {
   const handleResolveTicket = async () => {
     if (!selectedTicket) return
     try {
-      const res = await fetch(`/api/admin/tickets/${selectedTicket.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "resolved" })
-      })
-      if (res.ok) {
-        setSelectedTicket({...selectedTicket, status: 'resolved'})
-        loadTickets()
-      }
+      await api.put(`/api/admin/tickets/${selectedTicket.id}`, { status: "resolved" })
+      setSelectedTicket({...selectedTicket, status: 'resolved'})
+      loadTickets()
     } catch (e) {
       console.error(e)
     }

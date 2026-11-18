@@ -26,6 +26,7 @@ import type {
   QuotaInfo,
   StoragePlanRow,
 } from "@/lib/portfolio/types";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const FOLDERS_URL = "/api/portfolio/folders";
@@ -83,12 +84,7 @@ export default function PortfolioPage() {
     setCreating(true);
     setError("");
     try {
-      const res = await fetch("/api/portfolio/folders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newFolderName.trim() }),
-      });
-      const json = await res.json();
+      const { data: json } = await api.post("/api/portfolio/folders", { name: newFolderName.trim() });
       if (!json.status) throw new Error(json.message);
       setCreateOpen(false);
       setNewFolderName("");
@@ -109,7 +105,7 @@ export default function PortfolioPage() {
     if (!deleteFolderId) return;
     setDeleting(true);
     try {
-      await fetch(`/api/portfolio/folders/${deleteFolderId}`, { method: "DELETE" });
+      await api.delete(`/api/portfolio/folders/${deleteFolderId}`);
       setDeleteFolderId(null);
       void mutateFolders();
       void mutateStorage();
@@ -125,12 +121,9 @@ export default function PortfolioPage() {
     setUpdatingFolder(true);
     setEditError("");
     try {
-      const res = await fetch(`/api/portfolio/folders/${editFolder.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editFolderName.trim() }),
+      const { data: json } = await api.put(`/api/portfolio/folders/${editFolder.id}`, {
+        name: editFolderName.trim(),
       });
-      const json = await res.json();
       if (!json.status) throw new Error(json.message);
       setEditFolder(null);
       setEditFolderName("");

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import { formatDistanceToNow } from "date-fns"
 
+import { api } from "@/lib/api"
 import { refreshBadges, updateUnreadNotifications } from "@/lib/hooks/use-badges"
 import { cn } from "@/lib/utils"
 
@@ -49,12 +50,8 @@ export default function NotificationsPage() {
       refreshBadges()
     }
     try {
-      const res = await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(id ? { id } : {}),
-      })
-      if (!res.ok || !updatedLocally) reload()
+      await api.patch("/api/notifications", id ? { id } : {})
+      if (!updatedLocally) reload()
     } catch (err) {
       console.error("Failed to mark notification as read", err)
       reload()

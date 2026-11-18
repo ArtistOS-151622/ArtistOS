@@ -2,7 +2,14 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-import { ADMIN_SESSION_COOKIE, getArtistSession, verifyAdminToken } from "@/lib/auth/session"
+import {
+  ADMIN_SESSION_COOKIE,
+  ARTIST_SESSION_COOKIE,
+  getAllCookieValues,
+  getArtistSession,
+  getArtistSessionFromCookies,
+  hasValidAdminCookie,
+} from "@/lib/auth/session"
 import { checkIsReadOnly } from "@/lib/auth/subscription"
 
 // List of protected routes that require a session
@@ -19,25 +26,27 @@ const protectedPrefixes = [
   "/billing",
 ]
 
-function getJwtExpiry(token: string): number | null {
-  const payload = token.split(".")[1]
-  if (!payload) return null
+const EXPIRED_COOKIE_ATTRIBUTES = "Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
 
-  try {
-    const padded = payload.padEnd(payload.length + ((4 - (payload.length % 4)) % 4), "=")
-    const decoded = JSON.parse(atob(padded.replace(/-/g, "+").replace(/_/g, "/"))) as {
-      exp?: unknown
-    }
-    const exp = Number(decoded.exp)
-    return Number.isFinite(exp) ? exp : null
-  } catch {
-    return null
-  }
+/**
+ * Expires a session cookie that no longer verifies, so a redirect to a login page
+ * can't bounce straight back (the axios client sends API 401s to /login, and a
+ * cookie this guard still accepted would send /login back to /dashboard: a loop).
+ *
+ * Raw headers, not response.cookies: that API keys cookies by name, but both the
+ * host-only cookie and the shared-domain one (COOKIE_DOMAIN, set once the API runs
+ * on its own subdomain) must be expired.
+ */
+function clearSessionCookie(response: NextResponse, name: string) {
+  response.headers.append("Set-Cookie", `${name}=; ${EXPIRED_COOKIE_ATTRIBUTES}`)
+  const domain = process.env.COOKIE_DOMAIN
+  if (domain) response.headers.append("Set-Cookie", `${name}=; Domain=${domain}; ${EXPIRED_COOKIE_ATTRIBUTES}`)
 }
 
-function isExpiredSession(token: string): boolean {
-  const exp = getJwtExpiry(token)
-  return !exp || exp < Math.floor(Date.now() / 1000)
+/** Returns `response`, first expiring `name` when the request carried one that didn't verify. */
+function withStaleCookieCleared(response: NextResponse, name: string, cookieHeader: string | null, valid: boolean) {
+  if (!valid && getAllCookieValues(cookieHeader, name).length > 0) clearSessionCookie(response, name)
+  return response
 }
 
 function redirectToLogin(request: NextRequest) {
@@ -74,8 +83,8 @@ async function isMaintenanceModeActive(supabaseUrl: string, supabaseAnonKey: str
 }
 
 export async function proxy(request: NextRequest) {
-  const session = request.cookies.get("artist_session")
   const { pathname } = request.nextUrl
+  const cookieHeader = request.headers.get("cookie")
 
   // Maintenance Mode Check (Global - cached for 30s)
   if (
@@ -97,41 +106,45 @@ export async function proxy(request: NextRequest) {
 
   // Admin API backstop: every handler also calls requireAdmin(), this catches any that forget.
   if (pathname.startsWith("/api/admin/") && pathname !== "/api/admin/login") {
-    if (!verifyAdminToken(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)) {
+    if (!hasValidAdminCookie(cookieHeader)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
   }
 
-  // Admin routes check
-  if (pathname.startsWith('/admin')) {
-    if (pathname === '/admin/login') {
-      // Allow access to admin login page
-      return NextResponse.next()
+  // Admin pages: every admin_session value is verified (signature + expiry), not just read.
+  if (pathname.startsWith("/admin")) {
+    const isAdmin = hasValidAdminCookie(cookieHeader)
+
+    if (pathname === "/admin/login" || isAdmin) {
+      return withStaleCookieCleared(NextResponse.next(), ADMIN_SESSION_COOKIE, cookieHeader, isAdmin)
     }
 
-    if (!verifyAdminToken(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/admin/login'
-      return NextResponse.redirect(url)
+    const url = request.nextUrl.clone()
+    url.pathname = "/admin/login"
+    return withStaleCookieCleared(NextResponse.redirect(url), ADMIN_SESSION_COOKIE, cookieHeader, false)
+  }
+
+  // Artist pages: verify every artist_session value (signature + expiry). Checking
+  // only `exp` let a token the API rejects through, which loops /dashboard ⇄ /login.
+  const isArtistPage =
+    protectedPrefixes.some((prefix) => pathname.startsWith(prefix)) && !pathname.startsWith("/portfolio/shared")
+  const isAuthPage = pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/signup")
+
+  if (isArtistPage || isAuthPage) {
+    const artist = getArtistSessionFromCookies(cookieHeader)
+
+    if (isArtistPage && !artist) {
+      return withStaleCookieCleared(redirectToLogin(request), ARTIST_SESSION_COOKIE, cookieHeader, false)
     }
-    // Allow access to other admin pages if authenticated
-    return NextResponse.next()
-  }
 
-  // Protected routes check
-  const isProtected = protectedPrefixes.some(prefix => pathname.startsWith(prefix))
-  
-  if (isProtected && !pathname.startsWith("/portfolio/shared")) {
-    if (!session?.value || isExpiredSession(session.value)) return redirectToLogin(request)
-  }
-
-  // Auth pages and Root check (if already logged in, redirect to dashboard)
-  if (pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/signup")) {
-    if (session?.value && !isExpiredSession(session.value)) {
+    // Already logged in: skip the login/signup/landing pages.
+    if (isAuthPage && artist) {
       const url = request.nextUrl.clone()
       url.pathname = "/dashboard"
       return NextResponse.redirect(url)
     }
+
+    return withStaleCookieCleared(NextResponse.next(), ARTIST_SESSION_COOKIE, cookieHeader, Boolean(artist))
   }
 
   // Mutating API Check for Read-Only Mode

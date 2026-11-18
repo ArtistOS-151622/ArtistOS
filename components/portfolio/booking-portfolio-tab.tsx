@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { api, getErrorMessage, isApiError } from "@/lib/api"
 import { formatBytes } from "@/lib/portfolio/response"
 import { cn } from "@/lib/utils"
 import type { PortfolioFileWithUrl, PortfolioFolderWithStats } from "@/lib/portfolio/types"
@@ -43,13 +44,14 @@ export function BookingPortfolioTab({ bookingId, onQuotaExceeded }: BookingPortf
   const loadPortfolio = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/portfolio`)
-      const json = await res.json()
+      const { data: json } = await api.get(`/api/bookings/${bookingId}/portfolio`)
       if (json.status) {
         setFolder(json.data.folder ?? null)
         setDeliveryFiles(json.data.delivery_files ?? [])
         setReferenceFiles(json.data.reference_files ?? [])
       }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load booking portfolio"))
     } finally {
       setLoading(false)
     }
@@ -61,16 +63,14 @@ export function BookingPortfolioTab({ bookingId, onQuotaExceeded }: BookingPortf
 
   async function handleDelete(id: number) {
     try {
-      const res = await fetch(`/api/portfolio/files/${id}`, { method: "DELETE" })
-      if (!res.ok) {
-        toast.error("Failed to delete file")
-      } else {
-        toast.success("File deleted")
-      }
-      void loadPortfolio()
-    } catch {
-      toast.error("Network error while deleting file")
+      await api.delete(`/api/portfolio/files/${id}`)
+      toast.success("File deleted")
+    } catch (err) {
+      toast.error(
+        isApiError(err) && err.status === 0 ? "Network error while deleting file" : "Failed to delete file"
+      )
     }
+    void loadPortfolio()
   }
 
   async function handleDirectReferenceUpload(file: File) {
@@ -96,23 +96,26 @@ export function BookingPortfolioTab({ bookingId, onQuotaExceeded }: BookingPortf
       formData.append("booking_id", String(bookingId))
       formData.append("section", "reference")
 
-      const res = await fetch("/api/portfolio/files/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      const data = await res.json().catch(() => ({}))
-      if (res.status === 402) {
-        toast.error("Storage quota exceeded. Please upgrade your storage plan.")
-        onQuotaExceeded?.()
-      } else if (!res.ok || !data.status) {
+      const { data } = await api.post<{ status?: boolean; message?: string }>(
+        "/api/portfolio/files/upload",
+        formData,
+        { timeout: 0 }
+      )
+      if (!data.status) {
         toast.error(data.message || "Failed to upload reference image")
       } else {
         toast.success("Reference image uploaded successfully")
         void loadPortfolio()
       }
-    } catch {
-      toast.error("Network error while uploading reference image")
+    } catch (err) {
+      if (isApiError(err) && err.status === 402) {
+        toast.error("Storage quota exceeded. Please upgrade your storage plan.")
+        onQuotaExceeded?.()
+      } else if (isApiError(err) && err.status === 0) {
+        toast.error("Network error while uploading reference image")
+      } else {
+        toast.error(getErrorMessage(err, "Failed to upload reference image"))
+      }
     } finally {
       setUploadingSlot(null)
     }

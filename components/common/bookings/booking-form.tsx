@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { StoragePlansModal } from "@/components/storage/storage-plans-modal";
+import { api, getErrorMessage, isApiError } from "@/lib/api";
 import { useCustomerList, useServices, useStorageInfo } from "@/lib/hooks/use-lookups";
 
 import type {
@@ -201,9 +202,7 @@ export function BookingForm({
 
       setLoadingReferences(true);
       try {
-        const res = await fetch(`/api/bookings/${bookingId}/portfolio`);
-        if (!res.ok) return;
-        const json = await res.json();
+        const { data: json } = await api.get(`/api/bookings/${bookingId}/portfolio`);
         if (cancelled) return;
 
         const refFiles = (json.data?.reference_files ?? []).slice(0, 3);
@@ -415,22 +414,19 @@ export function BookingForm({
 
     const delayDebounce = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `/api/customers?search=${encodeURIComponent(dropdownSearch)}`,
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const fetched = data.customers ?? [];
-          setSearchedCustomers((prev) => {
-            const merged = [...prev];
-            fetched.forEach((fc: Customer) => {
-              if (!merged.some((c) => c.id === fc.id)) {
-                merged.push(fc);
-              }
-            });
-            return merged;
+        const { data } = await api.get<{ customers?: Customer[] }>("/api/customers", {
+          params: { search: dropdownSearch },
+        });
+        const fetched = data.customers ?? [];
+        setSearchedCustomers((prev) => {
+          const merged = [...prev];
+          fetched.forEach((fc) => {
+            if (!merged.some((c) => c.id === fc.id)) {
+              merged.push(fc);
+            }
           });
-        }
+          return merged;
+        });
       } catch (err) {
         console.error(err);
       }
@@ -499,34 +495,24 @@ export function BookingForm({
         reference_by: newCustomerValues.reference_by.trim() || null,
       };
 
-      const res = await fetch("/api/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const { data } = await api.post<{ customer: Customer }>("/api/customers", payload);
+      const newCust = data.customer;
+      addCustomer(newCust);
+      setSelectedCustomer(newCust);
+      onChange({
+        ...values,
+        customer_id: String(newCust.id),
+        booking_address: newCust.address,
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.error === "phone_exists") {
-          setDuplicatePhonePopupOpen(true);
-          setCustomerModalOpen(false);
-        } else {
-          setCustomerError(data.error ?? "Unable to save customer.");
-        }
-      } else {
-        const newCust = data.customer as Customer;
-        addCustomer(newCust);
-        setSelectedCustomer(newCust);
-        onChange({
-          ...values,
-          customer_id: String(newCust.id),
-          booking_address: newCust.address,
-        });
-        setNewCustomerValues(emptyCustomerForm);
+      setNewCustomerValues(emptyCustomerForm);
+      setCustomerModalOpen(false);
+    } catch (err) {
+      if (isApiError(err) && err.message === "phone_exists") {
+        setDuplicatePhonePopupOpen(true);
         setCustomerModalOpen(false);
+      } else {
+        setCustomerError(getErrorMessage(err, "Unable to save customer."));
       }
-    } catch {
-      setCustomerError("Unable to save customer.");
     } finally {
       setCustomerLoading(false);
     }
@@ -544,36 +530,26 @@ export function BookingForm({
         price: Number(newServiceValues.price),
       };
 
-      const res = await fetch("/api/services", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const { data } = await api.post<{ service: ArtistService }>("/api/services", payload);
+      const newSer = data.service;
+      addService(newSer);
+      // Automatically check/select this newly created service
+      onChange({
+        ...values,
+        services: [...values.services, String(newSer.id)],
+        service_quantities: {
+          ...values.service_quantities,
+          [String(newSer.id)]: 1,
+        },
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setServiceError(data.error ?? "Unable to save service.");
-      } else {
-        const newSer = data.service as ArtistService;
-        addService(newSer);
-        // Automatically check/select this newly created service
-        onChange({
-          ...values,
-          services: [...values.services, String(newSer.id)],
-          service_quantities: {
-            ...values.service_quantities,
-            [String(newSer.id)]: 1,
-          },
-        });
-        setNewServiceValues({
-          service_name: "",
-          duration_minutes: 60,
-          price: "",
-        });
-        setServiceModalOpen(false);
-      }
-    } catch {
-      setServiceError("Unable to save service.");
+      setNewServiceValues({
+        service_name: "",
+        duration_minutes: 60,
+        price: "",
+      });
+      setServiceModalOpen(false);
+    } catch (err) {
+      setServiceError(getErrorMessage(err, "Unable to save service."));
     } finally {
       setServiceLoading(false);
     }

@@ -152,11 +152,53 @@ function getBearerToken(request: NextRequest): string | null {
   return token
 }
 
-export function getArtistSession(request: NextRequest): ArtistSession | null {
-  const value = getBearerToken(request) ?? request.cookies.get("artist_session")?.value
-  if (!value) return null
+export const ARTIST_SESSION_COOKIE = "artist_session"
 
-  return verifyArtistToken(value)
+/**
+ * Every value sent for `name` in a raw Cookie header, in order.
+ *
+ * `request.cookies` keeps only one value per name (it parses into a Map), but a
+ * browser can hold two cookies with the same name, e.g. the host-only
+ * `www.artistos.in` cookie and the `.artistos.in` one set by the API. Auth checks
+ * must try each, or a stale one can hide a valid one. Same logic as the Express
+ * server's `getAllCookieValues` (server/src/utils/cookies.js).
+ */
+export function getAllCookieValues(cookieHeader: string | null | undefined, name: string): string[] {
+  if (!cookieHeader) return []
+  const values: string[] = []
+  for (const part of cookieHeader.split(";")) {
+    const separator = part.indexOf("=")
+    if (separator === -1 || part.slice(0, separator).trim() !== name) continue
+    let value = part.slice(separator + 1).trim()
+    if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1)
+    try {
+      values.push(decodeURIComponent(value))
+    } catch {
+      values.push(value)
+    }
+  }
+  return values
+}
+
+/** The first `artist_session` cookie value that verifies, as a session; else null. */
+export function getArtistSessionFromCookies(cookieHeader: string | null | undefined): ArtistSession | null {
+  for (const value of getAllCookieValues(cookieHeader, ARTIST_SESSION_COOKIE)) {
+    const session = verifyArtistToken(value)
+    if (session) return session
+  }
+  return null
+}
+
+/** True when any `admin_session` cookie value verifies. */
+export function hasValidAdminCookie(cookieHeader: string | null | undefined): boolean {
+  return getAllCookieValues(cookieHeader, ADMIN_SESSION_COOKIE).some((value) => verifyAdminToken(value))
+}
+
+/** Bearer token first, then every `artist_session` cookie value; the first that verifies wins. */
+export function getArtistSession(request: NextRequest): ArtistSession | null {
+  const bearer = getBearerToken(request)
+  const bearerSession = bearer ? verifyArtistToken(bearer) : null
+  return bearerSession ?? getArtistSessionFromCookies(request.headers.get("cookie"))
 }
 
 export { SESSION_MAX_AGE_SECONDS }

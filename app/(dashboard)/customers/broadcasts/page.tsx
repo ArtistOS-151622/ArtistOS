@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ConfirmDialog } from "@/components/common/shared/confirm-dialog"
 import { toast } from "sonner"
+
+import { api, getErrorMessage } from "@/lib/api"
 import { PageHeader, HeaderPortal } from "@/components/common/dashboard/dashboard-header-context"
 import { Button, buttonVariants } from "@/components/ui/button"
 
@@ -37,9 +39,8 @@ export default function BroadcastsDashboardPage() {
   const loadTemplates = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/whatsapp/templates")
-      const data = await res.json()
-      if (res.ok) setTemplates(data.templates || [])
+      const { data } = await api.get("/api/whatsapp/templates")
+      setTemplates(data.templates || [])
     } catch {
       /* silent */
     } finally {
@@ -53,15 +54,11 @@ export default function BroadcastsDashboardPage() {
     if (!deleteId) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/whatsapp/templates/${deleteId}`, { method: "DELETE" })
-      if (res.ok) {
-        toast.success("Template deleted")
-        loadTemplates()
-      } else {
-        toast.error("Failed to delete template")
-      }
-    } catch {
-      toast.error("Failed to delete template")
+      await api.delete(`/api/whatsapp/templates/${deleteId}`)
+      toast.success("Template deleted")
+      loadTemplates()
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete template"))
     } finally {
       setDeleting(false)
       setDeleteId(null)

@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/api"
 
 type PurchaseHistory = {
   id: number
@@ -75,11 +76,8 @@ export default function AdminStoragePage() {
     
     const fetchUsers = async () => {
       try {
-        const res = await fetch("/api/admin/storage")
-        if (res.ok) {
-          const data = await res.json()
-          setUsers(data)
-        }
+        const { data } = await api.get("/api/admin/storage")
+        setUsers(data)
       } catch (e) {
         console.error("Failed to fetch storage data", e)
       } finally {

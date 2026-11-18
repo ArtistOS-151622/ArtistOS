@@ -9,6 +9,7 @@ import { FloatingInput } from "@/components/common/shared/floating-input"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PlatformSubscriptionsTab } from "./platform-subscriptions"
+import { api, getErrorMessage } from "@/lib/api"
 
 type StoragePlan = {
   id: number
@@ -44,12 +45,13 @@ export default function AdminSettingsPage() {
 
   const loadData = async () => {
     try {
-      const [settingsRes, plansRes] = await Promise.all([
-        fetch("/api/admin/settings"),
-        fetch("/api/admin/storage-plans")
+      // Independent: one failing must not hide the other.
+      const [settingsRes, plansRes] = await Promise.allSettled([
+        api.get("/api/admin/settings"),
+        api.get("/api/admin/storage-plans"),
       ])
-      if (settingsRes.ok) setSettings(await settingsRes.json())
-      if (plansRes.ok) setPlans(await plansRes.json())
+      if (settingsRes.status === "fulfilled") setSettings(settingsRes.value.data)
+      if (plansRes.status === "fulfilled") setPlans(plansRes.value.data)
     } catch (e) {
       console.error("Failed to load settings", e)
     } finally {
@@ -60,19 +62,10 @@ export default function AdminSettingsPage() {
   const handleSaveSettings = async () => {
     setSaving(true)
     try {
-      const res = await fetch("/api/admin/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings)
-      })
-      if (res.ok) {
-        toast.success("Platform settings saved successfully")
-      } else {
-        toast.error("Failed to save platform settings")
-      }
-    } catch (e) {
-      console.error(e)
-      toast.error("An error occurred")
+      await api.post("/api/admin/settings", settings)
+      toast.success("Platform settings saved successfully")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to save platform settings"))
     } finally {
       setSaving(false)
     }
@@ -81,13 +74,7 @@ export default function AdminSettingsPage() {
   const handleSaveAllPlans = async () => {
     setSaving(true)
     try {
-      await Promise.all(plans.map(plan =>
-        fetch("/api/admin/storage-plans", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(plan)
-        })
-      ))
+      await Promise.all(plans.map((plan) => api.post("/api/admin/storage-plans", plan)))
       toast.success("All storage plans updated successfully")
     } catch (e) {
       console.error(e)

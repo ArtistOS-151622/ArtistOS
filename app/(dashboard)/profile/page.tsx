@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { api, isApiError } from "@/lib/api"
 import type { QuotaInfo, StoragePlanRow } from "@/lib/portfolio/types"
 import { GOOGLE_MAPS_URL_ERROR, isGoogleMapsUrl } from "@/lib/validation/google-maps-url"
 
@@ -87,14 +88,14 @@ export default function ProfilePage() {
       const body = new FormData()
       body.set("file", file)
       body.set("set_as_studio_logo", "true")
-      const res = await fetch("/api/portfolio/files/upload", { method: "POST", body })
-      const json = await res.json()
-      if (!json.status) {
-        if (res.status === 402) setPlansOpen(true)
-      } else {
+      const { data: json } = await api.post("/api/portfolio/files/upload", body, { timeout: 0 })
+      if (json.status) {
         await loadProfile()
         void mutate(AUTH_ME_URL)
       }
+    } catch (err) {
+      // Over the storage quota: offer the storage plans.
+      if (isApiError(err) && err.status === 402) setPlansOpen(true)
     } finally {
       setLogoUploading(false)
       if (logoInputRef.current) logoInputRef.current.value = ""
@@ -103,10 +104,7 @@ export default function ProfilePage() {
 
   const loadProfile = useCallback(async () => {
     try {
-      const profileRes = await fetch("/api/profile")
-      const profileData = await profileRes.json()
-
-      if (!profileRes.ok) throw new Error(profileData.error || "Failed to load profile")
+      const { data: profileData } = await api.get("/api/profile")
 
       setProfile({
         ...profileData.profile,
@@ -190,19 +188,13 @@ export default function ProfilePage() {
     }
 
     try {
-      const res = await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          artist_name: profile.artist_name,
-          studio_name: profile.studio_name,
-          email: profile.email,
-          address: profile.address,
-          google_maps_url: profile.google_maps_url,
-        }),
+      await api.put("/api/profile", {
+        artist_name: profile.artist_name,
+        studio_name: profile.studio_name,
+        email: profile.email,
+        address: profile.address,
+        google_maps_url: profile.google_maps_url,
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to update profile")
 
       setSuccess("Profile updated successfully!")
       // The save re-issues the session cookie with the new name; reload the
@@ -219,7 +211,7 @@ export default function ProfilePage() {
   async function handleLogout() {
     setLoggingOut(true)
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
+      await api.post("/api/auth/logout").catch(() => undefined)
       localStorage.removeItem("artistos-auth")
       sessionStorage.clear()
       router.replace("/login")

@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 type UserMenuProps = {
@@ -77,7 +78,7 @@ export function UserMenu({
   async function logout() {
     setLoggingOut(true)
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
+      await api.post("/api/auth/logout").catch(() => undefined)
       localStorage.removeItem("artistos-auth")
       sessionStorage.clear()
       setLogoutOpen(false)

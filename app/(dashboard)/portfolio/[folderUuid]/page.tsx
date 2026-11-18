@@ -17,6 +17,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import type { PortfolioFileWithUrl, PortfolioFolderWithStats, QuotaInfo } from "@/lib/portfolio/types"
+import { toast } from "sonner"
+
+import { api, getErrorMessage } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 const FOLDERS_URL = "/api/portfolio/folders"
@@ -83,10 +86,13 @@ export default function PortfolioFolderPage() {
   }
 
   async function handleDeleteFile(id: number) {
-    const res = await fetch(`/api/portfolio/files/${id}`, { method: "DELETE" })
-    // On failure, reload so the list shows what is really stored.
-    if (res.ok) removeFilesLocally([id])
-    else void mutateFolder()
+    try {
+      await api.delete(`/api/portfolio/files/${id}`)
+      removeFilesLocally([id])
+    } catch {
+      // On failure, reload so the list shows what is really stored.
+      void mutateFolder()
+    }
     refreshUsage()
   }
 
@@ -94,16 +100,14 @@ export default function PortfolioFolderPage() {
     setDeleting(true)
     try {
       const ids = selectedIds
-      const res = await fetch("/api/portfolio/files/bulk-delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-      })
-      const json = (await res.json().catch(() => null)) as { data?: { count?: number } } | null
+      const count = await api
+        .post<{ data?: { count?: number } }>("/api/portfolio/files/bulk-delete", { ids })
+        .then((res) => res.data.data?.count)
+        .catch(() => null)
       setSelectedIds([])
       setDeleteOpen(false)
       // Only trust a local update when every selected file was deleted.
-      if (res.ok && json?.data?.count === ids.length) removeFilesLocally(ids)
+      if (count === ids.length) removeFilesLocally(ids)
       else void mutateFolder()
       refreshUsage()
     } finally {
@@ -112,12 +116,18 @@ export default function PortfolioFolderPage() {
   }
 
   async function handleBulkDownload() {
-    const res = await fetch("/api/portfolio/files/bulk-download", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: selectedIds.length ? selectedIds : files.map((f) => f.id) }),
-    })
-    const blob = await res.blob()
+    let blob: Blob
+    try {
+      const res = await api.post<Blob>(
+        "/api/portfolio/files/bulk-download",
+        { ids: selectedIds.length ? selectedIds : files.map((f) => f.id) },
+        { responseType: "blob", timeout: 0 }
+      )
+      blob = res.data
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to download files"))
+      return
+    }
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url

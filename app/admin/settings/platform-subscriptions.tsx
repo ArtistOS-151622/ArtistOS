@@ -6,8 +6,9 @@ import { FloatingInput } from "@/components/common/shared/floating-input"
 import { FloatingTextarea } from "@/components/common/shared/floating-input"
 import { Switch } from "@/components/ui/switch"
 import useSWR from "swr"
+import { api, getErrorMessage } from "@/lib/api"
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = (url: string) => api.get(url).then((res) => res.data)
 
 export type PlatformSubscription = {
   id?: number
@@ -93,33 +94,22 @@ export function PlatformSubscriptionsTab() {
     setSavingId(isNew ? 'new' : editingPlan.id!)
     
     try {
-      const url = isNew ? "/api/admin/platform-subscriptions" : `/api/admin/platform-subscriptions/${editingPlan.id}`
-      const method = isNew ? "POST" : "PUT"
+      const { data: result } = isNew
+        ? await api.post("/api/admin/platform-subscriptions", editingPlan)
+        : await api.put(`/api/admin/platform-subscriptions/${editingPlan.id}`, editingPlan)
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingPlan)
-      })
+      toast.success(isNew ? "Plan created successfully" : "Plan updated successfully")
 
-      if (res.ok) {
-        const result = await res.json()
-        toast.success(isNew ? "Plan created successfully" : "Plan updated successfully")
-        
-        const updatedPlans = [...plans]
-        if (isNew) {
-          updatedPlans.push(result.data)
-        } else if (editingIndex !== null) {
-          updatedPlans[editingIndex] = result.data
-        }
-        mutatePlans(updatedPlans, false)
-        handleCloseDrawer()
-      } else {
-        toast.error("Failed to save plan")
+      const updatedPlans = [...plans]
+      if (isNew) {
+        updatedPlans.push(result.data)
+      } else if (editingIndex !== null) {
+        updatedPlans[editingIndex] = result.data
       }
-    } catch (e) {
-      console.error(e)
-      toast.error("An error occurred")
+      mutatePlans(updatedPlans, false)
+      handleCloseDrawer()
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to save plan"))
     } finally {
       setSavingId(null)
     }
@@ -136,16 +126,11 @@ export function PlatformSubscriptionsTab() {
     setConfirmDeleteId(null)
     setDeletingId(id)
     try {
-      const res = await fetch(`/api/admin/platform-subscriptions/${id}`, { method: "DELETE" })
-      if (res.ok) {
-        toast.success("Plan deleted successfully")
-        mutatePlans(plans.filter(p => p.id !== id), false)
-      } else {
-        toast.error("Failed to delete plan")
-      }
-    } catch (e) {
-      console.error(e)
-      toast.error("An error occurred")
+      await api.delete(`/api/admin/platform-subscriptions/${id}`)
+      toast.success("Plan deleted successfully")
+      mutatePlans(plans.filter(p => p.id !== id), false)
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete plan"))
     } finally {
       setDeletingId(null)
     }
@@ -162,11 +147,7 @@ export function PlatformSubscriptionsTab() {
     mutatePlans(updatedPlans, false)
 
     try {
-      await fetch(`/api/admin/platform-subscriptions/${plan.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updated)
-      })
+      await api.put(`/api/admin/platform-subscriptions/${plan.id}`, updated)
     } catch {
       // Revert on failure
       const revertedPlans = [...plans]

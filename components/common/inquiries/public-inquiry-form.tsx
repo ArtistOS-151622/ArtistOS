@@ -28,6 +28,7 @@ import { TimePicker } from "@/components/common/shared/time-picker"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { api, getErrorMessage } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import {
   emptyPublicInquiryForm,
@@ -74,17 +75,12 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
       setLoading(true)
       setError("")
       try {
-        const res = await fetch(`/api/public/inquiry/f/${formCode}`)
-        const data = (await res.json()) as PublicInquiryResponse
-        if (!res.ok) {
-          setError(data.error ?? "Unable to load inquiry form.")
-          return
-        }
+        const { data } = await api.get<PublicInquiryResponse>(`/api/public/inquiry/f/${formCode}`)
 
         setArtist(data.artist ?? null)
         setServices(data.services ?? [])
-      } catch {
-        setError("Unable to load inquiry form.")
+      } catch (err) {
+        setError(getErrorMessage(err, "Unable to load inquiry form."))
       } finally {
         setLoading(false)
       }
@@ -178,22 +174,16 @@ export function PublicInquiryForm({ formCode }: PublicInquiryFormProps) {
     setError("")
 
     try {
-      const res = await fetch(`/api/public/inquiry/f/${formCode}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      })
-      const data = (await res.json()) as PublicInquiryResponse
-
-      if (!res.ok || !data.inquiry) {
+      const { data } = await api.post<PublicInquiryResponse>(`/api/public/inquiry/f/${formCode}`, values)
+      if (!data.inquiry) {
         setError(data.error ?? "Unable to submit inquiry.")
         return
       }
 
       setSubmitted(true)
       window.scrollTo({ top: 0, behavior: "smooth" })
-    } catch {
-      setError("Unable to submit inquiry. Please try again.")
+    } catch (err) {
+      setError(getErrorMessage(err, "Unable to submit inquiry. Please try again."))
     } finally {
       setSubmitting(false)
     }

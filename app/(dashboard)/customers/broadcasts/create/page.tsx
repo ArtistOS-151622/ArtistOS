@@ -18,6 +18,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 
+import { api, getErrorMessage } from "@/lib/api"
+
 type Customer = { id: number; name: string; phone: string | null }
 type Template = { id: number; title: string; content: string; language: string; image_url: string | null; user_id: number | null }
 
@@ -48,7 +50,7 @@ export default function CreateBroadcastPage() {
   const [sentCustomerIds, setSentCustomerIds] = useState<number[]>([])
 
   useEffect(() => {
-    fetch("/api/customers?limit=1000").then(r => r.json()).then(d => {
+    api.get("/api/customers", { params: { limit: 1000 } }).then(({ data: d }) => {
       if (d.customers) {
         setCustomers(
           d.customers
@@ -58,7 +60,7 @@ export default function CreateBroadcastPage() {
         )
       }
     }).catch(() => {})
-    fetch("/api/whatsapp/templates").then(r => r.json()).then(d => {
+    api.get("/api/whatsapp/templates").then(({ data: d }) => {
       if (d.templates) {
         setTemplates(d.templates)
         const tmplId = searchParams?.get("template")
@@ -105,21 +107,29 @@ export default function CreateBroadcastPage() {
       if (imageFile) {
         setUploadingImage(true)
         const fd = new FormData(); fd.append("file", imageFile)
-        const r = await fetch("/api/whatsapp/templates/upload", { method: "POST", body: fd })
-        const d = await r.json(); setUploadingImage(false)
-        if (!r.ok) { toast.error(d.error || "Image upload failed"); setLoading(false); return }
-        finalImageUrl = d.url
+        try {
+          const { data: d } = await api.post<{ url: string }>("/api/whatsapp/templates/upload", fd, { timeout: 0 })
+          finalImageUrl = d.url
+        } catch (err) {
+          toast.error(getErrorMessage(err, "Image upload failed"))
+          setLoading(false)
+          return
+        } finally {
+          setUploadingImage(false)
+        }
       }
       if (saveTemplate && newTemplateTitle) {
-        await fetch("/api/whatsapp/templates", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: newTemplateTitle, content: message, language: newTemplateLang, image_url: finalImageUrl }),
+        await api.post("/api/whatsapp/templates", {
+          title: newTemplateTitle,
+          content: message,
+          language: newTemplateLang,
+          image_url: finalImageUrl,
         })
         toast.success("Template saved!")
       }
       if (finalImageUrl) setMessage(prev => prev + `\\n\\nImage: ${finalImageUrl}`)
       setStep(3)
-    } catch { toast.error("An unexpected error occurred") }
+    } catch (err) { toast.error(getErrorMessage(err, "An unexpected error occurred")) }
     finally { setLoading(false) }
   }
 

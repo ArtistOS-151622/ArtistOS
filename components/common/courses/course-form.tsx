@@ -23,6 +23,7 @@ import type {
 } from "@/components/common/courses/course-types"
 import type { UploadProgressState } from "@/components/common/courses/course-upload-helper"
 import { Button } from "@/components/ui/button"
+import { api } from "@/lib/api"
 import { useStorageInfo } from "@/lib/hooks/use-lookups"
 import { DatePicker } from "@/components/common/shared/date-picker"
 import {
@@ -86,9 +87,7 @@ export function CourseForm({
       if (!initialData?.id) return
       try {
         setLoadingImages(true)
-        const res = await fetch(`/api/courses/${initialData.id}/portfolio`)
-        if (!res.ok) return
-        const data = await res.json()
+        const { data } = await api.get(`/api/courses/${initialData.id}/portfolio`)
         const files: any[] = data.data?.files || []
         if (isMounted) {
           const newSlots: [SlotItem, SlotItem, SlotItem] = [null, null, null]

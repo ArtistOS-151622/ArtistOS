@@ -30,13 +30,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { PortfolioFileWithUrl } from "@/lib/portfolio/types"
 import { cn } from "@/lib/utils"
 
+import { api, getErrorMessage } from "@/lib/api"
 import { formatBytes } from "@/lib/portfolio/response"
 import { toast } from "sonner"
 
 export async function downloadPortfolioFile(file: PortfolioFileWithUrl) {
   try {
-    const res = await fetch(`/api/portfolio/files/${file.id}/download`)
-    const json = await res.json()
+    const { data: json } = await api.get(`/api/portfolio/files/${file.id}/download`)
     if (!json.status || !json.data?.download_url) {
       toast.error(json.message || "Failed to download file")
       return
@@ -44,6 +44,7 @@ export async function downloadPortfolioFile(file: PortfolioFileWithUrl) {
 
     const downloadUrl = json.data.download_url
 
+    // Presigned R2 URL, not the API: plain fetch, no cookies.
     try {
       const fileRes = await fetch(downloadUrl)
       if (fileRes.ok) {
@@ -68,8 +69,8 @@ export async function downloadPortfolioFile(file: PortfolioFileWithUrl) {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-  } catch {
-    toast.error("Failed to download file")
+  } catch (err) {
+    toast.error(getErrorMessage(err, "Failed to download file"))
   }
 }
 

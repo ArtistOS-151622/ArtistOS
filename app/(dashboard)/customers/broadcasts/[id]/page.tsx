@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/common/dashboard/dashboard-header-conte
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { api } from "@/lib/api"
 
 type Message = {
   id: number
@@ -41,11 +42,8 @@ export default function BroadcastDetailsPage() {
 
   const loadDetails = useCallback(async () => {
     try {
-      const res = await fetch(`/api/whatsapp/campaigns/${params.id}`)
-      if (res.ok) {
-        const data = await res.json()
-        setCampaign(data.campaign)
-      }
+      const { data } = await api.get(`/api/whatsapp/campaigns/${params.id}`)
+      setCampaign(data.campaign)
     } catch (error) {
       console.error("Failed to load details", error)
     } finally {
@@ -55,14 +53,8 @@ export default function BroadcastDetailsPage() {
 
   const retryFailedMessages = async () => {
     try {
-      const res = await fetch(`/api/whatsapp/campaigns/${params.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "retry_failed" }),
-      })
-      if (res.ok) {
-        await loadDetails()
-      }
+      await api.patch(`/api/whatsapp/campaigns/${params.id}`, { action: "retry_failed" })
+      await loadDetails()
     } catch (error) {
       console.error("Failed to retry messages", error)
     }
