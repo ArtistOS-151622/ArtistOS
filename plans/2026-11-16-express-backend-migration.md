@@ -606,11 +606,51 @@ lib/api/
 
          The test account was restored. All earlier suites re-ran unchanged. 125 server tests.
 
+     - **3.8–3.10 Reports, dashboard, badges, notifications, push, WhatsApp templates, cron and the Razorpay webhook: done (2026-11-18).** With this, every route in `app/api/**` has an Express port.
+       - **Modules:**
+         - `dashboard/`, `badges/`, `notifications/`: one small routes file each. A controller layer would only add indirection for single-query endpoints.
+         - `reports/`: customers, services and payments reports. The sort lookups are prototype-free, so `?sort=toString` falls back to the default sort, as in Next.
+         - `push/`: subscribe, unsubscribe, test
+         - `whatsapp/`: templates list, create, delete, and image upload to R2
+       - **WhatsApp template image upload:** uses multer. A `fileFilter` checks the type before the size limit, so the original check order and messages are kept.
+       - **`cron/`:** thin `requireCron` entry points that call the shared services: scan-bookings (GET and POST), dispatch, daily-agenda (GET and POST, `?date=`), expire-shares. expire-shares keeps the portfolio envelope, including its 401. Unlike Next, cron calls fail closed when `CRON_SECRET` is unset.
+       - **Webhook:**
+         - The event logic is in `subscriptions/webhook.service.js` (`processRazorpayWebhook`, plus the notes and subscription-id helpers). `webhooks/webhooks.routes.js` only handles `express.raw()` (any content type, 1 MB), the HMAC check and the event-id header.
+         - It's mounted before the JSON parser and outside `/api`, so neither the read-only gate nor the API rate limiter applies.
+         - Event handling is the same as Next: platform activation and renewal, storage purchase and renewal, and subscription status changes, with the same suffixed event ids for idempotency.
+       - **Tests:**
+         - the root `razorpay-webhook-platform` tests, ported
+         - event routing against a recording fake Supabase
+         - the webhook route end to end: signature over the exact raw bytes, missing event id, bad JSON, `text/plain`
+         - 401s and validation for every new route, and cron auth
+
+         144 server tests.
+       - **Verified against the dev DB** (both servers with `WHATSAPP_ACCESS_TOKEN=""`; no VAPID keys locally): **131/132 identical, plus 2 expected differences.** The run covered:
+         - the dashboard and every report variant (sorts, search including a comma, date ranges, payment type, pending view) for the artist with the most data
+         - notifications mark one, mark all, a foreign id and no body, comparing the rows changed
+         - push subscribe, foreign unsubscribe, test and unsubscribe, comparing the rows
+         - template create and delete (own, foreign, nonexistent), and uploads of every rejection plus a real PNG (both R2 objects byte-identical to the upload, then deleted)
+         - cron auth on every route
+         - scan-bookings and daily-agenda with `notification_events` snapshotted and restored between servers
+         - expire-shares on a temporarily expired folder: same count, un-shared, uuid rotated
+         - the webhook: signature and event-id errors, an unknown event, status change, unknown payment, and a **real storage purchase completed by `payment.captured`** (purchase completed, 500 MB credited, event claimed, the replay a no-op)
+
+         **The one mismatch:** the global read-only 403 carries `code: "READ_ONLY"` in Express, by design since phase 1, for the axios interceptor.
+
+         **Expected differences, both Next crashes:**
+         - A non-multipart upload: a 500 with the parser message on Next, a 400 "No file provided" on Express.
+         - A signed webhook body that isn't JSON: an empty 500 on Next, a 400 envelope on Express.
+
+         Test artist 11's quota was restored, and no test rows or R2 objects were left behind.
+       - **Not exercised end to end:** the `subscription.charged` platform renewal path needs a live Razorpay subscription. It's on the phase 5 checklist (Razorpay test mode plus a tunnel).
+
    **Found while porting (not changed; for you to decide)**
    - `auth/otp/verify`: the "fall back to the signed `stateToken` when the DB errors" branch compares against `reason === "db_error"`, but `verifyOtpInDatabase` never returns that reason, so the fallback has never run. It isn't ported, so behaviour is unchanged. `otp/send` still returns a `stateToken`; it's unused, and it's kept for response parity.
    - Deleting a booking leaves its "Booking - <customer> (#n)" portfolio folder behind, with `booking_id` set to null. If the same customer gets a booking with the same index later, creating its folder hits the unique `(user, name)` constraint and the portfolio tab returns a 500. This is the same in both apps. The parity run found it (see 3.3).
    - **Portfolio bulk zip download is broken in production** (archiver 8 API change; every request is a 500). **Fixed in Express** (see 3.5). It will start working at cutover. If you want it working before then, the same one-line fix applies to the Next route: `const { ZipArchive } = await import("archiver")`, then `new ZipArchive(...)`.
    - `profile` GET/PUT used to return raw exception messages in 500s. Express returns a generic "Internal server error" and logs the details instead.
+   - **Read-only artists can't mark notifications read.** The exempt list has `/api/notifications/` with a trailing slash, but the route is `PATCH /api/notifications`, so the read-only gate blocks it. This is the same in `proxy.ts` and Express. It's probably unintended. Dropping the trailing slash fixes it, in both lists.
+   - `reports/customers` puts the raw search text into a PostgREST `.or()` filter. A comma or parenthesis in the search changes the filter rather than being searched for. Same in both apps; kept for parity. Escaping it, or quoting the values, would fix it.
 
 4. **Frontend: move to axios.** First commit: make the `proxy.ts` page guard verify signatures (all cookie values) and clear unverifiable cookies, to prevent the redirect loop (see *Things that need special care*). Then add `lib/api/` (the axios instance, interceptors and `ApiError`). Move SWR's `jsonFetcher` onto it, then convert all `fetch("/api…")` call sites and the XHR upload helpers, one feature per commit (see *Frontend changes*). Requests still default to same-origin, so this phase can ship to production on its own, before the backend moves. That isolates any axios regressions from the Express cutover.
 5. **Local end-to-end.** Run Next on `localhost:3000` and Express on `localhost:4000`, with `NEXT_PUBLIC_API_URL` set. Click through:
