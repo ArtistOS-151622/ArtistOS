@@ -44,7 +44,7 @@
 - Cloudflare R2 via S3-compatible SDK — `lib/r2/client.ts`, `lib/r2/keys.ts`, `lib/r2/url.ts`.
 - **Never** Supabase Storage.
 - Free tier = `STORAGE_FREE_TIER_BYTES`. Paid tiers in `storage_plans` table.
-- Shares expire via cron: `app/api/cron/portfolio/expire-shares` (GitHub Actions: `0 3 * * *`).
+- Shares expire via cron: `/api/cron/portfolio/expire-shares` on the Express API (called daily by cron-job.org).
 
 ---
 
@@ -93,6 +93,7 @@
 
 | Date | Lesson |
 |---|---|
+| 2026-11-19 | Crons are scheduled **externally by cron-job.org** (GitHub Actions `cron.yml` removed). It calls `https://api.artistos.in/api/cron/**` (Express, not Vercel) with `Bearer CRON_SECRET`: `scan-bookings` every 5 min (it also sends the queue, so no separate `dispatch` job), `daily-agenda` at 05:00 IST, `expire-shares` daily. Express has no in-process scheduler. Jobs are safe to re-run (unique index on `notification_events`). |
 | 2026-11-18 | Browser → API calls go through `api` from `@/lib/api` (axios; `NEXT_PUBLIC_API_URL` base, cookies, `ApiError`, 401 → /login). Never `fetch("/api…")` or `import axios` directly (lint rule). Show errors with `getErrorMessage(err, "fallback")`. `request.cookies` in Next collapses duplicate cookie names (Map) — use `getAllCookieValues()` from `lib/auth/session.ts`. `pnpm-lock.yaml` IS tracked now. Test alias hook resolves `@/dir` → `dir/index.ts`. |
 | 2026-11-17 | Artist session lifetime is **1 year** (`SESSION_MAX_AGE_SECONDS` in `lib/auth/session.ts`), not 7 days as older docs say; admin cookie is 7 days. Admin API (`app/api/admin/**`) had NO auth checks and `admin_session` was the literal `"authenticated"` — fix planned in `plans/2026-11-16-admin-auth-fix.md`. `proxy.ts` page guard only checks JWT `exp`, not the signature. |
 | 2026-11-06 | Dashboard SWR: `<SWRConfig>` in `DashboardShell` uses `lib/swr/config.ts` (fetcher throws `FetchError` on non-2xx, focus revalidation OFF by default, no 4xx retries). Call `useSWR(key)` with no fetcher; opt in to `revalidateOnFocus` per hook only if needed. Pages outside the shell (landing, admin) need their own fetcher. Frontend audit: `docs/optimization/frontend-optimization-issues.txt`. `pnpm lint` already fails repo-wide (~226 errors, mostly tests/`any`); compare lint on touched files vs HEAD instead. |
@@ -118,7 +119,7 @@
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Razorpay SDK |
 | `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Client-side checkout |
 | `RAZORPAY_WEBHOOK_SECRET` | Webhook HMAC verification |
-| `CRON_SECRET` | GitHub Actions cron bearer token |
+| `CRON_SECRET` | Bearer token cron-job.org sends to `/api/cron/**` (must match Render) |
 | `SESSION_MAX_AGE_SECONDS` | Cookie max-age (default 7 days) |
 | `STORAGE_FREE_TIER_BYTES` | Portfolio quota free tier |
 | `STORAGE_DEFAULT_SHARE_EXPIRY_DAYS` | Share link TTL |

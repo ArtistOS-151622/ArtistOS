@@ -131,26 +131,28 @@ npx web-push generate-vapid-keys
 
 `VAPID_PUBLIC_KEY` and `NEXT_PUBLIC_VAPID_PUBLIC_KEY` hold the **same** value — the second is the client-exposed copy used by `pushManager.subscribe`.
 
-> `CRON_SECRET` is checked as `if (cronSecret && secret !== cronSecret)`. If the variable is unset, the cron routes are **unauthenticated**. Always set it in production.
+> On the Express API, `CRON_SECRET` is required in production and the cron routes fail closed: if it is unset, every cron call gets `503`.
 
 ## Scheduled jobs
 
-`vercel.json` defines three crons, all `GET` routes requiring `Authorization: Bearer $CRON_SECRET`:
+The app has no in-process scheduler. **[cron-job.org](https://cron-job.org)** calls the Express API's cron endpoints over HTTPS (`https://api.artistos.in`, not the Vercel frontend). Each job sends the header `Authorization: Bearer <CRON_SECRET>`, using the same value as `CRON_SECRET` on Render. Set the cron-job.org timezone to **Asia/Kolkata**.
 
-| Route                                   | Schedule    | Job                                                               |
-| --------------------------------------- | ----------- | ----------------------------------------------------------------- |
-| `/api/cron/notifications/scan-bookings` | every 5 min | Enqueues reminders for bookings whose reminder moment has arrived |
-| `/api/cron/notifications/dispatch`      | every 2 min | Sends every pending row in `notification_events`                  |
-| `/api/cron/portfolio/expire-shares`     | daily 03:00 | Sweeps expired portfolio share links                              |
+| Route                                   | Method     | Schedule (IST)    | Job                                                                                                           |
+| --------------------------------------- | ---------- | ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| `/api/cron/notifications/scan-bookings` | GET / POST | every 5 min       | Enqueues 2h / 10m artist push reminders and 24h customer WhatsApp reminders, then sends the pending queue      |
+| `/api/cron/notifications/daily-agenda`  | GET / POST | daily 05:00       | WhatsApps each eligible artist today's confirmed bookings (`?date=YYYY-MM-DD` overrides the day)              |
+| `/api/cron/portfolio/expire-shares`     | GET        | daily             | Un-shares portfolio folders whose share link has expired                                                      |
+
+`/api/cron/notifications/dispatch` (GET) only sends what is already pending in `notification_events`. It needs no schedule of its own because `scan-bookings` already sends the queue. It returns `503` when push (VAPID) is not configured.
+
+Re-running a job is safe: a unique index on `notification_events` (user, event type, entity) blocks duplicate reminders, and the daily agenda has its own duplicate check.
 
 Trigger one by hand:
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  http://localhost:3000/api/cron/notifications/scan-bookings
+  http://localhost:4000/api/cron/notifications/scan-bookings
 ```
-
-**Vercel's Hobby plan only permits daily crons** — the minute-level schedules above need Pro, or an external scheduler (GitHub Actions cron, cron-job.org) hitting the same URLs with the same header.
 
 ## Notifications architecture
 

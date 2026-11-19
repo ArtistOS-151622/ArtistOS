@@ -69,3 +69,19 @@ start `node src/server.js`, health check `/health`, custom domain `api.artistos.
 Use the Starter plan or above (the free plan sleeps). Set every variable from `.env.example`
 in the Render dashboard; production requires `COOKIE_DOMAIN=.artistos.in` and
 `FRONTEND_ORIGINS=https://www.artistos.in`.
+
+## Scheduled jobs
+
+There is no in-process scheduler (no `node-cron`, no timers). **cron-job.org** calls the
+`/api/cron/**` routes in `src/modules/cron/cron.routes.js` over HTTPS with
+`Authorization: Bearer <CRON_SECRET>`. `requireCron` checks the token in constant time and
+fails closed (`503` if `CRON_SECRET` is unset). Jobs, with the timezone set to Asia/Kolkata:
+
+| URL | Schedule |
+|---|---|
+| `https://api.artistos.in/api/cron/notifications/scan-bookings` | every 5 min (also sends the pending queue) |
+| `https://api.artistos.in/api/cron/notifications/daily-agenda` | daily 05:00 |
+| `https://api.artistos.in/api/cron/portfolio/expire-shares` | daily (GET only) |
+
+Every job is safe to run twice (a unique index blocks duplicate reminders, and the agenda
+checks for an earlier send). Turn on cron-job.org failure emails so a non-2xx response is noticed.
